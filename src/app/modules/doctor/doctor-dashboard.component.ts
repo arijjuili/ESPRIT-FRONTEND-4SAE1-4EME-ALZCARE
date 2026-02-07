@@ -1,0 +1,243 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../core/services/auth.service';
+import { DataService } from '../../core/services/data.service';
+import { StatCardComponent } from '../../shared/components/stat-card.component';
+import { AlertCardComponent } from '../../shared/components/alert-card.component';
+
+@Component({
+  selector: 'app-doctor-dashboard',
+  standalone: true,
+  imports: [CommonModule, StatCardComponent, AlertCardComponent],
+  template: `
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-800">Welcome, {{ doctorName }}</h1>
+        <p class="text-gray-600 mt-2">Patient management and medical records</p>
+      </div>
+
+      <!-- Alerts -->
+      <div class="mb-8 space-y-4">
+        <app-alert-card 
+          type="warning"
+          title="Follow-up Required"
+          message="Robert Williams - High glucose levels detected. Consider medication adjustment.">
+        </app-alert-card>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <app-stat-card
+          label="Total Patients"
+          value="2"
+          icon="👥"
+          color="primary">
+        </app-stat-card>
+        
+        <app-stat-card
+          label="Appointments Today"
+          value="0"
+          icon="📅"
+          color="info">
+        </app-stat-card>
+        
+        <app-stat-card
+          label="Pending Reviews"
+          value="1"
+          icon="📋"
+          color="warning">
+        </app-stat-card>
+        
+        <app-stat-card
+          label="Active Prescriptions"
+          value="5"
+          icon="💊"
+          color="success">
+        </app-stat-card>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Patient Roster -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Your Patients</h2>
+            
+            <div *ngIf="patients.length > 0" class="space-y-4">
+              <div *ngFor="let patient of patients" class="border rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <p class="text-xl font-bold text-gray-800">{{ patient.name }}</p>
+                    <p class="text-gray-600">Age: {{ getAge(patient.dateOfBirth) }} years old</p>
+                  </div>
+                  <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-info bg-opacity-20 text-info">
+                    {{ patient.condition }}
+                  </span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                  <div>
+                    <p class="text-gray-600">Email</p>
+                    <p class="font-semibold text-gray-800">{{ patient.email }}</p>
+                  </div>
+                  <div>
+                    <p class="text-gray-600">Phone</p>
+                    <p class="font-semibold text-gray-800">{{ patient.phone }}</p>
+                  </div>
+                </div>
+
+                <!-- Medical History -->
+                <div class="mb-4">
+                  <p class="font-semibold text-gray-700 mb-2">Medical History:</p>
+                  <div class="flex flex-wrap gap-2">
+                    <span *ngFor="let condition of patient.medicalHistory" 
+                      class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
+                      {{ condition }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Current Medications -->
+                <div class="mb-4">
+                  <p class="font-semibold text-gray-700 mb-2">Current Medications:</p>
+                  <div class="space-y-2">
+                    <div *ngFor="let med of patient.currentMedications" class="bg-primary-50 p-3 rounded text-sm">
+                      <p class="font-semibold text-gray-800">{{ med.name }}</p>
+                      <p class="text-gray-600">{{ med.dosage }} - {{ med.frequency }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3 pt-4 border-t">
+                  <button class="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition font-semibold">
+                    View Full Record
+                  </button>
+                  <button class="flex-1 bg-success text-white px-4 py-2 rounded hover:bg-opacity-90 transition font-semibold">
+                    Add Prescription
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8">
+              No patients assigned
+            </div>
+          </div>
+
+          <!-- Upcoming Appointments -->
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Scheduled Appointments</h2>
+            
+            <div *ngIf="appointments.length > 0" class="space-y-4">
+              <div *ngFor="let appt of appointments" class="border-l-4 border-primary-500 pl-4 py-3 hover:bg-primary-50 transition">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="font-bold text-gray-800">{{ getPatientName(appt.patientId) }}</p>
+                    <p class="text-gray-600 text-sm">{{ appt.type }}</p>
+                    <p class="text-gray-500 text-xs mt-1">📅 {{ appt.date | date: 'MMM d, y - h:mm a' }}</p>
+                  </div>
+                  <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="appt.status === 'completed' ? 'bg-success bg-opacity-20 text-success' : 'bg-primary-100 text-primary-700'">
+                    {{ appt.status | titlecase }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div *ngIf="appointments.length === 0" class="text-gray-500 text-center py-8">
+              No appointments scheduled
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+          <!-- Recent Actions -->
+          <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Actions</h2>
+            <div class="space-y-3">
+              <div class="border-l-4 border-success pl-3 py-2">
+                <p class="text-sm font-semibold text-gray-800">Prescription Issued</p>
+                <p class="text-xs text-gray-600">Donepezil - Margaret Johnson</p>
+                <p class="text-xs text-gray-500">2 days ago</p>
+              </div>
+              <div class="border-l-4 border-primary-500 pl-3 py-2">
+                <p class="text-sm font-semibold text-gray-800">Review Completed</p>
+                <p class="text-xs text-gray-600">Robert Williams vitals</p>
+                <p class="text-xs text-gray-500">1 week ago</p>
+              </div>
+              <div class="border-l-4 border-warning pl-3 py-2">
+                <p class="text-sm font-semibold text-gray-800">Notes Updated</p>
+                <p class="text-xs text-gray-600">Margaret Johnson condition</p>
+                <p class="text-xs text-gray-500">1 week ago</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Performance Stats</h2>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Appointments/Month</span>
+                <span class="font-bold text-gray-800">8</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Patient Satisfaction</span>
+                <span class="font-bold text-green-600">4.8/5</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Avg. Response Time</span>
+                <span class="font-bold text-gray-800">2h 15m</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Cases This Month</span>
+                <span class="font-bold text-blue-600">6</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: []
+})
+export class DoctorDashboardComponent implements OnInit {
+  doctorName = '';
+  patients: any[] = [];
+  appointments: any[] = [];
+
+  constructor(private authService: AuthService, private dataService: DataService) {}
+
+  ngOnInit(): void {
+    const currentUser = this.authService.getCurrentUser();
+    
+    if (currentUser) {
+      this.doctorName = currentUser.name;
+      
+      // Get all patients and appointments
+      this.patients = this.dataService.getPatients();
+      this.appointments = this.dataService.getAppointments();
+    }
+  }
+
+  getAge(dateOfBirth: Date): number {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
+  getPatientName(patientId: string): string {
+    const patient = this.patients.find(p => p.id === patientId);
+    return patient ? patient.name : 'Unknown';
+  }
+}

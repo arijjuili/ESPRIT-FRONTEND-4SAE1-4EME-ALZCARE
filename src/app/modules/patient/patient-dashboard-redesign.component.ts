@@ -1,0 +1,227 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../core/services/auth.service';
+import { DataService } from '../../core/services/data.service';
+import { StatCardComponent } from '../../shared/components/stat-card.component';
+import { AlertCardComponent } from '../../shared/components/alert-card.component';
+import { Patient, Appointment, CareTask, HealthMetric } from '../../core/models/user.model';
+
+@Component({
+  selector: 'app-patient-dashboard',
+  standalone: true,
+  imports: [CommonModule, StatCardComponent, AlertCardComponent],
+  template: `
+    <div class="p-8">
+      <!-- Welcome Header -->
+      <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900">Welcome back, {{ patientName }}! 👋</h1>
+        <p class="text-gray-500 mt-2">{{ getGreeting() }}</p>
+      </div>
+
+      <!-- Health Status Alert -->
+      <div class="mb-8">
+        <app-alert-card 
+          type="success"
+          title="Great news! Your health is on track"
+          message="All vital signs are within normal range. Keep up the excellent work!">
+        </app-alert-card>
+      </div>
+
+      <!-- Health Metrics Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow-md p-6 border-t-4 border-danger hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+          <p class="text-gray-600 text-sm font-bold uppercase tracking-wider">Blood Pressure</p>
+          <p class="text-5xl font-bold text-gray-900 mt-3">128/82</p>
+          <p class="text-gray-500 text-sm mt-2">mmHg • Normal</p>
+          <div class="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-success w-4/5"></div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-md p-6 border-t-4 border-primary-500 hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+          <p class="text-gray-600 text-sm font-bold uppercase tracking-wider">Heart Rate</p>
+          <p class="text-5xl font-bold text-gray-900 mt-3">72</p>
+          <p class="text-gray-500 text-sm mt-2">bpm • Healthy</p>
+          <div class="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-success w-3/4"></div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-md p-6 border-t-4 border-warning hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+          <p class="text-gray-600 text-sm font-bold uppercase tracking-wider">Glucose</p>
+          <p class="text-5xl font-bold text-gray-900 mt-3">115</p>
+          <p class="text-gray-500 text-sm mt-2">mg/dL • Normal</p>
+          <div class="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-warning w-2/3"></div>
+          </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-md p-6 border-t-4 border-info hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+          <p class="text-gray-600 text-sm font-bold uppercase tracking-wider">Sleep</p>
+          <p class="text-5xl font-bold text-gray-900 mt-3">7.5h</p>
+          <p class="text-gray-500 text-sm mt-2">hours • Good</p>
+          <div class="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-info w-3/5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column: Upcoming & Medications -->
+        <div class="lg:col-span-2 space-y-8">
+          <!-- Upcoming Appointments -->
+          <div class="bg-white rounded-2xl shadow-md p-8">
+            <div class="flex items-center justify-between mb-6">
+              <h2 class="text-2xl font-bold text-gray-900">📅 Appointments</h2>
+              <a href="#" class="text-primary-600 hover:text-primary-700 font-semibold text-sm">View All</a>
+            </div>
+            
+            <div *ngIf="appointments.length > 0" class="space-y-4">
+              <div *ngFor="let appt of appointments" class="border-l-4 border-primary-500 pl-4 py-3 hover:bg-primary-50 transition rounded-r-lg">
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <p class="font-bold text-gray-900 text-lg">{{ appt.type }}</p>
+                    <p class="text-gray-600 text-sm">{{ appt.notes }}</p>
+                  </div>
+                  <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="appt.status === 'completed' ? 'bg-success bg-opacity-20 text-success' : 'bg-primary-100 text-primary-700'">
+                    {{ appt.status | titlecase }}
+                  </span>
+                </div>
+                <p class="text-gray-500 text-sm">⏰ {{ appt.date | date: 'MMM d, y • h:mm a' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medications -->
+          <div class="bg-white rounded-2xl shadow-md p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">💊 Current Medications</h2>
+            
+            <div *ngIf="medications.length > 0" class="space-y-4">
+              <div *ngFor="let med of medications" class="bg-gradient-to-r from-primary-50 to-transparent rounded-xl border border-primary-200 p-5 hover:shadow-md transition">
+                <div class="flex justify-between items-start mb-3">
+                  <div>
+                    <p class="font-bold text-gray-900 text-lg">{{ med.name }}</p>
+                    <p class="text-gray-600 text-sm">{{ med.dosage }}</p>
+                  </div>
+                  <span class="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-semibold">{{ med.frequency }}</span>
+                </div>
+                <p class="text-gray-500 text-xs">Prescribed by Dr. {{ med.prescribedBy }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Tasks -->
+        <div>
+          <div class="bg-white rounded-2xl shadow-md p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">✅ Today's Tasks</h2>
+            
+            <div *ngIf="todayTasks.length > 0" class="space-y-3">
+              <div *ngFor="let task of todayTasks" class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-primary-50 transition">
+                <input 
+                  type="checkbox" 
+                  [checked]="task.completed"
+                  (change)="toggleTask(task.id)"
+                  class="mt-1 w-5 h-5 cursor-pointer rounded border-2 border-primary-500 text-primary-600 focus:ring-primary-500">
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-gray-900 text-sm" [ngClass]="{'line-through text-gray-400': task.completed}">
+                    {{ task.title }}
+                  </p>
+                  <p class="text-gray-600 text-xs mt-1">{{ task.description }}</p>
+                </div>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
+                <p class="text-sm font-semibold text-gray-900 mb-2">Today's Progress</p>
+                <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-primary-500 to-primary-600" 
+                    [style.width.%]="(todayTasks.filter(t => t.completed).length / todayTasks.length) * 100"></div>
+                </div>
+                <p class="text-xs text-gray-600 mt-2">
+                  {{ todayTasks.filter(t => t.completed).length }} of {{ todayTasks.length }} tasks done
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Timeline -->
+      <div class="mt-8 bg-white rounded-2xl shadow-md p-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">📈 Recent Activity</h2>
+        
+        <div class="space-y-4">
+          <div class="flex gap-4">
+            <div class="w-12 h-12 bg-success bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">✅</div>
+            <div>
+              <p class="font-semibold text-gray-900">Morning Medications Taken</p>
+              <p class="text-gray-600 text-sm">Today at 8:30 AM</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="w-12 h-12 bg-info bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">📊</div>
+            <div>
+              <p class="font-semibold text-gray-900">Vitals Recorded</p>
+              <p class="text-gray-600 text-sm">Today at 7:15 AM - Blood pressure: 128/82</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">🚶</div>
+            <div>
+              <p class="font-semibold text-gray-900">30-Minute Walk</p>
+              <p class="text-gray-600 text-sm">Yesterday at 5:00 PM</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: []
+})
+export class PatientDashboardComponent implements OnInit {
+  patientName = '';
+  appointments: any[] = [];
+  medications: any[] = [];
+  todayTasks: any[] = [];
+  healthMetrics: HealthMetric[] = [];
+
+  constructor(private authService: AuthService, private dataService: DataService) {}
+
+  ngOnInit(): void {
+    const currentUser = this.authService.getCurrentUser();
+    
+    if (currentUser) {
+      this.patientName = currentUser.name.split(' ')[0];
+      
+      const patient = this.dataService.getPatients()[0];
+      if (patient) {
+        this.medications = patient.currentMedications;
+        this.appointments = this.dataService.getAppointments(patient.id);
+        this.todayTasks = this.dataService.getTasks(patient.id).filter(t => {
+          const today = new Date();
+          const taskDate = new Date(t.dueDate);
+          return taskDate.toDateString() === today.toDateString();
+        });
+        this.healthMetrics = this.dataService.getHealthMetrics(patient.id);
+      }
+    }
+  }
+
+  toggleTask(taskId: string): void {
+    const task = this.todayTasks.find(t => t.id === taskId);
+    if (task) {
+      task.completed = !task.completed;
+      this.dataService.updateTaskStatus(taskId, task.completed);
+    }
+  }
+
+  getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning! 🌅 Hope you had a good sleep.';
+    if (hour < 17) return 'Good afternoon! ☀️ Keep taking care of yourself.';
+    return 'Good evening! 🌙 Relax and enjoy your evening.';
+  }
+}

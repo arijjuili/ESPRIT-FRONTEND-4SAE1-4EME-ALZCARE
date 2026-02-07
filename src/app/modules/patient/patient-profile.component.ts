@@ -1,0 +1,185 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../core/services/auth.service';
+import { DataService } from '../../core/services/data.service';
+
+@Component({
+  selector: 'app-patient-profile',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="p-8">
+      <h1 class="text-4xl font-bold text-gray-900 mb-8">👤 My Profile</h1>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Profile -->
+        <div class="lg:col-span-2">
+          <!-- Profile Card -->
+          <div class="bg-white rounded-2xl shadow-md p-8 mb-6">
+            <div class="flex items-start justify-between mb-6">
+              <div class="flex gap-6">
+                <div class="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center text-5xl">👤</div>
+                <div>
+                  <p class="text-3xl font-bold text-gray-900">{{ patientName }}</p>
+                  <p class="text-gray-600 mt-1">Age: 78 years old</p>
+                  <p class="text-gray-600">Patient ID: #P001</p>
+                  <div class="mt-3 px-3 py-1 bg-success bg-opacity-20 text-success rounded-full text-sm font-bold w-fit">
+                    ✓ Active
+                  </div>
+                </div>
+              </div>
+              <button class="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
+                Edit Profile
+              </button>
+            </div>
+          </div>
+
+          <!-- Personal Information -->
+          <div class="bg-white rounded-2xl shadow-md p-8 mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">📋 Personal Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Full Name</p>
+                <p class="text-gray-900 font-semibold mt-1">John Patient</p>
+              </div>
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Email</p>
+                <p class="text-gray-900 font-semibold mt-1">patient&#64;example.com</p>
+              </div>
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Phone</p>
+                <p class="text-gray-900 font-semibold mt-1">+1 (555) 123-4567</p>
+              </div>
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Date of Birth</p>
+                <p class="text-gray-900 font-semibold mt-1">June 15, 1945</p>
+              </div>
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Condition</p>
+                <p class="text-gray-900 font-semibold mt-1">Alzheimer's Disease (Stage 2)</p>
+              </div>
+              <div>
+                <p class="text-gray-600 text-sm font-semibold">Member Since</p>
+                <p class="text-gray-900 font-semibold mt-1">January 2024</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Emergency Contact -->
+          <div class="bg-white rounded-2xl shadow-md p-8 mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">🚨 Emergency Contact</h2>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p class="text-gray-700">Sarah Johnson (Daughter)</p>
+              <p class="text-gray-600 mt-1">📱 +1 (555) 987-6543</p>
+              <p class="text-gray-600">📧 sarah.johnson&#64;email.com</p>
+            </div>
+          </div>
+
+          <!-- Medical History -->
+          <div class="bg-white rounded-2xl shadow-md p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-6">🏥 Medical History</h2>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span class="text-lg">📋</span>
+                <span class="text-gray-700">Hypertension</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span class="text-lg">📋</span>
+                <span class="text-gray-700">Type 2 Diabetes</span>
+              </div>
+              <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <span class="text-lg">📋</span>
+                <span class="text-gray-700">Mild Arthritis</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <!-- Health Overview -->
+          <div class="bg-white rounded-2xl shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">💚 Health Overview</h3>
+            <div class="space-y-4">
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Overall Status</span>
+                <span class="text-lg">✅ Good</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Last Check-up</span>
+                <span class="text-sm">2 weeks ago</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Medications</span>
+                <span class="font-bold">3 Active</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Allergies</span>
+                <span class="text-sm">None listed</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-2xl shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">⚡ Quick Actions</h3>
+            <div class="space-y-2">
+              <button class="w-full text-left p-3 bg-primary-50 hover:bg-primary-100 rounded-lg transition font-semibold text-primary-700">
+                📞 Contact Doctor
+              </button>
+              <button class="w-full text-left p-3 bg-warning bg-opacity-10 hover:bg-opacity-20 rounded-lg transition font-semibold text-warning">
+                🔔 Appointment
+              </button>
+              <button class="w-full text-left p-3 bg-info bg-opacity-10 hover:bg-opacity-20 rounded-lg transition font-semibold text-info">
+                📋 View Records
+              </button>
+            </div>
+          </div>
+
+          <!-- Account Settings -->
+          <div class="bg-white rounded-2xl shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">⚙️ Settings</h3>
+            <div class="space-y-3 text-sm">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked class="w-4 h-4 text-primary-600">
+                <span class="text-gray-700">Email Notifications</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked class="w-4 h-4 text-primary-600">
+                <span class="text-gray-700">SMS Reminders</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 text-primary-600">
+                <span class="text-gray-700">Weekly Reports</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Privacy & Security -->
+          <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200">
+            <h3 class="text-lg font-bold text-primary-900 mb-4">🔒 Privacy & Security</h3>
+            <button class="w-full text-primary-700 font-semibold py-2 hover:underline text-sm mb-2">
+              Change Password
+            </button>
+            <button class="w-full text-primary-700 font-semibold py-2 hover:underline text-sm">
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: []
+})
+export class PatientProfileComponent implements OnInit {
+  patientName = '';
+
+  constructor(private authService: AuthService, private dataService: DataService) {}
+
+  ngOnInit(): void {
+    const currentUser = this.authService.getCurrentUser();
+    if (currentUser) {
+      this.patientName = currentUser.name;
+    }
+  }
+}
