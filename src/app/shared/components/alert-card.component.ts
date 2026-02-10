@@ -7,18 +7,8 @@ export type AlertType = 'info' | 'warning' | 'danger' | 'success';
   selector: 'app-alert-card',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="rounded-xl p-5 border" [ngClass]="alertClass">
-      <div class="flex items-start gap-4">
-        <div class="text-2xl flex-shrink-0">{{ icon }}</div>
-        <div class="flex-1">
-          <p class="font-bold text-sm" [ngClass]="titleClass">{{ title }}</p>
-          <p class="text-sm mt-2" [ngClass]="messageClass">{{ message }}</p>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: []
+  templateUrl: './alert-card.component.html',
+  styleUrls: ['./alert-card.component.scss']
 })
 export class AlertCardComponent {
   @Input() type: AlertType = 'info';

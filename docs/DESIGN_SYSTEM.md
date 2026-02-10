@@ -138,4 +138,32 @@ Current design is **light-mode only** but can be extended:
 
 ---
 
+## 🤖 Agent Instructions (For AI Assistant)
+
+### When to Read This File
+- **Before styling new components** - Check color usage by role
+- **When user asks for UI changes** - Reference color palette and component patterns
+- **When adding new features** - Follow existing spacing/radius conventions
+
+### When to Update This File
+- **New color additions** - Add to "Color Palette" with hex and use case
+- **New component patterns** - Add to "Components" section
+- **Typography changes** - Update "Typography" section
+- **Spacing changes** - Update "Spacing & Radius"
+
+### What NOT to Change
+- Existing color hex values (unless design system is being redesigned)
+- Established component patterns (document new ones instead)
+- Accessibility compliance notes (maintain standards)
+
+### Quick Reference
+| Element | Class Pattern |
+|---------|---------------|
+| Primary Button | `bg-gradient-to-r from-primary-600 to-primary-700` |
+| Success Badge | `bg-success bg-opacity-20 text-success` |
+| Card | `bg-white rounded-xl shadow-md p-6` |
+| Section Title | `text-2xl font-bold text-gray-900` |
+
+---
+
 **All components use this system. To customize, update `tailwind.config.js` colors and regenerate.**

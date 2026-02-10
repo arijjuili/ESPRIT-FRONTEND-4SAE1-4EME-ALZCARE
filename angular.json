@@ -49,6 +49,14 @@
                 }
               ],
               "outputHashing": "all"
+            },
+            "development": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
             }
           },
           "defaultConfiguration": "production"
@@ -56,13 +64,17 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "alzheimer-care-app:build"
+            "buildTarget": "alzheimer-care-app:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "alzheimer-care-app:build:production"
+              "buildTarget": "alzheimer-care-app:build:production"
+            },
+            "development": {
+              "buildTarget": "alzheimer-care-app:build:development"
             }
-          }
+          },
+          "defaultConfiguration": "development"
         }
       }
     }

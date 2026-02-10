@@ -1,8 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { AuthUser } from '../../core/models/user.model';
+import { AuthUser, UserRole } from '../../core/models/user.model';
 
 interface NavItem {
   label: string;
@@ -11,111 +11,85 @@ interface NavItem {
   roles: string[];
 }
 
+interface RoleTheme {
+  name: string;
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  gradientFrom: string;
+  gradientTo: string;
+  borderColor: string;
+  hoverBg: string;
+  activeBg: string;
+  activeText: string;
+}
+
 @Component({
   selector: 'app-navbar',
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
-  template: `
-    <!-- Mobile Header -->
-    <div class="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-primary-100 shadow-sm z-50 flex items-center px-4">
-      <button 
-        (click)="toggleSidebar()"
-        class="text-primary-600 hover:text-primary-700 transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-        </svg>
-      </button>
-      <span *ngIf="currentUser" class="ml-auto text-sm font-semibold text-gray-900">{{ currentUser.name }}</span>
-    </div>
-
-    <!-- Sidebar Overlay (mobile) -->
-    <div 
-      *ngIf="sidebarOpen" 
-      (click)="toggleSidebar()"
-      class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30 top-14">
-    </div>
-
-    <!-- Sidebar Navigation -->
-    <nav class="fixed lg:sticky lg:relative left-0 top-14 lg:top-0 bottom-0 lg:bottom-auto w-64 lg:w-64 h-screen lg:h-screen bg-gradient-to-b from-primary-50 to-white border-r border-primary-100 shadow-lg lg:shadow-sm z-40 lg:z-auto transform transition-transform duration-300 lg:transform-none flex flex-col"
-      [class.translate-x-0]="sidebarOpen"
-      [class.-translate-x-full]="!sidebarOpen"
-      [class.lg:translate-x-0]="true">
-      
-      <div class="p-6 space-y-6 h-full flex flex-col overflow-y-auto">
-        <!-- Logo & Branding (desktop only) -->
-        <div class="hidden lg:flex items-center gap-3 pb-2 border-b border-primary-100">
-          <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center text-white font-bold text-lg">♥</div>
-          <div>
-            <h1 class="text-lg font-bold text-primary-700">CareHub</h1>
-            <p class="text-xs text-primary-600">Care Management</p>
-          </div>
-        </div>
-
-        <!-- Collapse Button (desktop only) -->
-        <div class="hidden lg:flex justify-end">
-          <button
-            (click)="toggleCollapsed()"
-            class="text-primary-600 hover:text-primary-700 p-2 hover:bg-primary-100 rounded-lg transition"
-            title="Collapse sidebar">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-          </button>
-        </div>
-
-        <!-- User Info -->
-        <div *ngIf="currentUser" class="border-l-4 border-primary-500 pl-4 py-2">
-          <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">{{ roleLabel }}</p>
-          <p class="text-base font-bold text-gray-900 mt-1">{{ currentUser.name }}</p>
-        </div>
-
-        <!-- Navigation Links (role-aware) -->
-        <div class="space-y-2 flex-1">
-          <a 
-            *ngFor="let item of visibleNavItems"
-            [routerLink]="item.path"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: false }"
-            (click)="closeSidebar()"
-            class="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-primary-100 hover:text-primary-700 rounded-lg transition font-medium text-sm group">
-            <span class="text-lg group-hover:scale-110 transition-transform">{{ item.icon }}</span>
-            {{ item.label }}
-          </a>
-        </div>
-
-        <!-- Logout Button -->
-        <div class="pt-6 border-t border-primary-100">
-          <button 
-            (click)="logout()"
-            class="w-full bg-danger text-white px-4 py-3 rounded-lg hover:bg-opacity-90 transition font-semibold text-sm">
-            Logout
-          </button>
-        </div>
-      </div>
-    </nav>
-  `,
-  styles: [`
-    nav {
-      scrollbar-width: thin;
-      scrollbar-color: #d1d5db #f3f4f6;
-    }
-    nav::-webkit-scrollbar {
-      width: 6px;
-    }
-    nav::-webkit-scrollbar-track {
-      background: #f3f4f6;
-    }
-    nav::-webkit-scrollbar-thumb {
-      background: #d1d5db;
-      border-radius: 3px;
-    }
-  `]
+  templateUrl: './navbar.component.html',
+  styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit {
   currentUser: AuthUser | null = null;
   roleLabel = '';
   sidebarOpen = false;
   sidebarCollapsed = false;
+
+  // Role-specific themes matching DESIGN_SYSTEM.md
+  roleThemes: Record<UserRole, RoleTheme> = {
+    patient: {
+      name: 'Patient',
+      primary: '#14b8a6',      // Teal 500
+      primaryLight: '#f0fdfa', // Teal 50
+      primaryDark: '#0f766e',  // Teal 700
+      gradientFrom: '#14b8a6',
+      gradientTo: '#0d9488',
+      borderColor: '#ccfbf1',  // Teal 100
+      hoverBg: '#ccfbf1',
+      activeBg: '#14b8a6',
+      activeText: '#ffffff'
+    },
+    caregiver: {
+      name: 'Caregiver',
+      primary: '#10b981',      // Emerald 500
+      primaryLight: '#ecfdf5', // Emerald 50
+      primaryDark: '#047857',  // Emerald 700
+      gradientFrom: '#10b981',
+      gradientTo: '#059669',
+      borderColor: '#d1fae5',  // Emerald 100
+      hoverBg: '#d1fae5',
+      activeBg: '#10b981',
+      activeText: '#ffffff'
+    },
+    doctor: {
+      name: 'Doctor',
+      primary: '#3b82f6',      // Blue 500
+      primaryLight: '#eff6ff', // Blue 50
+      primaryDark: '#1d4ed8',  // Blue 700
+      gradientFrom: '#3b82f6',
+      gradientTo: '#2563eb',
+      borderColor: '#dbeafe',  // Blue 100
+      hoverBg: '#dbeafe',
+      activeBg: '#3b82f6',
+      activeText: '#ffffff'
+    },
+    admin: {
+      name: 'Admin',
+      primary: '#8b5cf6',      // Violet 500
+      primaryLight: '#f5f3ff', // Violet 50
+      primaryDark: '#6d28d9',  // Violet 700
+      gradientFrom: '#8b5cf6',
+      gradientTo: '#7c3aed',
+      borderColor: '#ede9fe',  // Violet 100
+      hoverBg: '#ede9fe',
+      activeBg: '#8b5cf6',
+      activeText: '#ffffff'
+    }
+  };
+
+  currentTheme: RoleTheme = this.roleThemes['patient'];
 
   navItems: NavItem[] = [
     // Patient routes
@@ -237,12 +211,41 @@ export class NavbarComponent implements OnInit {
     return this.navItems.filter(item => item.roles.includes(this.currentUser!.role));
   }
 
+  // Dynamic CSS variables based on role theme
+  @HostBinding('style.--primary-color')
+  get primaryColor(): string { return this.currentTheme.primary; }
+  
+  @HostBinding('style.--primary-light')
+  get primaryLight(): string { return this.currentTheme.primaryLight; }
+  
+  @HostBinding('style.--primary-dark')
+  get primaryDark(): string { return this.currentTheme.primaryDark; }
+  
+  @HostBinding('style.--gradient-from')
+  get gradientFrom(): string { return this.currentTheme.gradientFrom; }
+  
+  @HostBinding('style.--gradient-to')
+  get gradientTo(): string { return this.currentTheme.gradientTo; }
+  
+  @HostBinding('style.--border-color')
+  get borderColor(): string { return this.currentTheme.borderColor; }
+  
+  @HostBinding('style.--hover-bg')
+  get hoverBg(): string { return this.currentTheme.hoverBg; }
+  
+  @HostBinding('style.--active-bg')
+  get activeBg(): string { return this.currentTheme.activeBg; }
+  
+  @HostBinding('style.--active-text')
+  get activeText(): string { return this.currentTheme.activeText; }
+
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit(): void {
     this.currentUser = this.authService.getCurrentUser();
     if (this.currentUser) {
       this.roleLabel = this.capitalizeRole(this.currentUser.role);
+      this.currentTheme = this.roleThemes[this.currentUser.role];
     }
   }
 

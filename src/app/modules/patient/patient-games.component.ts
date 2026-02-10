@@ -5,71 +5,8 @@ import { CommonModule } from '@angular/common';
   selector: 'app-patient-games',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="p-8">
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">🎮 Brain Games</h1>
-      <p class="text-gray-600 mb-8">Keep your mind sharp with fun cognitive exercises</p>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div *ngFor="let game of games" class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition transform hover:-translate-y-1 duration-200 cursor-pointer">
-          <div class="h-32 bg-gradient-to-br p-6 flex items-center justify-center text-5xl" [ngClass]="game.color">
-            {{ game.icon }}
-          </div>
-          <div class="p-6">
-            <h3 class="text-xl font-bold text-gray-900">{{ game.name }}</h3>
-            <p class="text-gray-600 text-sm mt-2">{{ game.description }}</p>
-            <div class="flex items-center justify-between mt-4">
-              <span class="text-xs font-bold text-gray-500">⏱️ {{ game.duration }}</span>
-              <span class="text-xs font-bold text-primary-600">Level: {{ game.level }}</span>
-            </div>
-            <button class="w-full mt-4 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
-              Play Now
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats Section -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-2xl shadow-md p-6">
-          <h3 class="text-lg font-bold text-gray-900 mb-4">📊 Your Stats</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between">
-              <span class="text-gray-600">Games Played</span>
-              <span class="font-bold text-gray-900">24</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600">Total Minutes</span>
-              <span class="font-bold text-gray-900">185</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-600">Avg. Score</span>
-              <span class="font-bold text-success">87%</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-md p-6">
-          <h3 class="text-lg font-bold text-gray-900 mb-4">🏆 Achievements</h3>
-          <div class="space-y-2">
-            <p class="text-sm">🥇 First Win - Completed a game</p>
-            <p class="text-sm">⭐ Perfect Score - 100% on any game</p>
-            <p class="text-sm">🔥 7-Day Streak - Played 7 days straight</p>
-            <p class="text-sm">🎖️ Brain Master - Completed all games</p>
-          </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200">
-          <h3 class="text-lg font-bold text-primary-900 mb-4">💡 Tip</h3>
-          <p class="text-sm text-primary-800">Play consistently to see improvements in memory and concentration. Even 10-15 minutes daily can make a difference!</p>
-          <button class="w-full mt-4 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
-            Learn More
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: []
+  templateUrl: './patient-games.component.html',
+  styleUrls: ['./patient-games.component.scss']
 })
 export class PatientGamesComponent {
   games = [

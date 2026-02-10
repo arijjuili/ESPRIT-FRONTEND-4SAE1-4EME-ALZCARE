@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostBinding } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { NavbarComponent } from '../../shared/components/navbar.component';
 
@@ -6,14 +6,12 @@ import { NavbarComponent } from '../../shared/components/navbar.component';
   selector: 'app-caregiver-layout',
   standalone: true,
   imports: [RouterOutlet, NavbarComponent],
-  template: `
-    <div class="flex lg:flex-row h-screen">
-      <app-navbar></app-navbar>
-      <main class="flex-1 overflow-y-auto bg-gray-50 lg:pt-0 pt-14">
-        <router-outlet></router-outlet>
-      </main>
-    </div>
-  `,
-  styles: []
+  templateUrl: './caregiver-layout.component.html',
+  styleUrls: ['./caregiver-layout.component.scss']
 })
-export class CaregiverLayoutComponent {}
+export class CaregiverLayoutComponent {
+  // Caregiver theme colors (Emerald/Green)
+  @HostBinding('style.--role-primary-light') primaryLight = '#ecfdf5';  // Emerald 50
+  @HostBinding('style.--role-primary') primary = '#10b981';             // Emerald 500
+  @HostBinding('style.--role-primary-100') primary100 = '#d1fae5';      // Emerald 100
+}
