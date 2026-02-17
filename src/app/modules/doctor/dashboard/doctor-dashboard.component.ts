@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
-import { DataService } from '../../core/services/data.service';
-import { StatCardComponent } from '../../shared/components/stat-card.component';
-import { AlertCardComponent } from '../../shared/components/alert-card.component';
+import { AuthService } from '../../../core/services/auth.service';
+import { DataService } from '../../../core/services/data.service';
+import { StatCardComponent } from '../../../shared/components/stat-card.component';
+import { AlertCardComponent } from '../../../shared/components/alert-card.component';
 
 @Component({
   selector: 'app-doctor-dashboard',

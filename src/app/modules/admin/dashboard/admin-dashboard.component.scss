@@ -1,0 +1,190 @@
+// Admin Dashboard Professional Styles
+// Uses Tailwind CSS with custom enhancements
+
+// Smooth transitions for all interactive elements
+.admin-dashboard {
+  // Custom scrollbar for webkit browsers
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+// Card hover effects
+.management-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+// Axis item hover animation
+.axis-item {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background-color 0.2s ease;
+  }
+
+  &:hover::before {
+    background-color: currentColor;
+  }
+}
+
+// Quick action button animations
+.quick-action-btn {
+  transition: all 0.2s ease;
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// Status indicator pulse animation
+.status-indicator {
+  &.active {
+    animation: pulse-success 2s infinite;
+  }
+
+  &.warning {
+    animation: pulse-warning 2s infinite;
+  }
+}
+
+@keyframes pulse-success {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+  }
+}
+
+// Gradient text animation for header
+.gradient-text {
+  background-size: 200% auto;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+// Stats card number count animation
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+// Alert slide-in animation
+.alert-item {
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Activity timeline connector
+.activity-timeline {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 40px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #e2e8f0, transparent);
+  }
+}
+
+// Management category card gradient overlays
+.category-header {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+// Focus styles for accessibility
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+// Print styles
+@media print {
+  .admin-dashboard {
+    background: white !important;
+  }
+
+  .quick-actions,
+  .system-alerts {
+    display: none;
+  }
+}

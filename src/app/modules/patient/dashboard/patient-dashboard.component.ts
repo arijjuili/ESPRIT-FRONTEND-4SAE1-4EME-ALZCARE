@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
-import { DataService } from '../../core/services/data.service';
-import { AlertCardComponent } from '../../shared/components/alert-card.component';
-import { HealthMetric } from '../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { DataService } from '../../../core/services/data.service';
+import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { HealthMetric } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-patient-dashboard',

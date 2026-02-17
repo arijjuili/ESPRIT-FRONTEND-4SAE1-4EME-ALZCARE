@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -17,9 +17,15 @@ export class LoginComponent {
   loading = false;
   error = '';
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService, 
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   onLogin(): void {
+    console.log('[Login] onLogin called');
+
     if (!this.email || !this.password) {
       this.error = 'Please fill in all fields';
       return;
@@ -27,9 +33,11 @@ export class LoginComponent {
 
     this.loading = true;
     this.error = '';
+    console.log('[Login] Attempting login with:', this.email);
 
     this.authService.login(this.email, this.password).subscribe({
       next: (user) => {
+        console.log('[Login] Success, user role:', user.role);
         // Redirect based on role
         switch (user.role) {
           case 'patient':
@@ -48,8 +56,10 @@ export class LoginComponent {
         this.loading = false;
       },
       error: (err) => {
-        this.error = 'Invalid email or password';
+        console.error('[Login] Error:', err);
+        this.error = 'Invalid email or password. Please try again.';
         this.loading = false;
+        this.cdr.detectChanges(); // Force update the view
       }
     });
   }

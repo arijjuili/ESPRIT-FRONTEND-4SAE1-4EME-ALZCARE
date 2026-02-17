@@ -1,6 +1,6 @@
 import { Component, HostBinding } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { NavbarComponent } from '../../shared/components/navbar.component';
+import { NavbarComponent } from '../../../shared/components/navbar.component';
 
 @Component({
   selector: 'app-doctor-layout',

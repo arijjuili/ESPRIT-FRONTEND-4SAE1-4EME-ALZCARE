@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
-import { DataService } from '../../core/services/data.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { DataService } from '../../../core/services/data.service';
 
 @Component({
   selector: 'app-patient-profile',

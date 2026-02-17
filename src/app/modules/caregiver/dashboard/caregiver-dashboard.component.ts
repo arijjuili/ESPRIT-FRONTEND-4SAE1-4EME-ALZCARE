@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
-import { DataService } from '../../core/services/data.service';
-import { StatCardComponent } from '../../shared/components/stat-card.component';
-import { AlertCardComponent } from '../../shared/components/alert-card.component';
-import { CareTask } from '../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { DataService } from '../../../core/services/data.service';
+import { StatCardComponent } from '../../../shared/components/stat-card.component';
+import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { CareTask } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',

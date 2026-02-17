@@ -1,8 +1,9 @@
-import { Component, OnInit, HostBinding } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { AuthUser, UserRole } from '../../core/models/user.model';
+import { Subscription } from 'rxjs';
 
 interface NavItem {
   label: string;
@@ -31,8 +32,9 @@ interface RoleTheme {
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
-export class NavbarComponent implements OnInit {
+export class NavbarComponent implements OnInit, OnDestroy {
   currentUser: AuthUser | null = null;
+  private authSubscription: Subscription | null = null;
   roleLabel = '';
   sidebarOpen = false;
   sidebarCollapsed = false;
@@ -179,11 +181,35 @@ export class NavbarComponent implements OnInit {
       icon: '📅',
       roles: ['doctor']
     },
-    // Admin routes
+    // Admin routes - 12 Axes Management
     {
       label: 'Dashboard',
       path: '/admin/dashboard',
       icon: '📊',
+      roles: ['admin']
+    },
+    {
+      label: 'Medical',
+      path: '/admin/medical',
+      icon: '🏥',
+      roles: ['admin']
+    },
+    {
+      label: 'Caregivers',
+      path: '/admin/caregivers',
+      icon: '🤝',
+      roles: ['admin']
+    },
+    {
+      label: 'Interactive',
+      path: '/admin/interactive',
+      icon: '🧩',
+      roles: ['admin']
+    },
+    {
+      label: 'Community',
+      path: '/admin/community',
+      icon: '💬',
       roles: ['admin']
     },
     {
@@ -242,11 +268,32 @@ export class NavbarComponent implements OnInit {
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit(): void {
-    this.currentUser = this.authService.getCurrentUser();
-    if (this.currentUser) {
-      this.roleLabel = this.capitalizeRole(this.currentUser.role);
-      this.currentTheme = this.roleThemes[this.currentUser.role];
+    // First try to load directly from localStorage as fallback
+    const stored = localStorage.getItem('currentUser');
+    if (stored) {
+      try {
+        const user = JSON.parse(stored);
+        this.currentUser = user;
+        const role = user.role as UserRole;
+        this.roleLabel = this.capitalizeRole(role);
+        this.currentTheme = this.roleThemes[role];
+      } catch (e) {
+        console.error('Failed to parse stored user', e);
+      }
     }
+    
+    // Subscribe to auth changes so sidebar updates when user logs in/out
+    this.authSubscription = this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+      if (user) {
+        const role = user.role as UserRole;
+        this.roleLabel = this.capitalizeRole(role);
+        this.currentTheme = this.roleThemes[role];
+      } else {
+        this.roleLabel = '';
+        this.currentTheme = this.roleThemes['patient'];
+      }
+    });
   }
 
   toggleSidebar(): void {
@@ -268,5 +315,11 @@ export class NavbarComponent implements OnInit {
 
   private capitalizeRole(role: string): string {
     return role.charAt(0).toUpperCase() + role.slice(1);
+  }
+
+  ngOnDestroy(): void {
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+    }
   }
 }
