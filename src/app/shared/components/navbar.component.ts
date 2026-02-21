@@ -156,6 +156,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '📅',
       roles: ['caregiver']
     },
+    {
+      label: 'Memory Items',
+      path: '/caregiver/memory-items',
+      icon: '🧠',
+      roles: ['caregiver']
+    },
     // Doctor routes
     {
       label: 'Dashboard',

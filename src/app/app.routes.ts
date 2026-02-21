@@ -64,6 +64,10 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/caregiver/dashboard/caregiver-dashboard.component').then(m => m.CaregiverDashboardComponent)
+      },
+      {
+        path: 'memory-items',
+        loadComponent: () => import('./modules/caregiver/memory-items/caregiver-memory-items.component').then(m => m.CaregiverMemoryItemsComponent)
       }
     ]
   },

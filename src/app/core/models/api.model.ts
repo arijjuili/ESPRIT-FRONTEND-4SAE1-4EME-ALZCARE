@@ -18,6 +18,16 @@ export enum AutonomyLevel {
   DEPENDENT = 'DEPENDENT'
 }
 
+// Memory Category Enum
+export enum MemoryCategory {
+  FAMILY = 'FAMILY',
+  FRIENDS = 'FRIENDS',
+  PLACES = 'PLACES',
+  EVENTS = 'EVENTS',
+  HOBBIES = 'HOBBIES',
+  WORK = 'WORK'
+}
+
 // Patient Profile Response
 export interface PatientProfile {
   id: string;
@@ -153,6 +163,46 @@ export interface AutonomyAssessmentRequest {
   mobilityLevel: AutonomyLevel;
   feedingLevel: AutonomyLevel;
   notes?: string;
+}
+
+// Memory Item Response
+export interface MemoryItem {
+  id: string;
+  patientId: string;
+  memoryCategory: MemoryCategory;
+  title: string;
+  description?: string;
+  imageUrl?: string | null;
+  location?: string;
+  persons?: string[];
+  questions?: string[];
+  createdAt: string;
+}
+
+// Memory Item Create Request
+export interface MemoryItemCreateRequest {
+  patientId: string;
+  memoryCategory: MemoryCategory;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  location?: string;
+  persons?: string[];
+  questions?: string[];
+  createdAt: string;
+}
+
+// Memory Item Update Request
+export interface MemoryItemUpdateRequest {
+  patientId?: string;
+  memoryCategory?: MemoryCategory;
+  title?: string;
+  description?: string;
+  imageUrl?: string;
+  location?: string;
+  persons?: string[];
+  questions?: string[];
+  createdAt?: string;
 }
 
 // Keycloak Token Response

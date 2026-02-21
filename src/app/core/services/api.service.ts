@@ -10,7 +10,10 @@ import {
   CaregiverProfile,
   AutonomyAssessment,
   AutonomyAssessmentRequest,
-  TokenResponse
+  TokenResponse,
+  MemoryItem,
+  MemoryItemCreateRequest,
+  MemoryItemUpdateRequest
 } from '../models/api.model';
 
 @Injectable({
@@ -20,6 +23,7 @@ export class ApiService {
   private apiBaseUrl = `${environment.apiUrl}/v1`;
   private keycloakUrl = environment.keycloak.url;
   private clientId = environment.keycloak.clientId;
+  private cognitiveBaseUrl = `${environment.apiUrl}/v1/cognitive`;
 
   constructor(private http: HttpClient) {}
 
@@ -70,6 +74,16 @@ export class ApiService {
    */
   getPatientByKeycloakId(keycloakId: string): Observable<PatientProfile> {
     return this.http.get<PatientProfile>(`${this.apiBaseUrl}/patients/${keycloakId}`);
+  }
+
+  /**
+   * Get all patient profiles (optionally filtered by active status)
+   */
+  getPatients(isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(`${this.apiBaseUrl}/patients`, { params });
   }
 
   /**
@@ -142,5 +156,36 @@ export class ApiService {
     return this.http.get<AutonomyAssessment[]>(
       `${this.apiBaseUrl}/patients/${patientId}/autonomy/history`
     );
+  }
+
+  // ==================== COGNITIVE MEMORY ====================
+
+  /**
+   * Get memory items (optionally filtered by patientId)
+   */
+  getMemoryItems(patientId?: string): Observable<MemoryItem[]> {
+    const params = patientId ? new HttpParams().set('patientId', patientId) : undefined;
+    return this.http.get<MemoryItem[]>(`${this.cognitiveBaseUrl}/memory-items`, { params });
+  }
+
+  /**
+   * Create a new memory item
+   */
+  createMemoryItem(request: MemoryItemCreateRequest): Observable<MemoryItem> {
+    return this.http.post<MemoryItem>(`${this.cognitiveBaseUrl}/memory-items`, request);
+  }
+
+  /**
+   * Update an existing memory item
+   */
+  updateMemoryItem(id: string, request: MemoryItemUpdateRequest): Observable<MemoryItem> {
+    return this.http.put<MemoryItem>(`${this.cognitiveBaseUrl}/memory-items/${id}`, request);
+  }
+
+  /**
+   * Delete a memory item
+   */
+  deleteMemoryItem(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.cognitiveBaseUrl}/memory-items/${id}`);
   }
 }
