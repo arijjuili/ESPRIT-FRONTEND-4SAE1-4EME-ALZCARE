@@ -1,0 +1,440 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
+  <!-- Header -->
+  <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+        🧠 Behavior Tracking
+      </h1>
+      <p class="text-sm sm:text-base text-gray-600 mt-1">
+        Monitor and log patient behavior incidents
+      </p>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex items-center gap-3">
+      <button 
+        (click)="toggleFilters()"
+        class="inline-flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-lg shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        [class.ring-2]="showFilters"
+        [class.ring-emerald-500]="showFilters">
+        <span class="mr-2">🔍</span>
+        Filters
+        <span *ngIf="activeFiltersCount > 0" class="ml-2 bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+          {{ activeFiltersCount }}
+        </span>
+      </button>
+      
+      <button 
+        (click)="toggleForm()"
+        class="inline-flex items-center justify-center px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+        <span class="text-xl mr-2">{{ showForm ? '✕' : '➕' }}</span>
+        {{ showForm ? 'Cancel' : 'Log Behavior' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Behavior Log Form (Collapsible) -->
+  <div *ngIf="showForm" class="mb-6 sm:mb-8 animate-fade-in">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-emerald-100">
+      <div class="px-4 sm:px-6 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100">
+        <h2 class="text-lg font-bold text-gray-900">📝 Log New Behavior Incident</h2>
+      </div>
+      <div class="p-4 sm:p-6">
+        <app-behavior-log-form 
+          [patientId]="routePatientId || ''"
+          (formSubmit)="onFormSubmitted()"
+          (cancel)="onFormCancelled()">
+        </app-behavior-log-form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Panel -->
+  <div *ngIf="showFilters" class="mb-6 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden animate-fade-in">
+    <div class="px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-200">
+      <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+        🔍 Filter Behaviors
+      </h3>
+    </div>
+    <div class="p-4 sm:p-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Patient Filter (only when no route patient) -->
+        <div *ngIf="!routePatientId" class="lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+          <select 
+            [(ngModel)]="filters.patientId"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+            <option value="">All Patients</option>
+            <option *ngFor="let patient of patients" [value]="patient.id">
+              {{ patient.firstName }} {{ patient.lastName }}
+            </option>
+          </select>
+        </div>
+        
+        <!-- Severity Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+          <select 
+            [(ngModel)]="filters.severity"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+            <option [ngValue]="null">All Severities</option>
+            <option *ngFor="let opt of severityOptions" [ngValue]="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
+        
+        <!-- Type Filter -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Behavior Type</label>
+          <select 
+            [(ngModel)]="filters.type"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+            <option value="">All Types</option>
+            <option *ngFor="let type of behaviorTypes" [value]="type">
+              {{ getBehaviorTypeLabel(type) }}
+            </option>
+          </select>
+        </div>
+        
+        <!-- Date From -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+          <input 
+            type="date"
+            [(ngModel)]="filters.dateFrom"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+        </div>
+        
+        <!-- Date To -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+          <input 
+            type="date"
+            [(ngModel)]="filters.dateTo"
+            (change)="applyFilters()"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+        </div>
+        
+        <!-- Search -->
+        <div class="sm:col-span-2 lg:col-span-2">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+            <input 
+              type="text"
+              [(ngModel)]="filters.searchQuery"
+              (input)="applyFilters()"
+              placeholder="Search by type, location, description, patient..."
+              class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Clear Filters -->
+      <div class="mt-4 flex justify-end">
+        <button 
+          *ngIf="hasActiveFilters()"
+          (click)="clearFilters()"
+          class="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1">
+          <span>🗑️</span> Clear all filters
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div *ngIf="!isLoading" class="mb-4 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+    <span class="bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
+      📊 <strong>{{ filteredBehaviors.length }}</strong> behavior{{ filteredBehaviors.length !== 1 ? 's' : '' }} found
+    </span>
+    <span *ngIf="allBehaviors.length !== filteredBehaviors.length" class="text-gray-500">
+      ({{ allBehaviors.length }} total)
+    </span>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="flex items-center justify-center py-16">
+    <div class="animate-spin rounded-full h-12 w-12 border-4 border-emerald-200 border-t-emerald-500"></div>
+    <span class="ml-4 text-gray-600 font-medium">Loading behavior logs...</span>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading" class="bg-white rounded-xl shadow-md overflow-hidden">
+    <!-- Empty State -->
+    <div *ngIf="filteredBehaviors.length === 0" class="text-center py-16 px-4">
+      <div class="text-6xl mb-4">📭</div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">
+        {{ hasActiveFilters() ? 'No Behaviors Match Your Filters' : 'No Behavior Logs Found' }}
+      </h3>
+      <p class="text-gray-500 max-w-md mx-auto mb-6">
+        {{ hasActiveFilters() 
+          ? 'Try adjusting your filters to see more results.' 
+          : 'No behavior incidents have been recorded yet. Click "Log Behavior" to add one.' }}
+      </p>
+      <button 
+        *ngIf="hasActiveFilters()"
+        (click)="clearFilters()"
+        class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-lg transition-colors">
+        Clear Filters
+      </button>
+    </div>
+
+    <!-- Behaviors Table -->
+    <div *ngIf="filteredBehaviors.length > 0" class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <!-- Patient Column (only when viewing all) -->
+            <th *ngIf="!routePatientId" 
+                (click)="setSort('patientName')"
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none">
+              Patient {{ getSortIcon('patientName') }}
+            </th>
+            
+            <th (click)="setSort('type')"
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none">
+              Type {{ getSortIcon('type') }}
+            </th>
+            
+            <th (click)="setSort('severity')"
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none">
+              Severity {{ getSortIcon('severity') }}
+            </th>
+            
+            <th (click)="setSort('timestamp')"
+                class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none">
+              Time {{ getSortIcon('timestamp') }}
+            </th>
+            
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Location
+            </th>
+            
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              Status
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let behavior of filteredBehaviors" 
+              (click)="openDetailModal(behavior)"
+              class="hover:bg-emerald-50 transition-colors cursor-pointer group">
+            
+            <!-- Patient Cell -->
+            <td *ngIf="!routePatientId" class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm font-medium">
+                  {{ getPatientName(behavior.patientId).charAt(0) }}
+                </span>
+                <span class="font-medium text-gray-900">{{ getPatientName(behavior.patientId) }}</span>
+              </div>
+            </td>
+            
+            <!-- Type Cell -->
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">{{ behaviorTypeIcons[behavior.type] || '📝' }}</span>
+                <span class="font-medium text-gray-900">{{ getBehaviorTypeLabel(behavior.type) }}</span>
+              </div>
+            </td>
+            
+            <!-- Severity Cell -->
+            <td class="px-4 py-3">
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold"
+                    [ngClass]="getSeverityColor(behavior.severity)">
+                {{ severityToNumber(behavior.severity) }}/5
+              </span>
+            </td>
+            
+            <!-- Time Cell -->
+            <td class="px-4 py-3">
+              <div class="text-sm">
+                <div class="text-gray-900 font-medium">{{ formatTimeAgo(behavior.timestamp) }}</div>
+                <div class="text-gray-500 text-xs">{{ formatDateTime(behavior.timestamp) }}</div>
+              </div>
+            </td>
+            
+            <!-- Location Cell -->
+            <td class="px-4 py-3 text-sm text-gray-700">
+              <span *ngIf="behavior.location" class="flex items-center gap-1">
+                <span class="text-gray-400">📍</span> {{ behavior.location }}
+              </span>
+              <span *ngIf="!behavior.location" class="text-gray-400">—</span>
+            </td>
+            
+            <!-- Status Cell -->
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span *ngIf="behavior.source === 'AUTO'" class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                  Auto
+                </span>
+                <span *ngIf="behavior.source === 'MANUAL'" class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                  Manual
+                </span>
+                <span *ngIf="behavior.validationStatus === 'PENDING'" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
+                  Pending
+                </span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div *ngIf="showDetailModal && selectedBehavior" 
+     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+     (click)="closeDetailModal()">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-modal-in"
+       (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-white flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">{{ behaviorTypeIcons[selectedBehavior.type] || '📝' }}</span>
+        <div>
+          <h2 class="text-xl font-bold text-gray-900">{{ getBehaviorTypeLabel(selectedBehavior.type) }}</h2>
+          <p class="text-sm text-gray-500">Behavior Log Details</p>
+        </div>
+      </div>
+      <button (click)="closeDetailModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        <span class="text-2xl text-gray-500">✕</span>
+      </button>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="p-6">
+      <!-- Key Info Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <!-- Severity -->
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Severity</div>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
+                [ngClass]="getSeverityColor(selectedBehavior.severity)">
+            {{ severityToNumber(selectedBehavior.severity) }}/5
+          </span>
+        </div>
+        
+        <!-- Source -->
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Source</div>
+          <span class="font-medium text-gray-900 flex items-center justify-center gap-1">
+            {{ sourceIcon }} {{ selectedBehavior.source }}
+          </span>
+        </div>
+        
+        <!-- Validation -->
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Status</div>
+          <span class="font-medium text-gray-900 flex items-center justify-center gap-1">
+            {{ validationStatusIcon }} {{ selectedBehavior.validationStatus.replace('_', ' ') }}
+          </span>
+        </div>
+        
+        <!-- Confidence -->
+        <div class="bg-gray-50 rounded-lg p-3 text-center" *ngIf="selectedBehavior.confidenceScore">
+          <div class="text-xs text-gray-500 mb-1">Confidence</div>
+          <span class="font-medium text-gray-900">
+            {{ (selectedBehavior.confidenceScore * 100).toFixed(0) }}%
+          </span>
+        </div>
+      </div>
+      
+      <!-- Patient Info -->
+      <div class="bg-emerald-50 rounded-lg p-4 mb-6">
+        <div class="flex items-center gap-3">
+          <span class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-lg font-medium">
+            {{ getPatientName(selectedBehavior.patientId).charAt(0) }}
+          </span>
+          <div>
+            <div class="text-xs text-emerald-600 font-medium uppercase tracking-wide">Patient</div>
+            <div class="font-semibold text-gray-900">{{ getPatientName(selectedBehavior.patientId) }}</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Details Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <!-- Timestamp -->
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date & Time</label>
+          <p class="text-gray-900 mt-1">{{ formatDateTime(selectedBehavior.timestamp) }}</p>
+        </div>
+        
+        <!-- Location -->
+        <div>
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Location</label>
+          <p class="text-gray-900 mt-1 flex items-center gap-1">
+            <span *ngIf="selectedBehavior.location">📍 {{ selectedBehavior.location }}</span>
+            <span *ngIf="!selectedBehavior.location" class="text-gray-400">Not specified</span>
+          </p>
+        </div>
+        
+        <!-- Reported By -->
+        <div *ngIf="selectedBehavior.reportedBy">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Reported By</label>
+          <p class="text-gray-900 mt-1">{{ selectedBehavior.reportedBy }}</p>
+        </div>
+        
+        <!-- Device -->
+        <div *ngIf="selectedBehavior.deviceId">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Device</label>
+          <p class="text-gray-900 mt-1">{{ selectedBehavior.deviceId }}</p>
+        </div>
+      </div>
+      
+      <!-- Description -->
+      <div class="mb-6" *ngIf="selectedBehavior.description">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Description</label>
+        <p class="text-gray-900 mt-1 p-3 bg-gray-50 rounded-lg whitespace-pre-wrap">{{ selectedBehavior.description }}</p>
+      </div>
+      
+      <!-- Triggers -->
+      <div class="mb-6" *ngIf="selectedBehavior.triggers">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Triggers</label>
+        <p class="text-gray-900 mt-1 p-3 bg-yellow-50 rounded-lg border border-yellow-100">{{ selectedBehavior.triggers }}</p>
+      </div>
+      
+      <!-- Witnesses -->
+      <div class="mb-6" *ngIf="selectedBehavior.witnesses">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Witnesses</label>
+        <p class="text-gray-900 mt-1 p-3 bg-blue-50 rounded-lg border border-blue-100">{{ selectedBehavior.witnesses }}</p>
+      </div>
+      
+      <!-- Validation Notes -->
+      <div class="mb-6" *ngIf="selectedBehavior.validationNotes">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Validation Notes</label>
+        <p class="text-gray-900 mt-1 p-3 bg-purple-50 rounded-lg border border-purple-100">{{ selectedBehavior.validationNotes }}</p>
+      </div>
+      
+      <!-- Images -->
+      <div *ngIf="selectedBehavior.imageUrls?.length" class="mb-6">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">Images</label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div *ngFor="let url of selectedBehavior.imageUrls" class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+            <img [src]="url" alt="Behavior evidence" class="w-full h-full object-cover">
+          </div>
+        </div>
+      </div>
+      
+      <!-- Metadata -->
+      <div class="border-t border-gray-200 pt-4 text-xs text-gray-400 flex justify-between">
+        <span>Log ID: {{ selectedBehavior.id }}</span>
+        <span *ngIf="selectedBehavior.validatedAt">Validated: {{ formatDateTime(selectedBehavior.validatedAt) }}</span>
+      </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+      <button (click)="closeDetailModal()" 
+              class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors">
+        Close
+      </button>
+    </div>
+  </div>
+</div>

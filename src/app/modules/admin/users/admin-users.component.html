@@ -153,24 +153,71 @@
   </div>
 
   <!-- Pagination -->
-  <div class="pagination" *ngIf="totalPages > 1">
-    <button 
-      class="page-btn" 
-      [disabled]="currentPage === 0"
-      (click)="goToPreviousPage()">
-      ← Previous
-    </button>
-    
-    <span class="page-info">
-      Page {{ currentPage + 1 }} of {{ totalPages }}
-    </span>
-    
-    <button 
-      class="page-btn" 
-      [disabled]="currentPage >= totalPages - 1"
-      (click)="goToNextPage()">
-      Next →
-    </button>
+  <div class="pagination-container" *ngIf="totalElements > 0">
+    <!-- Page Size Selector -->
+    <div class="page-size-selector">
+      <label>Show:</label>
+      <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+        <option [value]="50">50</option>
+      </select>
+      <span>entries</span>
+    </div>
+
+    <!-- Pagination Info -->
+    <div class="pagination-info">
+      Showing <strong>{{ currentPage * pageSize + 1 }}</strong> to 
+      <strong>{{ Math.min((currentPage + 1) * pageSize, totalElements) }}</strong> of 
+      <strong>{{ totalElements }}</strong> users
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-controls" *ngIf="totalPages > 1">
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage === 0"
+        (click)="goToFirstPage()"
+        title="First Page">
+        |←
+      </button>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage === 0"
+        (click)="goToPreviousPage()">
+        ← Previous
+      </button>
+      
+      <!-- Page Numbers -->
+      <div class="page-numbers">
+        <button 
+          *ngFor="let page of getVisiblePages()"
+          class="page-number"
+          [class.active]="page === currentPage"
+          [class.ellipsis]="page === -1"
+          [disabled]="page === -1"
+          (click)="goToPage(page)">
+          {{ page === -1 ? '...' : page + 1 }}
+        </button>
+      </div>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage >= totalPages - 1"
+        (click)="goToNextPage()">
+        Next →
+      </button>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage >= totalPages - 1"
+        (click)="goToLastPage()"
+        title="Last Page">
+        →|
+      </button>
+    </div>
   </div>
 </div>
 
@@ -184,18 +231,18 @@
     
     <div class="modal-body">
       <div class="form-group">
-        <label>Username *</label>
-        <input type="text" [(ngModel)]="newUser.username" placeholder="johndoe">
+        <label>Username * <small>(3-20 chars, alphanumeric + underscore)</small></label>
+        <input type="text" [(ngModel)]="newUser.username" placeholder="johndoe" maxlength="20">
       </div>
       
       <div class="form-group">
         <label>Email *</label>
-        <input type="email" [(ngModel)]="newUser.email" placeholder="john@example.com">
+        <input type="email" [(ngModel)]="newUser.email" placeholder="john@example.com" maxlength="255">
       </div>
       
       <div class="form-group">
-        <label>Password *</label>
-        <input type="password" [(ngModel)]="newUser.password" placeholder="Min 8 characters">
+        <label>Password * <small>(8+ chars, uppercase, lowercase, number)</small></label>
+        <input type="password" [(ngModel)]="newUser.password" placeholder="Min 8 characters" maxlength="128">
       </div>
       
       <div class="form-group">
@@ -220,12 +267,12 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>First Name *</label>
-          <input type="text" [(ngModel)]="newUser.firstName" placeholder="First Name">
+          <label>First Name * <small>(2-50 chars)</small></label>
+          <input type="text" [(ngModel)]="newUser.firstName" placeholder="First Name" maxlength="50">
         </div>
         <div class="form-group">
-          <label>Last Name *</label>
-          <input type="text" [(ngModel)]="newUser.lastName" placeholder="Last Name">
+          <label>Last Name * <small>(2-50 chars)</small></label>
+          <input type="text" [(ngModel)]="newUser.lastName" placeholder="Last Name" maxlength="50">
         </div>
       </div>
 
@@ -286,12 +333,12 @@
       </div>
       
       <div class="form-group">
-        <label>Email</label>
-        <input type="email" [(ngModel)]="selectedUser.email">
+        <label>Email *</label>
+        <input type="email" [(ngModel)]="selectedUser.email" maxlength="255">
       </div>
       
       <div class="form-group">
-        <label>Role</label>
+        <label>Role *</label>
         <select [(ngModel)]="selectedUser.role">
           <option value="PATIENT">Patient</option>
           <option value="DOCTOR">Doctor</option>
@@ -368,7 +415,7 @@
         <div class="profile-header mb-6">
           <div class="flex items-center gap-4">
             <div class="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold" [class]="getAvatarClass(selectedUser.role)">
-              {{ (selectedProfile.firstName?.[0] || selectedUser.username[0] | uppercase) }}{{ (selectedProfile.lastName?.[0] || selectedUser.username[1] || '') | uppercase }}
+              {{ (selectedProfile.firstName[0] || selectedUser.username[0] | uppercase) }}{{ (selectedProfile.lastName[0] || selectedUser.username[1] || '') | uppercase }}
             </div>
             <div>
               <h3 class="text-xl font-semibold">{{ selectedProfile.firstName || selectedUser.username }} {{ selectedProfile.lastName || '' }}</h3>
@@ -529,12 +576,12 @@
       <div *ngIf="profileType === 'PATIENT'" class="profile-form">
         <div class="form-row">
           <div class="form-group">
-            <label>First Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
           </div>
           <div class="form-group">
-            <label>Last Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
           </div>
         </div>
         
@@ -580,12 +627,12 @@
       <div *ngIf="profileType === 'DOCTOR'" class="profile-form">
         <div class="form-row">
           <div class="form-group">
-            <label>First Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
           </div>
           <div class="form-group">
-            <label>Last Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
           </div>
         </div>
         
@@ -628,12 +675,12 @@
       <div *ngIf="profileType === 'CAREGIVER'" class="profile-form">
         <div class="form-row">
           <div class="form-group">
-            <label>First Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
           </div>
           <div class="form-group">
-            <label>Last Name *</label>
-            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
           </div>
         </div>
         

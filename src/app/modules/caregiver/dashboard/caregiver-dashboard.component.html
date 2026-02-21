@@ -1,8 +1,13 @@
 <div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
   <!-- Header -->
-  <div class="mb-6 sm:mb-8">
-    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Welcome back, {{ caregiverName }}! 👋</h1>
-    <p class="text-sm sm:text-base text-gray-600 mt-2">Manage your patients and daily care tasks</p>
+  <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Welcome back, {{ caregiverName }}! 👋</h1>
+      <p class="text-sm sm:text-base text-gray-600 mt-2">Manage your patients and daily care tasks</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <app-notification-bell [theme]="currentTheme"></app-notification-bell>
+    </div>
   </div>
 
   <!-- Alerts Section -->
@@ -51,37 +56,80 @@
     </app-stat-card>
   </div>
 
+  <!-- Quick Actions Bar -->
+  <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8">
+    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">⚡ Quick Actions</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+      <button 
+        (click)="openBehaviorLogModal()"
+        class="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold transition shadow-sm hover:shadow-md">
+        <span>📝</span>
+        <span class="text-sm">Log Behavior</span>
+      </button>
+      <button 
+        class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition shadow-sm hover:shadow-md">
+        <span>💊</span>
+        <span class="text-sm">Log Meds</span>
+      </button>
+      <button 
+        class="flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition shadow-sm hover:shadow-md">
+        <span>📅</span>
+        <span class="text-sm">Schedule</span>
+      </button>
+      <button 
+        class="flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition shadow-sm hover:shadow-md">
+        <span>📝</span>
+        <span class="text-sm">Add Note</span>
+      </button>
+      <button 
+        class="flex items-center justify-center gap-2 px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold transition shadow-sm hover:shadow-md col-span-2 sm:col-span-1">
+        <span>🚨</span>
+        <span class="text-sm">Report Emergency</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Main Content Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-    <!-- Patients Under Care -->
-    <div class="lg:col-span-2">
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8 mb-4 sm:mb-6 lg:mb-8">
-        <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">👥 Patients Under Your Care</h2>
+    <!-- Left Column (2/3 width on large screens) -->
+    <div class="lg:col-span-2 space-y-4 sm:space-y-6">
+      <!-- Patients Under Care -->
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
+        <div class="flex justify-between items-center mb-4 sm:mb-6">
+          <h2 class="text-lg sm:text-2xl font-bold text-gray-900">👥 Patients Under Your Care</h2>
+        </div>
         
         <div *ngIf="patients.length > 0" class="space-y-3 sm:space-y-4">
           <div *ngFor="let patient of patients" class="border-l-4 border-primary-500 bg-gradient-to-r from-primary-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-6 hover:shadow-lg transition">
             <div class="flex justify-between items-start mb-3 sm:mb-4 gap-2">
               <div class="min-w-0 flex-1">
-                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ patient.name }}</p>
-                <p class="text-gray-600 text-xs sm:text-sm mt-1 truncate">{{ patient.condition }}</p>
+                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ patient.firstName }} {{ patient.lastName }}</p>
+                <p class="text-gray-600 text-xs sm:text-sm mt-1 truncate">{{ patient.gender }} • {{ patient.dateOfBirth | date:'mediumDate' }}</p>
               </div>
-              <span class="inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-success bg-opacity-20 text-success flex-shrink-0">
-                ✓ Active
-              </span>
+              <div class="flex flex-col gap-2 flex-shrink-0">
+                <span class="inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-success bg-opacity-20 text-success text-center">
+                  ✓ Active
+                </span>
+                <button 
+                  (click)="openBehaviorLogModal(patient.id)"
+                  class="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium transition">
+                  Log Behavior
+                </button>
+              </div>
             </div>
             
             <div class="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
               <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Email</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.email }}</p>
+                <p class="text-gray-600 text-xs font-bold">Phone</p>
+                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.phoneNumber || 'N/A' }}</p>
               </div>
               <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Phone</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.phone }}</p>
+                <p class="text-gray-600 text-xs font-bold">Stage</p>
+                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.alzheimerStage || 'N/A' }}</p>
               </div>
               <div class="bg-white rounded p-2 sm:p-3 min-w-0">
                 <p class="text-gray-600 text-xs font-bold">Emergency</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.emergencyContact.split(' -')[0] }}</p>
+                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.emergencyContactName || 'N/A' }}</p>
               </div>
             </div>
           </div>
@@ -129,8 +177,57 @@
       </div>
     </div>
 
-    <!-- Quick Info Sidebar -->
+    <!-- Right Sidebar -->
     <div class="space-y-4 sm:space-y-6">
+      <!-- Recent Behavior Logs Widget -->
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border-t-4 border-emerald-500">
+        <div class="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-gray-900">📊 Recent Behavior Logs</h2>
+          <button 
+            (click)="loadRecentBehaviors()"
+            class="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+            title="Refresh">
+            🔄
+          </button>
+        </div>
+        
+        <div *ngIf="isLoadingBehaviors" class="text-center py-6">
+          <span class="text-gray-500">Loading...</span>
+        </div>
+        
+        <div *ngIf="!isLoadingBehaviors && recentBehaviors.length > 0" class="space-y-3">
+          <div *ngFor="let behavior of recentBehaviors" 
+               class="border-l-4 pl-3 py-2 rounded-r-lg transition hover:bg-gray-50"
+               [class]="getSeverityColor(behavior.severity)">
+            <div class="flex items-start gap-2">
+              <span class="text-lg">{{ getBehaviorIcon(behavior.type) }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold text-gray-800 truncate">
+                  {{ getBehaviorTypeLabel(behavior.type) }}
+                  <span class="text-xs font-normal text-gray-500 ml-1">({{ getSeverityLabel(behavior.severity) }})</span>
+                </p>
+                <p class="text-xs text-gray-600 truncate">
+                  👤 {{ getPatientName(behavior.patientId) }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  🕐 {{ formatTimeAgo(behavior.timestamp) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div *ngIf="!isLoadingBehaviors && recentBehaviors.length === 0" class="text-gray-500 text-center py-6 text-sm">
+          No behavior logs yet
+        </div>
+        
+        <button 
+          (click)="viewAllBehaviors()"
+          class="w-full mt-4 py-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition border border-emerald-200">
+          View All Behaviors →
+        </button>
+      </div>
+
       <!-- Recent Activities -->
       <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6">
         <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">📈 Recent Activities</h2>
@@ -175,3 +272,12 @@
     </div>
   </div>
 </div>
+
+<!-- Behavior Log Modal -->
+<app-behavior-log-form
+  *ngIf="showBehaviorLogModal"
+  [patients]="patients"
+  [preselectedPatientId]="selectedPatientId"
+  (close)="closeBehaviorLogModal()"
+  (saved)="onBehaviorLogged()">
+</app-behavior-log-form>

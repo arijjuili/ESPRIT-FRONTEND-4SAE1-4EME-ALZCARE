@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { AuthUser, UserRole } from '../../core/models/user.model';
 import { Subscription } from 'rxjs';
 
+
 interface NavItem {
   label: string;
   path: string;
@@ -12,7 +13,7 @@ interface NavItem {
   roles: string[];
 }
 
-interface RoleTheme {
+export interface RoleTheme {
   name: string;
   primary: string;
   primaryLight: string;
@@ -145,6 +146,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
+      label: 'Behaviors',
+      path: '/caregiver/behaviors',
+      icon: '📊',
+      roles: ['caregiver']
+    },
+    {
       label: 'Tasks',
       path: '/caregiver/tasks',
       icon: '📋',
@@ -225,6 +232,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['admin']
     },
     {
+      label: 'Schedules',
+      path: '/admin/schedules',
+      icon: '📅',
+      roles: ['admin']
+    },
+    {
       label: 'Settings',
       path: '/admin/settings',
       icon: '⚙️',
@@ -240,32 +253,32 @@ export class NavbarComponent implements OnInit, OnDestroy {
   // Dynamic CSS variables based on role theme
   @HostBinding('style.--primary-color')
   get primaryColor(): string { return this.currentTheme.primary; }
-  
+
   @HostBinding('style.--primary-light')
   get primaryLight(): string { return this.currentTheme.primaryLight; }
-  
+
   @HostBinding('style.--primary-dark')
   get primaryDark(): string { return this.currentTheme.primaryDark; }
-  
+
   @HostBinding('style.--gradient-from')
   get gradientFrom(): string { return this.currentTheme.gradientFrom; }
-  
+
   @HostBinding('style.--gradient-to')
   get gradientTo(): string { return this.currentTheme.gradientTo; }
-  
+
   @HostBinding('style.--border-color')
   get borderColor(): string { return this.currentTheme.borderColor; }
-  
+
   @HostBinding('style.--hover-bg')
   get hoverBg(): string { return this.currentTheme.hoverBg; }
-  
+
   @HostBinding('style.--active-bg')
   get activeBg(): string { return this.currentTheme.activeBg; }
-  
+
   @HostBinding('style.--active-text')
   get activeText(): string { return this.currentTheme.activeText; }
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(private authService: AuthService, private router: Router) { }
 
   ngOnInit(): void {
     // First try to load directly from localStorage as fallback
@@ -281,7 +294,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
         console.error('Failed to parse stored user', e);
       }
     }
-    
+
     // Subscribe to auth changes so sidebar updates when user logs in/out
     this.authSubscription = this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;

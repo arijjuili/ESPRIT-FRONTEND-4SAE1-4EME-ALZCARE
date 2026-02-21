@@ -64,6 +64,14 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/caregiver/dashboard/caregiver-dashboard.component').then(m => m.CaregiverDashboardComponent)
+      },
+      {
+        path: 'behaviors',
+        loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
+      },
+      {
+        path: 'behaviors/:patientId',
+        loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
       }
     ]
   },
@@ -124,8 +132,25 @@ export const routes: Routes = [
       {
         path: 'settings',
         loadComponent: () => import('./modules/admin/settings/admin-settings.component').then(m => m.AdminSettingsComponent)
+      },
+      {
+        path: 'schedules',
+        loadComponent: () => import('./modules/admin/schedules/schedule-list/schedule-list.component').then(m => m.ScheduleListComponent)
+      },
+      {
+        path: 'schedules/new',
+        loadComponent: () => import('./modules/admin/schedules/schedule-form/schedule-form.component').then(m => m.ScheduleFormComponent)
+      },
+      {
+        path: 'schedules/edit/:id',
+        loadComponent: () => import('./modules/admin/schedules/schedule-form/schedule-form.component').then(m => m.ScheduleFormComponent)
       }
     ]
+  },
+  {
+    path: 'notifications',
+    canActivate: [AuthGuard],
+    loadComponent: () => import('./shared/components/notification-list/notification-list.component').then(m => m.NotificationListComponent)
   },
   {
     path: '**',

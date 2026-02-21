@@ -48,6 +48,63 @@ grant_type=password
 }
 ```
 
+### Automatic Token Refresh (Frontend Implementation)
+
+The frontend implements automatic token refresh to prevent 5-minute logout issues.
+
+**Token Configuration:**
+| Token Type | Lifespan | Storage |
+|------------|----------|---------|
+| Access Token | 5 minutes (300s) | localStorage (`access_token`) |
+| Refresh Token | 30 minutes (1800s) | localStorage (`refresh_token`) |
+| SSO Session | 10 hours max | Keycloak server |
+
+**Refresh Strategy:**
+1. **Proactive Refresh:** Before each request, check if access token expires in < 60 seconds → refresh automatically
+2. **Reactive Refresh:** On 401 response, attempt refresh once before logging out
+3. **Request Queueing:** During refresh, queue concurrent requests and retry with new token
+
+**Token Refresh Request:**
+```http
+POST http://localhost:8090/realms/alzcare/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token
+&client_id=alzcare-webapp
+&refresh_token=<refresh_token>
+```
+
+**Refresh Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "expires_in": 300,
+  "refresh_expires_in": 1800,
+  "token_type": "Bearer"
+}
+```
+
+**Frontend Services:**
+| Service | Purpose |
+|---------|---------|
+| `TokenRefreshService` | JWT expiration tracking, refresh logic, request queueing |
+| `AuthInterceptor` | Proactive/reactive refresh, queueing during refresh |
+| `AuthService` | Login/logout, token storage, expiration helpers |
+
+**Usage Example:**
+```typescript
+// Interceptor automatically handles refresh - no manual action needed
+this.apiService.getPatient(patientId).subscribe(data => {
+  // Token refreshed automatically if needed
+});
+
+// Or manually check expiration
+if (this.authService.isTokenExpiringSoon(60)) {
+  this.authService.refreshToken().subscribe();
+}
+```
+
 ### Required Headers for Authenticated Requests
 
 ```http
@@ -254,6 +311,41 @@ Authorization: Bearer <token>
 }
 ```
 
+#### Get All Patients
+```http
+GET /api/v1/patients?isActive=true
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `isActive` | boolean | No | Filter by active status |
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "userId": "keycloak-id-1",
+    "firstName": "John",
+    "lastName": "Doe",
+    "dateOfBirth": "1950-05-15",
+    "gender": "MALE",
+    "preferredLanguage": "ENGLISH",
+    "photoUrl": "https://...",
+    "phone": "+1234567890",
+    "emergencyContact": "Jane Doe: +0987654321",
+    "address": "123 Main St",
+    "isActive": true,
+    "totalPoints": 150,
+    "currentStreak": 5,
+    "createdAt": "2026-01-15T08:00:00Z",
+    "updatedAt": "2026-02-17T14:30:00Z"
+  }
+]
+```
+
 #### Update Patient Profile
 ```http
 PUT /api/v1/patients/{id}
@@ -421,6 +513,608 @@ Authorization: Bearer <token>
 ]
 ```
 
+#### Check Profile Existence (Admin)
+```http
+GET /api/v1/admin/profiles/{userId}/exists
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "exists": true,
+  "userId": "keycloak-patient-id",
+  "role": "PATIENT",
+  "profileType": "PATIENT"
+}
+```
+
+**Response when profile doesn't exist:**
+```json
+{
+  "exists": false,
+  "userId": "keycloak-user-id",
+  "role": "PATIENT",
+  "profileType": "PATIENT"
+}
+```
+
+#### Update User Profile (Generic - Admin)
+```http
+PUT /api/v1/admin/profiles/{userId}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "firstName": "Updated Name",
+  "phone": "+1234567890"
+}
+```
+
+**Note:** The request body must match the user's role type (PatientUpdateRequest, DoctorUpdateRequest, or CaregiverUpdateRequest).
+
+**Response (200 OK):** Returns the appropriate profile type based on user's role.
+
+---
+
+### User Admin APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/admin/users` | GET | Get all users with filters | ✅ ADMIN |
+| `/admin/users/{userId}` | GET | Get user by ID | ✅ ADMIN |
+| `/admin/users` | POST | Create new user with profile | ✅ ADMIN |
+| `/admin/users/{userId}` | PUT | Update user | ✅ ADMIN |
+| `/admin/users/{userId}` | DELETE | Delete user | ✅ ADMIN |
+| `/admin/users/{userId}/reset-password` | POST | Reset user password | ✅ ADMIN |
+
+#### Get All Users
+```http
+GET /api/v1/admin/users?search=john&role=PATIENT&status=ACTIVE&page=0&size=20
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `search` | string | No | Search by username/email |
+| `role` | string | No | Filter by role (PATIENT, DOCTOR, CAREGIVER, ADMIN) |
+| `status` | string | No | Filter by status (ACTIVE, INACTIVE, PENDING) |
+| `page` | number | No | Page number (default: 0) |
+| `size` | number | No | Page size (default: 20) |
+
+**Response (200 OK):**
+```json
+{
+  "content": [
+    {
+      "id": "keycloak-user-id",
+      "username": "john.doe",
+      "email": "john@example.com",
+      "role": "PATIENT",
+      "status": "ACTIVE",
+      "enabled": true,
+      "emailVerified": true,
+      "createdAt": "2026-01-15T08:00:00Z",
+      "lastLogin": "2026-02-17T14:30:00Z"
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0
+}
+```
+
+#### Get User by ID
+```http
+GET /api/v1/admin/users/{userId}
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "keycloak-user-id",
+  "username": "john.doe",
+  "email": "john@example.com",
+  "role": "PATIENT",
+  "status": "ACTIVE",
+  "enabled": true,
+  "emailVerified": true,
+  "createdAt": "2026-01-15T08:00:00Z",
+  "lastLogin": "2026-02-17T14:30:00Z"
+}
+```
+
+#### Create User
+```http
+POST /api/v1/admin/users
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "username": "john.doe",
+  "email": "john@example.com",
+  "password": "SecurePass123!",
+  "firstName": "John",
+  "lastName": "Doe",
+  "role": "PATIENT",
+  "enabled": true,
+  "emailVerified": false,
+  "dateOfBirth": "1950-05-15",
+  "gender": "MALE",
+  "preferredLanguage": "ENGLISH",
+  "phone": "+1234567890",
+  "emergencyContact": "Jane Doe: +0987654321",
+  "address": "123 Main St, City"
+}
+```
+
+**Create Doctor Example:**
+```json
+{
+  "username": "dr.smith",
+  "email": "dr.smith@hospital.com",
+  "password": "SecurePass123!",
+  "firstName": "Dr. Sarah",
+  "lastName": "Smith",
+  "role": "DOCTOR",
+  "speciality": "Neurology",
+  "licenseNumber": "MD-12345-NY",
+  "phone": "+1234567890",
+  "contact": "clinic@hospital.com",
+  "isAvailable": true
+}
+```
+
+**Create Caregiver Example:**
+```json
+{
+  "username": "caregiver.mike",
+  "email": "mike@care.com",
+  "password": "SecurePass123!",
+  "firstName": "Mike",
+  "lastName": "Johnson",
+  "role": "CAREGIVER",
+  "phone": "+1234567890",
+  "contact": "mike@care.com",
+  "isAvailable": true,
+  "isProfessional": true
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "id": "new-keycloak-user-id",
+  "username": "john.doe",
+  "email": "john@example.com",
+  "role": "PATIENT",
+  "status": "ACTIVE",
+  "enabled": true,
+  "emailVerified": false,
+  "createdAt": "2026-02-17T14:30:00Z",
+  "lastLogin": null
+}
+```
+
+#### Update User
+```http
+PUT /api/v1/admin/users/{userId}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "email": "new.email@example.com",
+  "firstName": "Johnny",
+  "lastName": "Doe",
+  "enabled": true,
+  "role": "PATIENT",
+  "phone": "+9876543210",
+  "address": "New Address"
+}
+```
+
+**Response (200 OK):** Returns updated UserResponse
+
+#### Delete User
+```http
+DELETE /api/v1/admin/users/{userId}
+Authorization: Bearer <token>
+```
+
+**Response (204 No Content)**
+
+#### Reset Password
+```http
+POST /api/v1/admin/users/{userId}/reset-password
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "password": "NewSecurePass123!",
+  "temporary": false
+}
+```
+
+**Response (200 OK)**
+
+---
+
+## Safety Alert Engine APIs
+
+Base path: `/api` (behavior-logs and alerts proxied to port 8082)
+
+### Behavior Log APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/behavior-logs/manual` | POST | Create manual behavior log | ✅ CAREGIVER |
+| `/api/behavior-logs/auto` | POST | Create auto-detected event | ✅ System |
+| `/api/behavior-logs/{id}` | GET | Get behavior log by ID | ✅ Any role |
+| `/api/behavior-logs/patient/{patientId}` | GET | Get patient behavior logs | ✅ Any role |
+| `/api/behavior-logs/pending` | GET | Get pending validations | ✅ CAREGIVER |
+| `/api/behavior-logs/{id}/validate` | PUT | Validate auto-detected event | ✅ CAREGIVER |
+| `/api/behavior-logs/{id}/evaluate` | POST | Evaluate behavior for risks | ✅ ADMIN |
+
+#### Create Auto-Detected Event
+```http
+POST /api/safety/behavior-logs/auto
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": 4,
+  "timestamp": "2026-02-17T14:30:00Z",
+  "location": "Kitchen",
+  "description": "AI detected fall motion pattern",
+  "deviceId": "camera-001",
+  "confidenceScore": 0.92,
+  "imageUrls": ["https://res.cloudinary.com/.../detection.jpg"]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440011",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": "FOUR",
+  "timestamp": "2026-02-17T14:30:00Z",
+  "location": "Kitchen",
+  "source": "AUTO",
+  "validationStatus": "PENDING",
+  "deviceId": "camera-001",
+  "confidenceScore": 0.92,
+  "processedForAlert": false,
+  "imageUrls": ["https://res.cloudinary.com/.../detection.jpg"]
+}
+```
+
+#### Get Behavior Log by ID
+```http
+GET /api/safety/behavior-logs/{id}
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440010",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": "FOUR",
+  "timestamp": "2026-02-17T14:30:00Z",
+  "location": "Living Room",
+  "source": "MANUAL",
+  "validationStatus": "CONFIRMED",
+  "validatedBy": "caregiver-id",
+  "validationNotes": "Confirmed fall, patient bruised knee",
+  "validatedAt": "2026-02-17T14:35:00Z",
+  "description": "Patient fell while getting up from sofa",
+  "triggers": "Attempted to stand without walker",
+  "witnesses": "Caregiver present",
+  "reportedBy": "caregiver@example.com",
+  "processedForAlert": true,
+  "imageUrls": ["https://res.cloudinary.com/.../fall.jpg"]
+}
+```
+
+#### Evaluate Behavior Log (Testing)
+```http
+POST /api/safety/behavior-logs/{id}/evaluate
+Authorization: Bearer <token>
+```
+
+**Response (200 OK)** - Triggers risk detection evaluation for the behavior log.
+
+#### Create Manual Behavior Log
+```http
+POST /api/safety/behavior-logs/manual
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": 4,
+  "location": "Living Room",
+  "description": "Patient fell while getting up from sofa",
+  "triggers": "Attempted to stand without walker",
+  "witnesses": "Caregiver present",
+  "reportedBy": "caregiver@example.com",
+  "imageUrls": ["https://res.cloudinary.com/.../fall.jpg"]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440010",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": 4,
+  "timestamp": "2026-02-17T14:30:00Z",
+  "location": "Living Room",
+  "source": "MANUAL",
+  "validationStatus": "CONFIRMED",
+  "reportedBy": "caregiver@example.com",
+  "processedForAlert": true,
+  "imageUrls": ["https://res.cloudinary.com/.../fall.jpg"]
+}
+```
+
+### Alert APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/alerts` | GET | Get all alerts with filters | ✅ Any role |
+| `/api/alerts` | POST | Create alert (testing) | ✅ ADMIN |
+| `/api/alerts/{id}` | GET | Get alert by ID | ✅ Any role |
+| `/api/alerts/active` | GET | Get active alerts | ✅ Any role |
+| `/api/alerts/overdue` | GET | Get overdue alerts | ✅ Any role |
+| `/api/alerts/patient/{patientId}` | GET | Get patient alerts | ✅ Any role |
+| `/api/alerts/{id}/acknowledge` | POST | Acknowledge alert | ✅ CAREGIVER |
+| `/api/alerts/{id}/resolve` | POST | Resolve alert | ✅ CAREGIVER |
+| `/api/alerts/{id}/escalate` | POST | Escalate alert | ✅ CAREGIVER/DOCTOR |
+| `/api/alerts/{id}/history` | GET | Get alert history | ✅ Any role |
+
+#### Get All Alerts
+```http
+GET /api/safety/alerts?status=ACTIVE&severity=CRITICAL
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `status` | string | No | Filter by status (ACTIVE, RESOLVED) |
+| `severity` | string | No | Filter by severity (LOW, MEDIUM, HIGH, CRITICAL) |
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440020",
+    "patientId": "550e8400-e29b-41d4-a716-446655440000",
+    "ruleCode": "FALL_HIGH_SEVERITY",
+    "severity": "CRITICAL",
+    "status": "ACTIVE",
+    "triggeredAt": "2026-02-17T14:30:00Z",
+    "escalationDeadlineAt": "2026-02-17T14:45:00Z",
+    "currentLevel": "L1_CAREGIVER",
+    "isEscalationOverdue": false,
+    "escalationMinutesRemaining": 12
+  }
+]
+```
+
+#### Get Alert by ID
+```http
+GET /api/safety/alerts/{id}
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440020",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "ruleCode": "FALL_HIGH_SEVERITY",
+  "severity": "CRITICAL",
+  "status": "ACTIVE",
+  "sourceId": "behavior-log-id",
+  "triggeredAt": "2026-02-17T14:30:00Z",
+  "escalationDeadlineAt": "2026-02-17T14:45:00Z",
+  "resolvedAt": null,
+  "resolutionType": null,
+  "resolutionNotes": null,
+  "resolvedBy": null,
+  "isFalsePositive": false,
+  "currentLevel": "L1_CAREGIVER",
+  "createdAt": "2026-02-17T14:30:00Z",
+  "isEscalationOverdue": false,
+  "escalationMinutesRemaining": 12
+}
+```
+
+#### Create Alert (Testing)
+```http
+POST /api/safety/alerts
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "ruleCode": "FALL_HIGH_SEVERITY",
+  "severity": "CRITICAL",
+  "sourceId": "behavior-log-id"
+}
+```
+
+**Response (201 Created):** Returns created AlertResponse
+
+#### Get Active Alerts
+```http
+GET /api/safety/alerts/active
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440020",
+    "patientId": "550e8400-e29b-41d4-a716-446655440000",
+    "ruleCode": "FALL_HIGH_SEVERITY",
+    "severity": "CRITICAL",
+    "status": "ACTIVE",
+    "triggeredAt": "2026-02-17T14:30:00Z",
+    "escalationDeadlineAt": "2026-02-17T14:45:00Z",
+    "currentLevel": "L1_CAREGIVER",
+    "isEscalationOverdue": false,
+    "escalationMinutesRemaining": 12
+  }
+]
+```
+
+#### Acknowledge Alert
+```http
+POST /api/safety/alerts/{id}/acknowledge
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "userId": "caregiver-keycloak-id",
+  "notes": "Checked on patient, no injuries found"
+}
+```
+
+#### Resolve Alert
+```http
+POST /api/safety/alerts/{id}/resolve
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "resolutionType": "CHECKED_OK",
+  "resolutionNotes": "Patient is fine, no medical attention needed",
+  "isFalsePositive": false,
+  "resolvedBy": "caregiver-keycloak-id"
+}
+```
+
+### TypeScript Interfaces (Frontend)
+
+```typescript
+// Enums
+export type BehaviorType = 
+  | 'FALL' | 'WANDERING' | 'AGITATION' | 'SLEEP_DISORDER' 
+  | 'HALLUCINATION' | 'CONFUSION' | 'AGGRESSION' 
+  | 'MEDICATION_REFUSAL' | 'OTHER';
+
+export type BehaviorSource = 'MANUAL' | 'AUTO';
+export type BehaviorValidationStatus = 'PENDING' | 'CONFIRMED' | 'FALSE_ALARM';
+export type AlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type AlertStatus = 'ACTIVE' | 'RESOLVED';
+
+export type ResolutionActionType = 
+  | 'CHECKED_OK' | 'APPOINTMENT_SCHEDULED' | 'EMERGENCY_CONTACTED' 
+  | 'MEDICATION_ADJUSTED' | 'ENVIRONMENT_MODIFIED' | 'INCIDENT_REPORT_CREATED';
+
+export type AlertActionType = 
+  | 'NOTIFIED' | 'ESCALATED' | 'ACKNOWLEDGED' | 'RESOLVED' | 'FALSE_POSITIVE';
+
+// Request DTOs
+export interface CreateManualBehaviorLogRequest {
+  patientId: string;
+  type: BehaviorType;
+  severity: number; // 1-5 (sent as number, backend converts to enum)
+  timestamp?: string;
+  location?: string;
+  description?: string;
+  triggers?: string;
+  witnesses?: string;
+  reportedBy?: string;
+  imageUrls?: string[];
+}
+
+export interface ValidateBehaviorRequest {
+  validationStatus: BehaviorValidationStatus;
+  validatedBy?: string;
+  validationNotes?: string;
+}
+
+export interface AcknowledgeAlertRequest {
+  userId: string;
+  notes?: string;
+}
+
+export interface ResolveAlertRequest {
+  resolutionType: ResolutionActionType;
+  resolutionNotes?: string;
+  isFalsePositive: boolean;
+  resolvedBy: string;
+}
+
+// Response DTOs
+export interface BehaviorLogResponse {
+  id: string;
+  patientId: string;
+  type: BehaviorType;
+  severity: BehaviorSeverity; // ONE, TWO, THREE, FOUR, FIVE
+  timestamp: string;
+  location?: string;
+  source: BehaviorSource;
+  validationStatus: BehaviorValidationStatus;
+  validatedBy?: string;
+  validationNotes?: string;
+  validatedAt?: string;
+  description?: string;
+  triggers?: string;
+  witnesses?: string;
+  reportedBy?: string;
+  deviceId?: string;
+  confidenceScore?: number;
+  processedForAlert: boolean;
+  imageUrls: string[];
+}
+
+export interface AlertResponse {
+  id: string;
+  patientId: string;
+  ruleCode: string;
+  severity: AlertSeverity;
+  status: AlertStatus;
+  sourceId?: string;
+  triggeredAt: string;
+  escalationDeadlineAt: string;
+  resolvedAt?: string;
+  resolutionType?: ResolutionActionType;
+  resolutionNotes?: string;
+  resolvedBy?: string;
+  isFalsePositive: boolean;
+  currentLevel: string;
+  createdAt: string;
+  isEscalationOverdue: boolean;
+  escalationMinutesRemaining: number;
+}
+
+export interface AlertHistoryResponse {
+  id: string;
+  alertId: string;
+  actionType: AlertActionType;
+  performedAt: string;
+  performedBy?: string;
+  notes?: string;
+  isSystemAction: boolean;
+}
+```
+
 ---
 
 ## Data Models
@@ -529,6 +1223,69 @@ interface TokenResponse {
   expires_in: number;
   refresh_expires_in: number;
   token_type: string;
+}
+
+// User Response (Keycloak User)
+interface UserResponse {
+  id: string;  // Keycloak user ID
+  username: string;
+  email: string;
+  role: 'PATIENT' | 'DOCTOR' | 'CAREGIVER' | 'ADMIN';
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING';
+  enabled: boolean;
+  emailVerified: boolean;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+// Paginated Response
+interface PaginatedResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+// User Create Request
+interface UserCreateRequest {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: 'PATIENT' | 'DOCTOR' | 'CAREGIVER' | 'ADMIN';
+  enabled?: boolean;
+  emailVerified?: boolean;
+  // Patient-specific
+  dateOfBirth?: string;
+  gender?: string;
+  preferredLanguage?: string;
+  photoUrl?: string;
+  phone?: string;
+  emergencyContact?: string;
+  address?: string;
+  // Doctor-specific
+  speciality?: string;
+  licenseNumber?: string;
+  contact?: string;
+  // Caregiver-specific
+  isProfessional?: boolean;
+}
+
+// User Update Request
+interface UserUpdateRequest {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  enabled?: boolean;
+  role?: 'PATIENT' | 'DOCTOR' | 'CAREGIVER' | 'ADMIN';
+  phone?: string;
+  address?: string;
+  speciality?: string;
+  licenseNumber?: string;
+  isAvailable?: boolean;
+  isProfessional?: boolean;
 }
 ```
 
@@ -732,13 +1489,524 @@ curl http://localhost:8080/api/v1/patients/test-keycloak-id \
 
 ---
 
+## Notification Service APIs
+
+Base path: `/api/v1/notifications` (proxied to notification-service port 8004)
+
+### Notification APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/notifications` | GET | Get all notifications with filters | ✅ ADMIN |
+| `/notifications/{id}` | GET | Get notification by ID | ✅ Any role |
+| `/notifications` | POST | Send manual notification | ✅ ADMIN |
+| `/notifications/{id}/retry` | POST | Retry failed notification | ✅ ADMIN |
+| `/notifications/user/{userId}` | GET | Get user's notifications with filters | ✅ Any role |
+| `/notifications/user/{userId}/unread/count` | GET | Get unread notification count | ✅ Any role |
+| `/notifications/user/{userId}/mark-all-read` | PUT | Mark all notifications as read | ✅ Any role |
+| `/notifications/{id}/read` | PUT | Mark single notification as read | ✅ Any role |
+| `/notifications/{id}` | DELETE | Delete notification | ✅ Any role |
+
+#### Get All Notifications (Admin)
+```http
+GET /api/v1/notifications?userId={userId}&status=SENT&type=ALERT&page=0&size=20
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `userId` | string | No | Filter by recipient user ID |
+| `status` | string | No | Filter by status (PENDING, SENT, READ, FAILED) |
+| `type` | string | No | Filter by type (ALERT, REMINDER, SYSTEM, MESSAGE, APPOINTMENT, BEHAVIOR) |
+| `page` | number | No | Page number (default: 0) |
+| `size` | number | No | Page size (default: 20) |
+
+**Response (200 OK):**
+```json
+{
+  "content": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440100",
+      "recipientId": "keycloak-user-id",
+      "type": "ALERT",
+      "priority": "HIGH",
+      "status": "SENT",
+      "title": "Fall Detected",
+      "message": "A fall was detected for patient John Doe",
+      "channels": ["IN_APP", "EMAIL"],
+      "createdAt": "2026-02-19T10:30:00Z",
+      "sentAt": "2026-02-19T10:30:05Z",
+      "readAt": null,
+      "retryCount": 0
+    }
+  ],
+  "totalElements": 15,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0,
+  "first": true,
+  "last": true
+}
+```
+
+#### Get Notification by ID
+```http
+GET /api/v1/notifications/{id}
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440100",
+  "recipientId": "keycloak-user-id",
+  "type": "ALERT",
+  "priority": "HIGH",
+  "status": "READ",
+  "title": "Fall Detected",
+  "message": "A fall was detected for patient John Doe",
+  "channels": ["IN_APP", "EMAIL"],
+  "createdAt": "2026-02-19T10:30:00Z",
+  "sentAt": "2026-02-19T10:30:05Z",
+  "readAt": "2026-02-19T10:35:00Z",
+  "retryCount": 0
+}
+```
+
+#### Send Manual Notification
+```http
+POST /api/v1/notifications
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "recipientId": "keycloak-user-id",
+  "type": "SYSTEM",
+  "priority": "HIGH",
+  "title": "System Maintenance",
+  "message": "The system will undergo maintenance tonight at 2 AM.",
+  "channels": ["IN_APP", "EMAIL"]
+}
+```
+
+**Response (201 Created):** Returns created NotificationResponse
+
+#### Retry Failed Notification
+```http
+POST /api/v1/notifications/{id}/retry
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):** Returns updated NotificationResponse
+
+#### Get Unread Count
+```http
+GET /api/v1/notifications/user/{userId}/unread/count
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "userId": "keycloak-user-id",
+  "unreadCount": 5,
+  "totalCount": 15
+}
+```
+
+#### Mark All Notifications as Read
+```http
+PUT /api/v1/notifications/user/{userId}/mark-all-read
+Authorization: Bearer <token>
+```
+
+**Response (200 OK)**
+
+#### Get User Notifications
+```http
+GET /api/v1/notifications/user/{userId}?status=UNREAD&page=0&size=20
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "content": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440100",
+      "userId": "keycloak-user-id",
+      "type": "ALERT",
+      "priority": "HIGH",
+      "status": "UNREAD",
+      "title": "Fall Detected",
+      "message": "A fall was detected for patient John Doe",
+      "icon": "🚨",
+      "actionUrl": "/caregiver/behaviors/patient-id",
+      "actionLabel": "View Details",
+      "createdAt": "2026-02-19T10:30:00Z",
+      "readAt": null
+    }
+  ],
+  "totalElements": 15,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0,
+  "first": true,
+  "last": true
+}
+```
+
+#### Get Unread Count
+```http
+GET /api/v1/notifications/user/{userId}/unread-count
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "count": 5,
+  "criticalCount": 1,
+  "highPriorityCount": 2
+}
+```
+
+### TypeScript Interfaces
+
+```typescript
+export type NotificationType = 'ALERT' | 'REMINDER' | 'SYSTEM' | 'MESSAGE' | 'APPOINTMENT' | 'BEHAVIOR';
+export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type NotificationStatus = 'READ' | 'UNREAD';
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  status: NotificationStatus;
+  title: string;
+  message: string;
+  icon?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  createdAt: string;
+  readAt?: string;
+}
+
+export interface PagedNotificationResponse {
+  content: Notification[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+}
+```
+
+### Notification Schedule APIs
+
+Base path: `/api/v1/schedules`
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/schedules` | GET | List all schedules | ✅ ADMIN |
+| `/schedules/{id}` | GET | Get schedule by ID | ✅ ADMIN |
+| `/schedules` | POST | Create schedule | ✅ ADMIN |
+| `/schedules/{id}` | PUT | Update schedule | ✅ ADMIN |
+| `/schedules/{id}` | DELETE | Delete schedule | ✅ ADMIN |
+| `/schedules/{id}/toggle` | PATCH | Toggle schedule active status | ✅ ADMIN |
+| `/schedules/{id}/trigger` | POST | Manually trigger schedule | ✅ ADMIN |
+
+#### List All Schedules
+```http
+GET /api/v1/schedules?targetRole=PATIENT&active=true&page=0&size=20
+Authorization: Bearer <token>
+```
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `targetRole` | string | No | Filter by target role (PATIENT, CAREGIVER, DOCTOR, ALL) |
+| `active` | boolean | No | Filter by active status |
+| `page` | number | No | Page number (default: 0) |
+| `size` | number | No | Page size (default: 20) |
+
+**Response (200 OK):**
+```json
+{
+  "content": [
+    {
+      "id": "schedule-id-001",
+      "name": "Daily Medication Reminder",
+      "description": "Reminds patients to take their morning medication",
+      "targetRole": "PATIENT",
+      "targetUserIds": null,
+      "titleTemplate": "Medication Reminder",
+      "messageTemplate": "It's time to take your morning medication. Don't forget!",
+      "type": "REMINDER",
+      "priority": "HIGH",
+      "channels": ["IN_APP", "PUSH"],
+      "scheduleType": "CRON",
+      "cronExpression": "0 8 * * *",
+      "intervalMinutes": null,
+      "startDate": "2026-01-01T00:00:00Z",
+      "endDate": null,
+      "timezone": "America/New_York",
+      "active": true,
+      "createdBy": "admin-user-id",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-01-01T00:00:00Z",
+      "lastExecutedAt": "2026-02-17T08:00:00Z",
+      "executionCount": 48,
+      "nextExecutionTime": "2026-02-18T08:00:00Z"
+    }
+  ],
+  "totalElements": 5,
+  "totalPages": 1,
+  "size": 20,
+  "number": 0,
+  "first": true,
+  "last": true
+}
+```
+
+#### Get Schedule by ID
+```http
+GET /api/v1/schedules/{id}
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):** Returns ScheduleResponse (same structure as list items)
+
+#### Create Schedule
+```http
+POST /api/v1/schedules
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Weekly Health Check",
+  "description": "Weekly reminder for health check-in",
+  "targetRole": "PATIENT",
+  "targetUserIds": null,
+  "titleTemplate": "Weekly Health Check",
+  "messageTemplate": "Time for your weekly health check-in. Please update your symptoms.",
+  "type": "REMINDER",
+  "priority": "MEDIUM",
+  "channels": ["IN_APP", "EMAIL"],
+  "scheduleType": "CRON",
+  "cronExpression": "0 9 * * 1",
+  "intervalMinutes": null,
+  "startDate": "2026-03-01T00:00:00Z",
+  "endDate": null,
+  "timezone": "America/New_York",
+  "active": true
+}
+```
+
+**Interval-based Schedule Example:**
+```json
+{
+  "name": "Hydration Reminder",
+  "description": "Reminds patients to drink water every 2 hours",
+  "targetRole": "PATIENT",
+  "titleTemplate": "Stay Hydrated! 💧",
+  "messageTemplate": "It's been 2 hours. Time to drink a glass of water!",
+  "type": "REMINDER",
+  "priority": "LOW",
+  "channels": ["IN_APP"],
+  "scheduleType": "INTERVAL",
+  "intervalMinutes": 120,
+  "startDate": "2026-03-01T08:00:00Z",
+  "endDate": "2026-03-01T20:00:00Z",
+  "timezone": "America/New_York",
+  "active": true
+}
+```
+
+**One-time Schedule Example:**
+```json
+{
+  "name": "Doctor Appointment Reminder",
+  "description": "One-time reminder for doctor appointment",
+  "targetRole": "PATIENT",
+  "targetUserIds": ["specific-patient-id"],
+  "titleTemplate": "Upcoming Appointment",
+  "messageTemplate": "You have a doctor appointment tomorrow at 10 AM.",
+  "type": "APPOINTMENT",
+  "priority": "HIGH",
+  "channels": ["IN_APP", "EMAIL", "SMS"],
+  "scheduleType": "ONE_TIME",
+  "startDate": "2026-03-10T18:00:00Z",
+  "timezone": "America/New_York",
+  "active": true
+}
+```
+
+**Response (201 Created):** Returns created ScheduleResponse
+
+#### Update Schedule
+```http
+PUT /api/v1/schedules/{id}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Updated Schedule Name",
+  "description": "Updated description",
+  "targetRole": "PATIENT",
+  "targetUserIds": null,
+  "titleTemplate": "Updated Title",
+  "messageTemplate": "Updated message content",
+  "type": "REMINDER",
+  "priority": "HIGH",
+  "channels": ["IN_APP", "EMAIL"],
+  "scheduleType": "CRON",
+  "cronExpression": "0 10 * * *",
+  "intervalMinutes": null,
+  "startDate": "2026-03-01T00:00:00Z",
+  "endDate": null,
+  "timezone": "America/New_York",
+  "active": true
+}
+```
+
+**Response (200 OK):** Returns updated ScheduleResponse
+
+#### Delete Schedule
+```http
+DELETE /api/v1/schedules/{id}
+Authorization: Bearer <token>
+```
+
+**Response (204 No Content)**
+
+#### Toggle Schedule Status
+```http
+PATCH /api/v1/schedules/{id}/toggle
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):** Returns updated ScheduleResponse with toggled `active` status
+
+#### Trigger Schedule Manually
+```http
+POST /api/v1/schedules/{id}/trigger
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Schedule triggered successfully",
+  "scheduleId": "schedule-id-001",
+  "status": "executing"
+}
+```
+
+**Error Response (400 Bad Request) - When schedule is inactive:**
+```json
+{
+  "error": "Cannot trigger inactive schedule",
+  "scheduleId": "schedule-id-001"
+}
+```
+
+### TypeScript Interfaces for Schedules
+
+```typescript
+// Enums
+export type ScheduleType = 'CRON' | 'INTERVAL' | 'ONE_TIME';
+export type NotificationChannel = 'IN_APP' | 'EMAIL' | 'SMS' | 'PUSH';
+
+// Request DTOs
+export interface CreateScheduleRequest {
+  name: string;
+  description?: string;
+  targetRole: string;
+  targetUserIds?: string[];
+  titleTemplate: string;
+  messageTemplate: string;
+  type: NotificationType;
+  priority?: NotificationPriority;
+  channels: NotificationChannel[];
+  scheduleType: ScheduleType;
+  cronExpression?: string;
+  intervalMinutes?: number;
+  startDate: string; // ISO 8601
+  endDate?: string;
+  timezone?: string;
+  active?: boolean;
+}
+
+export interface UpdateScheduleRequest {
+  name: string;
+  description?: string;
+  targetRole: string;
+  targetUserIds?: string[];
+  titleTemplate: string;
+  messageTemplate: string;
+  type: NotificationType;
+  priority?: NotificationPriority;
+  channels: NotificationChannel[];
+  scheduleType: ScheduleType;
+  cronExpression?: string;
+  intervalMinutes?: number;
+  startDate: string;
+  endDate?: string;
+  timezone?: string;
+  active: boolean;
+}
+
+// Response DTOs
+export interface ScheduleResponse {
+  id: string;
+  name: string;
+  description?: string;
+  targetRole: string;
+  targetUserIds?: string[];
+  titleTemplate: string;
+  messageTemplate: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  channels: NotificationChannel[];
+  scheduleType: ScheduleType;
+  cronExpression?: string;
+  intervalMinutes?: number;
+  startDate: string;
+  endDate?: string;
+  timezone?: string;
+  active: boolean;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastExecutedAt?: string;
+  executionCount: number;
+  nextExecutionTime?: string;
+}
+
+export interface PagedScheduleResponse {
+  content: ScheduleResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+  first: boolean;
+  last: boolean;
+}
+```
+
+---
+
 ## Coming Soon (Other Services)
 
 | Service | Port | Base Path | Status |
 |---------|------|-----------|--------|
 | Event Ingestion | 8002 | `/api/v1/events` | 🔴 Not Implemented |
-| Safety Alert Engine | 8003 | `/api/v1/safety` | 🔴 Not Implemented |
-| Notification Service | 8004 | `/api/v1/notifications` | 🔴 Not Implemented |
+| Safety Alert Engine | 8003 | `/api/v1/safety` | ✅ Implemented |
+| Notification Service | 8004 | `/api/v1/notifications` | ✅ Frontend Ready |
 | Cognitive Memory | 8005 | `/api/v1/cognitive` | 🔴 Not Implemented |
 | Daily Care | 8006 | `/api/v1/daily-care` | 🔴 Not Implemented |
 | Medical Management | 8007 | `/api/v1/medical` | 🔴 Not Implemented |
@@ -747,4 +2015,4 @@ curl http://localhost:8080/api/v1/patients/test-keycloak-id \
 
 ---
 
-*AlzCare Platform | API Reference | Last Updated: 2026-02-17*
+*AlzCare Platform | API Reference | Last Updated: 2026-02-21 (Added missing endpoints: User Admin APIs, Notification Schedules, complete Behavior Log and Alert APIs)*

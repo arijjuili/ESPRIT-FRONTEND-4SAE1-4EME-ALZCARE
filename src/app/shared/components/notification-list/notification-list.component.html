@@ -1,0 +1,241 @@
+<div class="notification-list-container"
+  [style.--theme-primary]="effectiveTheme.primary"
+  [style.--theme-primary-light]="effectiveTheme.primaryLight"
+  [style.--theme-primary-dark]="effectiveTheme.primaryDark"
+  [style.--theme-border-color]="effectiveTheme.borderColor"
+  [style.--theme-hover-bg]="effectiveTheme.hoverBg"
+  [style.--theme-active-bg]="effectiveTheme.activeBg"
+  [style.--theme-active-text]="effectiveTheme.activeText">
+
+  <!-- Header -->
+  <div class="list-header">
+    <div class="header-title-section">
+      <h1 class="page-title">Notifications</h1>
+      <p class="page-subtitle" *ngIf="!isLoading">
+        You have <strong>{{ unreadCount }}</strong> unread of <strong>{{ totalCount }}</strong> total
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div class="header-actions" *ngIf="showMarkAllRead && unreadCount > 0">
+      <button 
+        class="mark-all-btn"
+        (click)="markAllAsRead()"
+        [disabled]="isLoading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>Mark all as read</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-section">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input 
+        type="text"
+        class="search-input"
+        placeholder="Search notifications..."
+        [value]="searchQuery"
+        (input)="onSearchInput($event)"
+        [disabled]="isLoading">
+      <button 
+        *ngIf="searchQuery"
+        class="clear-search-btn"
+        (click)="clearSearch()"
+        title="Clear search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs" *ngIf="showFilters">
+    <button 
+      *ngFor="let filter of filterTabs"
+      class="filter-tab"
+      [class.active]="currentFilter === filter.type"
+      [class.has-unread]="filter.type === 'UNREAD' && unreadCount > 0"
+      (click)="applyFilter(filter.type)">
+      <span class="tab-icon">{{ filter.icon }}</span>
+      <span class="tab-label">{{ filter.label }}</span>
+      <span 
+        *ngIf="getFilterCount(filter.type) > 0"
+        class="tab-count"
+        [class.unread]="filter.type === 'UNREAD'">
+        {{ getFilterCount(filter.type) > 99 ? '99+' : getFilterCount(filter.type) }}
+      </span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <span>Loading notifications...</span>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && filteredNotifications.length === 0" class="empty-container">
+    <div class="empty-content">
+      <div class="empty-icon-wrapper">
+        <span class="empty-icon">🔔</span>
+      </div>
+      <h3 class="empty-title">
+        {{ searchQuery ? 'No results found' : 'No notifications yet' }}
+      </h3>
+      <p class="empty-message">
+        {{ searchQuery 
+          ? 'Try adjusting your search terms or clear the filter' 
+          : 'When you receive notifications, they will appear here' }}
+      </p>
+      <button 
+        *ngIf="searchQuery"
+        class="clear-filter-btn"
+        (click)="clearSearch()">
+        Clear Search
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification Cards -->
+  <div *ngIf="!isLoading && filteredNotifications.length > 0" class="notifications-grid">
+    <div 
+      *ngFor="let notification of filteredNotifications; let i = index"
+      class="notification-card"
+      [class.unread]="notification.status === 'UNREAD'"
+      [class.critical]="notification.priority === 'CRITICAL'"
+      [class.highlighted]="notificationToDelete === notification.id"
+      [class]="getNotificationColorClass(notification.priority)">
+      
+      <!-- Card Header -->
+      <div class="card-header">
+        <!-- Type Icon -->
+        <div class="type-icon-wrapper">
+          <span class="type-icon">{{ getNotificationIcon(notification.type) }}</span>
+        </div>
+
+        <!-- Title & Meta -->
+        <div class="card-title-section">
+          <h3 class="card-title">{{ notification.title }}</h3>
+          <div class="card-meta">
+            <span class="timestamp" [title]="formatFullDateTime(notification.createdAt)">
+              {{ formatTimestamp(notification.createdAt) }}
+            </span>
+            <span class="separator">•</span>
+            <span 
+              class="priority-badge"
+              [class]="getNotificationTextColorClass(notification.priority)">
+              {{ getPriorityLabel(notification.priority) }}
+            </span>
+            <span class="separator">•</span>
+            <span class="type-label">{{ getTypeLabel(notification.type) }}</span>
+          </div>
+        </div>
+
+        <!-- Unread Indicator -->
+        <div 
+          *ngIf="notification.status === 'UNREAD'"
+          class="unread-indicator"
+          [style.background-color]="effectiveTheme.primary">
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body">
+        <p class="card-message">{{ notification.message }}</p>
+      </div>
+
+      <!-- Card Footer -->
+      <div class="card-footer">
+        <div class="card-actions">
+          <!-- Action Link -->
+          <a 
+            *ngIf="notification.actionUrl"
+            [routerLink]="notification.actionUrl"
+            class="action-link">
+            <span>{{ notification.actionLabel || 'View Details' }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </a>
+
+          <!-- Mark as Read Button (unread only) -->
+          <button 
+            *ngIf="notification.status === 'UNREAD'"
+            class="action-btn mark-read"
+            (click)="markAsRead(notification.id)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Mark read</span>
+          </button>
+        </div>
+
+        <!-- Delete Button -->
+        <button 
+          class="delete-btn"
+          (click)="confirmDelete(notification.id, $event)"
+          title="Delete notification">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Delete Confirmation Overlay -->
+      <div *ngIf="notificationToDelete === notification.id" class="delete-confirmation">
+        <div class="confirmation-content">
+          <p>Delete this notification?</p>
+          <div class="confirmation-actions">
+            <button class="confirm-btn cancel" (click)="cancelDelete()">
+              Cancel
+            </button>
+            <button class="confirm-btn delete" (click)="deleteNotification(notification.id)">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load More Button -->
+  <div *ngIf="!isLoading && filteredNotifications.length > 0 && !isLastPage" class="load-more-section">
+    <button 
+      class="load-more-btn"
+      (click)="loadMore()"
+      [disabled]="isLoadingMore">
+      <span *ngIf="!isLoadingMore">Load More</span>
+      <span *ngIf="isLoadingMore">Loading...</span>
+      <svg 
+        *ngIf="!isLoadingMore" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        stroke-width="2"
+        [class.loading]="isLoadingMore">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+      <div *ngIf="isLoadingMore" class="btn-spinner"></div>
+    </button>
+    <p class="load-more-info">
+      Showing {{ filteredNotifications.length }} of {{ totalElements }} notifications
+    </p>
+  </div>
+
+  <!-- End of List Indicator -->
+  <div *ngIf="!isLoading && filteredNotifications.length > 0 && isLastPage" class="end-of-list">
+    <span class="end-line"></span>
+    <span class="end-text">End of notifications</span>
+    <span class="end-line"></span>
+  </div>
+</div>

@@ -4,16 +4,32 @@ import { AuthService } from '../../../core/services/auth.service';
 import { DataService } from '../../../core/services/data.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { RoleTheme } from '../../../shared/components/navbar.component';
 
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
-  imports: [CommonModule, StatCardComponent, AlertCardComponent],
+  imports: [CommonModule, StatCardComponent, AlertCardComponent, NotificationBellComponent],
   templateUrl: './doctor-dashboard.component.html',
   styleUrls: ['./doctor-dashboard.component.scss']
 })
 export class DoctorDashboardComponent implements OnInit {
   doctorName = '';
+  
+  // Role theme for notification bell (blue for doctor)
+  currentTheme: RoleTheme = {
+    name: 'Doctor',
+    primary: '#3b82f6',
+    primaryLight: '#eff6ff',
+    primaryDark: '#1d4ed8',
+    gradientFrom: '#3b82f6',
+    gradientTo: '#2563eb',
+    borderColor: '#dbeafe',
+    hoverBg: '#dbeafe',
+    activeBg: '#3b82f6',
+    activeText: '#ffffff'
+  };
   patients: any[] = [];
   appointments: any[] = [];
 

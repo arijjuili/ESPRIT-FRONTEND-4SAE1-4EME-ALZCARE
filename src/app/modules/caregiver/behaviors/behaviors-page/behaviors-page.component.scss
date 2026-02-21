@@ -1,0 +1,264 @@
+// Behaviors Page Component Styles
+// Tailwind CSS with custom animations
+
+// Fade in animation
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Modal slide in animation
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+// Custom animation classes
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-modal-in {
+  animation: modalIn 0.25s ease-out forwards;
+}
+
+// Table row hover effect enhancement
+tbody tr {
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+  
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+// Custom scrollbar for modal
+.max-h-\[90vh\] {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 0 0.5rem 0.5rem 0;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #10b981;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #059669;
+    }
+  }
+}
+
+// Severity badge transitions
+.inline-flex {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Sort header styles
+th {
+  user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  
+  &:hover {
+    color: #10b981;
+  }
+}
+
+// Filter panel transition
+.mb-6 {
+  transition: all 0.3s ease;
+}
+
+// Focus ring enhancement
+input, select {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  
+  &:focus {
+    outline: none;
+  }
+}
+
+// Button hover enhancements
+button {
+  transition: all 0.2s ease;
+  
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+// Modal backdrop blur enhancement
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+// Stats bar animation
+.bg-white {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+// Empty state icon animation
+.text-6xl {
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+// Loading spinner glow
+.animate-spin {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+// Patient avatar styles
+.w-8, .w-10 {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+}
+
+// Status badges
+.bg-blue-100, .bg-purple-100, .bg-yellow-100 {
+  transition: all 0.15s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Description text truncation
+.truncate {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Image grid hover
+.aspect-square {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+  }
+  
+  img {
+    transition: transform 0.3s ease;
+  }
+  
+  &:hover img {
+    transform: scale(1.1);
+  }
+}
+
+// Gradient backgrounds
+.bg-gradient-to-r {
+  background-size: 200% 200%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+// Card shadow on hover
+table {
+  tbody tr {
+    td {
+      transition: color 0.15s ease;
+    }
+    
+    &:hover td {
+      color: #059669;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .animate-modal-in {
+    animation: fadeIn 0.25s ease-out forwards;
+  }
+  
+  .max-h-\[90vh\] {
+    max-height: 95vh;
+    margin: 0.5rem;
+  }
+}
+
+// Print styles
+@media print {
+  .fixed {
+    display: none !important;
+  }
+  
+  .shadow-md, .shadow-lg, .shadow-2xl {
+    box-shadow: none !important;
+  }
+  
+  .bg-white {
+    background: white !important;
+  }
+}
