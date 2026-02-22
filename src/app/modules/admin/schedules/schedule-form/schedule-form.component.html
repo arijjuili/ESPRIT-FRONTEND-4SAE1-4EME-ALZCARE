@@ -1,0 +1,255 @@
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                {{ isEditMode ? '✏️ Edit Schedule' : '➕ Create Schedule' }}
+            </h1>
+            <p class="text-gray-600">Configure automated notification campaign</p>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="loading" class="bg-white rounded-xl shadow-md p-12 text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
+            <p class="mt-4 text-gray-600">Loading schedule...</p>
+        </div>
+
+        <!-- Form -->
+        <form *ngIf="!loading" (ngSubmit)="onSubmit()" class="bg-white rounded-xl shadow-md p-8 space-y-6">
+
+            <!-- Basic Info Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">📋 Basic Information</h2>
+
+                <div class="space-y-4">
+                    <!-- Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Schedule Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" [(ngModel)]="form.name" name="name" required
+                            placeholder="e.g., Hydration Reminder"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea [(ngModel)]="form.description" name="description" rows="2"
+                            placeholder="Brief description of this schedule"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">🎯 Target Audience</h2>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Target Role <span class="text-red-500">*</span>
+                    </label>
+                    <select [(ngModel)]="form.targetRole" name="targetRole" required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        <option *ngFor="let role of targetRoles" [value]="role">
+                            {{ targetRoleLabels[role] }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Notification Content Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">💬 Notification Content</h2>
+
+                <div class="space-y-4">
+                    <!-- Type & Priority Row -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Type <span class="text-red-500">*</span>
+                            </label>
+                            <select [(ngModel)]="form.type" name="type" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                                <option *ngFor="let type of notificationTypes" [value]="type">{{ type }}</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Priority <span class="text-red-500">*</span>
+                            </label>
+                            <select [(ngModel)]="form.priority" name="priority" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                                <option *ngFor="let priority of priorities" [value]="priority">{{ priority }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Title Template -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Title Template <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" [(ngModel)]="form.titleTemplate" name="titleTemplate" required
+                            placeholder="e.g., Stay Hydrated 💧"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <button *ngFor="let v of templateVariables" type="button"
+                                (click)="insertVariable(v.variable, 'title')"
+                                class="px-2 py-1 text-xs bg-violet-100 text-violet-700 rounded hover:bg-violet-200"
+                                [title]="v.description">
+                                {{ v.variable }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Message Template -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Message Template <span class="text-red-500">*</span>
+                        </label>
+                        <textarea [(ngModel)]="form.messageTemplate" name="messageTemplate" required rows="3"
+                            [placeholder]="'e.g., Hi {{firstName}}, have you had water in the last hour?'"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"></textarea>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <button *ngFor="let v of templateVariables" type="button"
+                                (click)="insertVariable(v.variable, 'message')"
+                                class="px-2 py-1 text-xs bg-violet-100 text-violet-700 rounded hover:bg-violet-200"
+                                [title]="v.description">
+                                {{ v.variable }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Configuration Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">⏰ Schedule Configuration</h2>
+
+                <div class="space-y-4">
+                    <!-- Schedule Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Schedule Type <span class="text-red-500">*</span>
+                        </label>
+                        <select [(ngModel)]="form.scheduleType" name="scheduleType" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                            <option *ngFor="let type of scheduleTypes" [value]="type">
+                                {{ scheduleTypeLabels[type] }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Interval Minutes (if INTERVAL) -->
+                    <div *ngIf="form.scheduleType === 'INTERVAL'">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Interval (minutes) <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" [(ngModel)]="form.intervalMinutes" name="intervalMinutes" min="1"
+                            placeholder="e.g., 180 (3 hours)"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        <p class="mt-1 text-xs text-gray-500">
+                            Common: 60 (hourly), 180 (3 hours), 360 (6 hours), 1440 (daily)
+                        </p>
+                    </div>
+
+                    <!-- Cron Expression (if CRON) -->
+                    <div *ngIf="form.scheduleType === 'CRON'">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Cron Expression <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" [(ngModel)]="form.cronExpression" name="cronExpression"
+                            placeholder="e.g., 0 0 9 * * * (daily at 9 AM)"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        <div class="mt-2 space-y-1">
+                            <p class="text-xs text-gray-500 font-medium">Common patterns:</p>
+                            <div class="flex flex-wrap gap-2">
+                                <button *ngFor="let cron of commonCronExpressions" type="button"
+                                    (click)="useCronTemplate(cron.expression)"
+                                    class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                                    {{ cron.label }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Start Date <span class="text-red-500">*</span>
+                            </label>
+                            <input type="datetime-local" [(ngModel)]="form.startDate" name="startDate" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">End Date (Optional)</label>
+                            <input type="datetime-local" [(ngModel)]="form.endDate" name="endDate"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                        </div>
+                    </div>
+
+                    <!-- Timezone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Timezone <span class="text-red-500">*</span>
+                        </label>
+                        <select [(ngModel)]="form.timezone" name="timezone" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent">
+                            <option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Channels Section -->
+            <div class="border-b border-gray-200 pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">📢 Delivery Channels</h2>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button *ngFor="let channel of allChannels" type="button" (click)="toggleChannel(channel)"
+                        [class.bg-violet-100]="isChannelSelected(channel)"
+                        [class.border-violet-500]="isChannelSelected(channel)"
+                        [class.bg-gray-50]="!isChannelSelected(channel)"
+                        [class.border-gray-300]="!isChannelSelected(channel)"
+                        class="px-4 py-3 border-2 rounded-lg hover:shadow-md transition-all duration-200 text-left">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">{{ isChannelSelected(channel) ? '✅' : '⬜' }}</span>
+                            <span class="font-medium">{{ channelLabels[channel] }}</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status Section -->
+            <div class="pb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">⚙️ Status</h2>
+
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" [(ngModel)]="form.active" name="active"
+                        class="w-5 h-5 text-violet-600 rounded focus:ring-2 focus:ring-violet-500">
+                    <span class="text-gray-700">
+                        <span class="font-medium">Active</span>
+                        <span class="text-sm text-gray-500 ml-2">(Schedule will start executing immediately)</span>
+                    </span>
+                </label>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-4 pt-6 border-t border-gray-200">
+                <button type="submit" [disabled]="saving"
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ saving ? 'Saving...' : (isEditMode ? 'Update Schedule' : 'Create Schedule') }}
+                </button>
+                <button type="button" (click)="cancel()" [disabled]="saving"
+                    class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

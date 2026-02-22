@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { ValidationUtils } from '../../core/utils/validation.utils';
 
 @Component({
   selector: 'app-login',
@@ -24,20 +25,21 @@ export class LoginComponent {
   ) {}
 
   onLogin(): void {
-    console.log('[Login] onLogin called');
-
     if (!this.email || !this.password) {
       this.error = 'Please fill in all fields';
       return;
     }
 
+    if (!ValidationUtils.isValidEmail(this.email)) {
+      this.error = 'Please enter a valid email address';
+      return;
+    }
+
     this.loading = true;
     this.error = '';
-    console.log('[Login] Attempting login with:', this.email);
 
     this.authService.login(this.email, this.password).subscribe({
       next: (user) => {
-        console.log('[Login] Success, user role:', user.role);
         // Redirect based on role
         switch (user.role) {
           case 'patient':
@@ -56,7 +58,6 @@ export class LoginComponent {
         this.loading = false;
       },
       error: (err) => {
-        console.error('[Login] Error:', err);
         this.error = 'Invalid email or password. Please try again.';
         this.loading = false;
         this.cdr.detectChanges(); // Force update the view

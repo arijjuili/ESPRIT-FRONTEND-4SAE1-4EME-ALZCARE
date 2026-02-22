@@ -1,5 +1,638 @@
 # Changelog - CareHub
 
+## Session 23 (2026-02-22) - Cloudinary Image Upload Integration
+
+### Feature: Direct Image Upload for Behavior Logging
+**Problem:** Caregivers could only paste image URLs when logging behavior incidents. No direct upload capability existed, making it difficult to attach photos taken at the scene.
+
+**Solution:** Implemented direct unsigned image uploads to Cloudinary with drag-drop, camera capture, and gallery viewing.
+
+**Architecture:**
+```
+┌─────────────────┐     Upload Images      ┌──────────────┐
+│  Angular App    │ ─────────────────────> │  Cloudinary  │
+│  (Frontend)     │   (Unsigned upload     │     CDN      │
+│                 │    with upload preset) │              │
+└─────────────────┘                        └──────┬───────┘
+       │                                          │
+       │ 2. Receive Image URLs                    │
+       │ <────────────────────────────────────────┘
+       │
+       │ 3. Submit Behavior Log with imageUrls[]
+       ▼
+┌─────────────────┐
+│  Safety Alert   │
+│  Engine (8003)  │
+└─────────────────┘
+```
+
+**Cloudinary Configuration:**
+| Config | Value |
+|--------|-------|
+| Cloud Name | `dpudy4roo` |
+| Upload Preset | `lzcare_behavior_logs` |
+| Folder | `behavior_logs` |
+| Max File Size | 5MB |
+| Allowed Formats | JPG, JPEG, PNG, HEIC, HEIF |
+| Transformation | Auto-fill, 720x1280, auto quality |
+
+**New Files Created:**
+| File | Purpose |
+|------|---------|
+| `core/services/image-upload.service.ts` | Cloudinary upload API with progress tracking, validation, image optimization |
+| `shared/components/image-upload/image-upload.component.ts` | Reusable upload component with drag-drop |
+| `shared/components/image-upload/image-upload.component.html` | Upload UI with gallery/camera buttons |
+| `shared/components/image-upload/image-upload.component.scss` | Component styles following design system |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `environments/environment.ts` | Added Cloudinary config (cloudName, uploadPreset, apiUrl, folder, maxFileSizeMB, allowedFormats) |
+| `environments/environment.prod.ts` | Added Cloudinary config |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.ts` | Integrated `<app-image-upload>` component |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.html` | Replaced URL input with image upload component |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Added image gallery & lightbox functionality |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Added thumbnail gallery with click-to-expand |
+| `shared/components/behavior-log-form.component.ts` | Updated shared form with image upload support |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | Added lightbox methods for detail modal images |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Added full lightbox modal with navigation |
+| `shared/components/behavior-detail-modal.component.ts` | Added lightbox for viewing images in detail modal |
+
+**Features Implemented:**
+- ✅ **Drag & Drop Upload** - Drop images directly onto upload zone
+- ✅ **Gallery Button** - Select multiple images from device (max 5)
+- ✅ **Camera Button** - Take photos directly using device camera (`capture="environment"`)
+- ✅ **Progress Tracking** - Individual progress bars for each uploading image
+- ✅ **File Validation** - Size limit (5MB), format validation (JPG/PNG/HEIC)
+- ✅ **Thumbnail Previews** - 80x80px preview with remove button
+- ✅ **Error Handling** - Toast notifications for upload failures
+- ✅ **Image Gallery** - Thumbnail grid in behavior log lists
+- ✅ **Lightbox Viewer** - Full-screen image viewing with:
+  - Navigation arrows (previous/next)
+  - Image counter ("2 / 5")
+  - Keyboard navigation (Escape, ArrowLeft, ArrowRight)
+  - Thumbnail strip for quick navigation
+  - Click outside to close
+
+**ImageUploadService API:**
+```typescript
+validateFile(file: File): FileValidationResult
+validateFiles(files: File[]): { valid: File[]; errors: string[] }
+uploadImage(file: File): Promise<UploadResult>
+uploadMultiple(files: File[]): Promise<UploadResult[]>
+uploadWithProgress(file: File, onProgress?): Promise<UploadResult>
+getThumbnailUrl(url: string, size?: number): string
+getOptimizedUrl(url: string, width?, height?): string
+```
+
+**Usage Example:**
+```html
+<app-image-upload
+  [maxImages]="5"
+  [maxFileSizeMB]="5"
+  (imagesUploaded)="onImagesUploaded($event)"
+  (uploadError)="onUploadError($event)">
+</app-image-upload>
+```
+
+**Security Notes:**
+- Uses **unsigned uploads** (no signature required)
+- Upload preset restricts: folder, file size, allowed formats
+- No sensitive data in behavior log images
+- Cloudinary free tier: 25GB storage + 25GB bandwidth
+
+**Acceptance Criteria Met:**
+- ✅ Upload up to 5 images per behavior log
+- ✅ Direct upload to Cloudinary (no backend bottleneck)
+- ✅ Thumbnail previews in form
+- ✅ Images removable before submit
+- ✅ URLs saved with behavior log
+- ✅ Gallery view in behavior lists
+- ✅ Full-screen lightbox viewing
+- ✅ Mobile-responsive design
+- ✅ Camera capture on mobile devices
+
+---
+
+## Session 22 (2026-02-22) - Behavior Log Form Fixes
+
+### Bug Fix: Missing `reportedBy` Field (400 Bad Request)
+**Problem:** Creating manual behavior logs failed with 400 Bad Request - backend validation rejected null `reportedBy` field.
+
+**Root Cause:** The `behavior-log-form.component.ts` was not including the `reportedBy` field when submitting the form, but the backend requires it.
+
+**Solution:** 
+- Injected `AuthService` to get current user ID
+- Added `reportedBy` to request payload from `authService.getCurrentUser().id`
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `behavior-log-form.component.ts` | Added `AuthService` import, injected in constructor, added `reportedBy` to request |
+
+---
+
+### Bug Fix: Severity Slider Track Fill Not Following Cursor
+**Problem:** When dragging the severity slider (1-5), the green fill color stayed at 50% instead of following the cursor position.
+
+**Root Cause:** The CSS `--value` variable for the slider track gradient was hardcoded and never updated when the slider value changed.
+
+**Solution:**
+- Added `getSeverityPercentage()` method to convert severity (1-5) to percentage (0-100%)
+- Added dynamic style binding `[style.--value.%]` to the range input
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `behavior-log-form.component.ts` | Added `getSeverityPercentage()` method |
+| `behavior-log-form.component.html` | Added `[style.--value.%]="getSeverityPercentage()"` binding to range input |
+
+---
+
+## Session 21 (2026-02-21) - Pre-Push Code Quality Fixes
+
+### Maintenance: Critical Fixes Before GitHub Push
+**Context:** Code review identified multiple issues before pushing to GitHub repository.
+
+**Categories Fixed:**
+| Category | Count | Severity |
+|----------|-------|----------|
+| Form Validation Issues | 7 | 🔴 High |
+| Memory Leaks | 5 | 🟠 Medium |
+| Missing Error Handling | 4 | 🟠 Medium |
+| Code Quality (console.logs) | 16 | 🟡 Low |
+
+### Changes Made:
+
+**1. Form Validation (High Priority)**
+
+| File | Validation Added |
+|------|------------------|
+| `login.component.ts` | Email format validation using regex |
+| `admin-users.component.ts` | Email, password complexity, username format, name length, input trimming |
+| `schedule-form.component.ts` | Date range validation, max length, cron format, interval limits |
+| `admin-users.component.html` | Required indicators, maxlength attributes, validation hints |
+
+**Validation Rules Implemented:**
+- **Email**: Must match `^[^\s@]+@[^\s@]+\.[^\s@]+$`
+- **Password**: 8-128 chars, uppercase + lowercase + number required
+- **Username**: 3-20 chars, alphanumeric + underscore only
+- **Names**: 2-50 characters
+- **Dates**: End date must be after start date
+- **Cron**: 5-6 parts when split by whitespace
+
+**2. Memory Leak Fixes (High Priority)**
+
+All subscriptions now use `takeUntil(destroy$)` pattern:
+
+| File | Subscriptions Fixed |
+|------|---------------------|
+| `behaviors-page.component.ts` | Route params, patient service, behavior logs |
+| `caregiver-dashboard.component.ts` | Patient service, safety alert service |
+| `admin-users.component.ts` | All CRUD operations |
+
+**3. Error Handling Improvements**
+
+| File | Changes |
+|------|---------|
+| `behavior-log-form.component.ts` | Added toast notifications for errors/success |
+| `schedule-list.component.ts` | Enhanced error messages with retry hints |
+| `auth.service.ts` | Removed 8 console.log + 2 console.error |
+| `login.component.ts` | Removed 4 console statements |
+
+**4. Shared Validation Utilities (NEW)**
+
+**Created:** `core/utils/validation.utils.ts`
+
+```typescript
+export class ValidationUtils {
+  static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  static readonly USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+  static readonly PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  
+  static isValidEmail(email: string): boolean;
+  static isValidUsername(username: string): boolean;
+  static isValidPassword(password: string): { valid: boolean; message?: string };
+  static isValidDateRange(start: string|Date, end: string|Date): boolean;
+  static trimObject<T>(obj: T): T;
+  static isValidCronExpression(cron: string): boolean;
+  static isNotEmpty(value: string): boolean;
+  static hasMinLength(value: string, min: number): boolean;
+  static hasMaxLength(value: string, max: number): boolean;
+}
+```
+
+**Files Updated to Use ValidationUtils:**
+- `login.component.ts`
+- `admin-users.component.ts`
+- `schedule-form.component.ts`
+
+**5. Enhanced Admin Users Pagination**
+
+| File | Changes |
+|------|---------|
+| `admin-users.component.html` | Page size selector, page numbers with ellipsis, first/last buttons, user count display |
+| `admin-users.component.ts` | Added `goToFirstPage()`, `goToLastPage()`, `onPageSizeChange()`, `getVisiblePages()`, `Math` for template |
+| `admin-users.component.scss` | Pagination container styles, active page highlighting |
+
+**Pagination Features:**
+- Always-visible user count ("Showing X to Y of Z users")
+- Page size selector (5/10/20/50)
+- Page number buttons with smart ellipsis
+- First/Last page navigation
+- Active page highlighting
+
+**Files Modified:** 8
+**Files Created:** 1 (validation.utils.ts)
+**Console.log Statements Removed:** 16
+
+### Known Issues (Backend - Not Frontend)
+- **User Pagination Total Count:** Backend returns `totalElements` as current page size instead of actual total. The frontend pagination UI is correct - needs identity-service fix.
+
+---
+
+## Session 20 (2026-02-21) - Notification Schedule Management UI
+
+### Feature: Dynamic Notification Scheduler Admin Interface
+**Problem:** Backend notification-service had fully implemented Dynamic Notification Scheduler but frontend had no UI to manage scheduled notification campaigns.
+
+**Solution:** Built complete admin interface for creating, managing, and triggering automated notification schedules.
+
+**What Was Built:**
+
+1. **Models & Types** (`notification-schedule.model.ts`)
+   - ScheduleType enum (INTERVAL, CRON, ONE_TIME)
+   - NotificationSchedule interface
+   - CreateScheduleRequest, UpdateScheduleRequest DTOs
+   - PagedScheduleResponse interface
+   - UI helper constants (icons, labels, template variables, cron expressions, timezones)
+
+2. **Service Layer** (`notification-schedule.service.ts`)
+   - Full CRUD operations (list, get, create, update, delete)
+   - Toggle schedule active/inactive
+   - Manual trigger execution
+   - Proper auth headers and error handling
+
+3. **Schedule List Component** (`schedule-list/`)
+   - Paginated schedule cards with key info
+   - Toggle active/inactive button
+   - Manual trigger with confirmation
+   - Edit/delete actions with confirmations
+   - Execution stats (last run, next run, count)
+   - Loading and error states
+
+4. **Schedule Form Component** (`schedule-form/`)
+   - Create/edit form with full validation
+   - Target role selector (PATIENT, CAREGIVER, DOCTOR, ALL)
+   - Notification type & priority selectors
+   - Title/message template editors with variable hints
+   - Schedule type selector with conditional fields
+   - Channel multi-select (IN_APP, SMS, EMAIL, PUSH)
+   - Date range pickers with timezone selector
+   - Cron expression templates
+
+5. **Routing & Navigation**
+   - Added routes: `/admin/schedules`, `/admin/schedules/new`, `/admin/schedules/edit/:id`
+   - Added "Schedules" link to admin sidebar navigation
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `core/models/notification-schedule.model.ts` | TypeScript interfaces and types |
+| `core/services/notification-schedule.service.ts` | HTTP service for schedule API |
+| `modules/admin/schedules/schedule-list/schedule-list.component.*` | List view component |
+| `modules/admin/schedules/schedule-form/schedule-form.component.*` | Create/edit form component |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `core/models/index.ts` | Export notification-schedule models |
+| `app.routes.ts` | Add schedule routes |
+| `shared/components/navbar.component.ts` | Add "Schedules" navigation item |
+| `docs/ARCHITECTURE.md` | Update component counts, add schedule components, update service list |
+| `docs/CURRENT_TASK.md` | Track implementation progress |
+
+**Features:**
+- ✅ Paginated schedule list with search/filter
+- ✅ Create schedules with all backend options
+- ✅ Edit existing schedules
+- ✅ Delete with confirmation
+- ✅ Toggle active/inactive
+- ✅ Manual trigger with confirmation
+- ✅ Form validation
+- ✅ Template variable hints
+- ✅ Conditional fields based on schedule type
+- ✅ Toast notifications for all actions
+- ✅ Loading states and error handling
+- ✅ Responsive design matching CareHub design system
+
+**Backend Integration:**
+- API: `http://localhost:8004/api/v1/schedules`
+- All endpoints tested and working
+- Proper JWT authentication
+- Error handling with user-friendly messages
+
+---
+
+## Session 19 (2026-02-20) - Notification Bell Positioning & Service Integration
+
+### Feature: Moved Notification Bell to Dashboard Headers
+**Problem:** Notification bell was in the sidebar which was cluttered and the dropdown panel was positioned off-screen to the left.
+
+**Solution:** Moved bell to top-right of each dashboard header (like admin dashboard) and fixed dropdown positioning.
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `navbar.component.html` | Removed notification-section div |
+| `navbar.component.scss` | Removed `.notification-section` styles |
+| `navbar.component.ts` | Removed NotificationBellComponent import |
+| `patient-dashboard.component.ts/.html` | Added bell to header with teal theme |
+| `caregiver-dashboard.component.ts/.html` | Added bell to header with emerald theme |
+| `doctor-dashboard.component.ts/.html` | Added bell to header with blue theme |
+| `notification-bell.component.scss` | Added responsive positioning fix (right: -100px on mobile) |
+
+### Bug Fix: Connected Components to Real Service
+**Problem:** Notification bell and list components were using mock data instead of calling the real NotificationService.
+
+**Solution:** Updated components to use injected NotificationService with real HTTP calls.
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `notification-bell.component.ts` | Inject NotificationService & AuthService, subscribe to unreadCount$, real API calls |
+| `notification-list.component.ts` | Inject services, real pagination and CRUD operations |
+| `notification.service.ts` | Fixed PagedNotificationResponse type |
+| `notification.model.ts` | Added UnreadCountResponse, fixed NotificationFilter interface |
+| `navbar.component.ts` | Export RoleTheme interface |
+
+### TypeScript Fixes
+- Exported `RoleTheme` interface from navbar (was causing import errors)
+- Added `UnreadCountResponse` interface to notification model
+- Split `NotificationFilter` into API filter (with page/size/status/priority) and UI filter (`NotificationTabFilter`)
+- Fixed service return types to use `PagedNotificationResponse`
+
+---
+
+## Session 18 (2026-02-19) - Frontend Notification System
+
+### Feature: Complete Notification System Implementation
+**Problem:** Frontend had no notification infrastructure to receive and display notifications from the backend notification-service microservice.
+
+**Solution:** Implemented a comprehensive notification system with models, service, UI components, and integration across the application.
+
+**Architecture Overview:**
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   App Component │────▶│ NotificationService│────▶│  API Gateway    │
+│                 │     │                    │     │  /api/v1/notif  │
+│ ┌─────────────┐ │     │ ┌──────────────┐   │     └─────────────────┘
+│ │ToastContainer│     │ │BehaviorSubject│   │            │
+│ └─────────────┘ │     │ │unreadCount$  │   │            ▼
+└─────────────────┘     │ └──────────────┘   │     ┌─────────────────┐
+                        │                    │     │Notification     │
+┌─────────────────┐     │ ┌──────────────┐   │     │Service (port    │
+│ NotificationBell│◀────│ │Polling (30s) │   │     │8004)            │
+│   (navbar)      │     │ └──────────────┘   │     └─────────────────┘
+└─────────────────┘     └──────────────────┘
+```
+
+**New Files Created:**
+
+| File | Purpose |
+|------|---------|
+| `core/models/notification.model.ts` | TypeScript interfaces and enums for notifications |
+| `core/models/index.ts` | Barrel exports for models |
+| `core/services/notification.service.ts` | HTTP client, polling, state management |
+| `core/services/index.ts` | Barrel exports for services |
+| `shared/components/notification-bell/notification-bell.component.ts` | Bell icon with dropdown |
+| `shared/components/notification-bell/notification-bell.component.html` | Bell template with badge |
+| `shared/components/notification-bell/notification-bell.component.scss` | Animations, role-based theming |
+| `shared/components/notification-list/notification-list.component.ts` | Full notification center page |
+| `shared/components/notification-list/notification-list.component.html` | Filters, pagination, cards |
+| `shared/components/notification-list/notification-list.component.scss` | Responsive grid layout |
+| `shared/components/toast/toast.service.ts` | Global toast state management |
+| `shared/components/toast/toast.component.ts` | Individual toast item |
+| `shared/components/toast/toast-container.component.ts` | Fixed position container |
+| `shared/components/toast/index.ts` | Barrel exports for toast |
+
+**Files Modified:**
+
+| File | Changes |
+|------|---------|
+| `app.component.ts` | Added notification polling lifecycle, toast container |
+| `app.component.html` | Added `<app-toast-container>` |
+| `app.routes.ts` | Added `/notifications` route with AuthGuard |
+| `navbar.component.ts` | Imported NotificationBellComponent |
+| `navbar.component.html` | Added bell section with theme input |
+| `navbar.component.scss` | Added notification section styling |
+| `auth.service.ts` | Clear notification localStorage on logout |
+
+**Key Features:**
+- **Models:** Type-safe enums (NotificationType, NotificationPriority, NotificationStatus) and interfaces
+- **Service:** HTTP CRUD operations, BehaviorSubject for unread count, 30-second polling
+- **Bell Component:** Dropdown with recent notifications, unread badge, role-based theming
+- **List Component:** Full page with filters (All/Unread/Alerts/Reminders/System), pagination, search
+- **Toast System:** 5 toast types (success/error/warning/info/emergency), auto-dismiss with progress bar
+- **Emergency Alerts:** Special red pulsing styling, no auto-dismiss for critical safety alerts
+
+**Role-Based Theming:**
+| Role | Bell Color | Default Filter | Priority Focus |
+|------|------------|----------------|----------------|
+| Patient | Teal | Reminders | Medication reminders |
+| Caregiver | Emerald | Alerts | Safety/behavior alerts |
+| Doctor | Blue | System | Emergency alerts |
+| Admin | Violet | All | System/critical errors |
+
+**Acceptance Criteria Met:**
+- ✅ Notification bell with unread count in navbar for all authenticated users
+- ✅ Dropdown shows recent 5 notifications with mark-as-read
+- ✅ Full notification center at `/notifications` (AuthGuard protected)
+- ✅ Toast system for real-time alerts (top-right positioning)
+- ✅ Emergency alert styling with pulse animation
+- ✅ 30-second polling for unread count updates
+- ✅ Mobile responsive design
+- ✅ OnPush change detection for performance
+
+---
+
+## Session 17 (2026-02-18) - Automatic Token Refresh Implementation
+
+### Feature: Automatic Token Refresh System
+**Problem:** Access tokens expired after 5 minutes (`accessTokenLifespan: 300s` in Keycloak) and users were immediately logged out. The refresh token was stored but never used, causing poor user experience with frequent re-authentication.
+
+**Solution:** Implemented a complete automatic token refresh system with proactive and reactive refresh strategies.
+
+**Architecture Overview:**
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  AuthInterceptor │────▶│ TokenRefreshService│────▶│   Keycloak      │
+└────────┬────────┘     └──────────────────┘     └─────────────────┘
+         │                       │
+         │  1. Check expiry      │  2. Refresh via
+         │     (< 60s)           │     refresh_token
+         │                       │
+         │  3. Queue concurrent  │  4. Update tokens
+         │     requests          │     in storage
+         │                       │
+         ▼                       ▼
+    ┌───────────────────────────────────────┐
+    │      BehaviorSubject (queue)          │
+    │   - Blocks requests during refresh    │
+    │   - Retries all with new token        │
+    └───────────────────────────────────────┘
+```
+
+**New Files Created:**
+| File | Purpose |
+|------|---------|
+| `token-refresh.service.ts` | JWT expiration tracking, refresh logic, request queueing |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `auth.interceptor.ts` | Added proactive refresh (< 60s), reactive refresh on 401, request queueing |
+| `auth.service.ts` | Added `refreshToken()`, `updateTokens()`, expiration helpers, `tokenRefreshed$` observable |
+| `api.model.ts` | Added `TokenState`, `TokenRefreshEvent`, `RefreshTokenRequest`, `JwtPayload` interfaces |
+
+**Key Features:**
+- **Proactive Refresh:** Checks token expiration before each request, refreshes when < 60 seconds remaining
+- **Reactive Refresh:** On 401 response, attempts refresh once before logging out
+- **Request Queueing:** Uses RxJS `BehaviorSubject` to queue concurrent requests during refresh
+- **Token Rotation:** Handles Keycloak's refresh token rotation properly
+- **All Roles:** Works seamlessly for ADMIN, DOCTOR, CAREGIVER, PATIENT roles
+
+**Refresh Flow:**
+1. User makes API call with access token
+2. Interceptor checks if token expires in < 60 seconds
+3. If expiring soon → triggers `tokenRefreshService.refreshToken()`
+4. New token stored, queued requests retry with new token
+5. If refresh fails (expired refresh token) → logout and redirect to login
+
+**Acceptance Criteria Met:**
+- ✅ User stays logged in for full SSO session (10 hours max)
+- ✅ Token refresh happens silently without user noticing
+- ✅ Multiple API calls during refresh are queued properly
+- ✅ Failed refresh properly logs out user
+
+---
+
+## Session 16 (2026-02-17) - Behavior Severity Display & Filter Fix
+
+### Bug Fix: Severity Enum Handling
+**Problem:** Backend sends severity as enum strings (`ONE`, `TWO`, `THREE`, `FOUR`, `FIVE`) but frontend expected numbers. This caused:
+- Display issue: "FOUR/5" instead of "4/5"
+- Filter not working: String vs number comparison failing
+
+**Solution:** Updated frontend to handle BehaviorSeverity enum properly.
+
+**Files Changed:**
+| File | Change |
+|------|--------|
+| `safety-alert.model.ts` | Added `BehaviorSeverity` type, changed `severity: number` to `severity: BehaviorSeverity` |
+| `behaviors-page.component.ts` | Added `severityToNumber()` helper, updated filter interface, fixed sorting |
+| `behaviors-page.component.html` | Updated severity display to use `severityToNumber()` |
+| `caregiver-dashboard.component.ts` | Added `severityToNumber()`, updated `getSeverityColor/Label` methods |
+| `safety-alert.service.ts` | Added `numberToSeverityEnum()` to convert 1-5 → ONE-FIVE when sending to backend |
+
+**Key Changes:**
+- Frontend displays: `severityToNumber(severity)/5` → shows "4/5"
+- Frontend sends: numeric 1-5 converted to enum strings for backend compatibility
+- Filter now works: Compares enum strings directly from backend response
+- Sorting fixed: Uses numeric conversion for proper ordering
+
+---
+
+## Session 15 (2026-02-17) - Caregiver Behaviors Page
+
+### Feature: Full Behavior Management Page
+**Problem:** Caregiver dashboard only showed last 5 behaviors in a widget, no way to view full history or details.
+
+**Solution:** Created comprehensive behaviors page with filtering, sorting, and detail view.
+
+**New Components:**
+| Component | Location | Features |
+|-----------|----------|----------|
+| `behaviors-page` | `caregiver/behaviors/behaviors-page/` | Full behavior list with filters, sorting, table view |
+| `behavior-detail-modal` | `shared/components/` | Detailed view modal for single behavior |
+
+**Routes Added:**
+- `/caregiver/behaviors` - All behaviors for all patients
+- `/caregiver/behaviors/:patientId` - Behaviors for specific patient
+
+**Features:**
+- **Filtering:** By patient, severity (1-5), behavior type, date range, search query
+- **Sorting:** By timestamp, severity, type, patient name
+- **Table View:** Responsive table with sortable columns
+- **Detail Modal:** Click any behavior to see full details including:
+  - Behavior type with icon
+  - Severity badge with color coding
+  - Patient information
+  - Description, location, triggers, witnesses
+  - Timestamps and reporter info
+  - Image gallery (if URLs provided)
+- **Quick Actions:** "Log Behavior" button from any view
+
+**Updates:**
+- Dashboard "View All Behaviors" button now navigates to behaviors page
+- Behaviors page uses real patient data from PatientService
+
+---
+
+## Session 14 (2026-02-17) - Real Patient Data Integration
+
+### Feature: Replace Fake Patient UUIDs with Real Data
+**Problem:** Behavior log form used hardcoded/fake patient UUIDs because Care Team service (patient-caregiver linking) is not yet implemented. Need real patient data for dev/testing.
+
+**Solution:** Added temporary "Dev Helper" endpoint to list all patients and integrated patient selector in frontend.
+
+**Backend Changes (identity-service):**
+| File | Change |
+|------|--------|
+| `PatientProfileService.java` | Added `getAllPatients(Boolean isActive)` method |
+| `PatientProfileController.java` | Added `GET /api/v1/patients` endpoint with optional `isActive` filter |
+
+**Frontend Changes (alzheimerApp):**
+| File | Change |
+|------|--------|
+| `patient.service.ts` (new) | Created PatientService with `getPatients()` method |
+| `behavior-log-form.component.ts` | Added patient loading logic with error handling |
+| `behavior-log-form.component.html` | Replaced hardcoded options with dynamic patient dropdown |
+
+**API Details:**
+- **Endpoint:** `GET /api/v1/patients?isActive=true` (optional filter)
+- **Auth:** ADMIN or CAREGIVER role required
+- **Response:** `List<PatientProfileResponse>` with real patient UUIDs
+
+**UI Features:**
+- Loading spinner while fetching patients
+- Error state with retry button
+- Dropdown shows patient names with real UUIDs behind the scenes
+- "No patients available" message when list is empty
+
+**Note:** This is a temporary solution until Care Team service is implemented for proper patient-caregiver assignment.
+
+---
+
+## 2026-02-17 - Safety-Alert-Engine Integration Phase 1 & 2
+
+### Added
+- SafetyAlertService with full API integration to safety-alert-engine (port 8082)
+- TypeScript models for Behavior Logs and Alerts (safety-alert.model.ts)
+- Behavior log form component for caregivers to log manual behaviors
+- Behavior log list component to view patient behavior history
+- Behaviors page with route `/caregiver/behaviors/:patientId`
+- Caregiver dashboard integration with "Log Behavior" button and recent behaviors widget
+- Proxy configuration for `/api/safety` -> `http://localhost:8082`
+
+### Features
+- Log manual behaviors: FALL, WANDERING, AGITATION, SLEEP_DISORDER, etc.
+- Severity levels 1-5 with color-coded badges
+- Manual image URL input (Cloudinary integration planned for future)
+- Real-time behavior list with patient filtering
+
+---
+
 ## Session 14 (2026-02-21) - Caregiver Memory Items CRUD
 
 ### Feature: Memory Items Management (Caregiver)

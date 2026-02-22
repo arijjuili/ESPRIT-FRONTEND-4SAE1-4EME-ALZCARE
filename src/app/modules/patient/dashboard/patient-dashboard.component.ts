@@ -3,17 +3,33 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 import { DataService } from '../../../core/services/data.service';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
-import { HealthMetric } from '../../../core/models/user.model';
+import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { RoleTheme } from '../../../shared/components/navbar.component';
+import { HealthMetric, UserRole } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
-  imports: [CommonModule, AlertCardComponent],
+  imports: [CommonModule, AlertCardComponent, NotificationBellComponent],
   templateUrl: './patient-dashboard.component.html',
   styleUrls: ['./patient-dashboard.component.scss']
 })
 export class PatientDashboardComponent implements OnInit {
   patientName = '';
+  
+  // Role theme for notification bell (teal for patient)
+  currentTheme: RoleTheme = {
+    name: 'Patient',
+    primary: '#14b8a6',
+    primaryLight: '#f0fdfa',
+    primaryDark: '#0f766e',
+    gradientFrom: '#14b8a6',
+    gradientTo: '#0d9488',
+    borderColor: '#ccfbf1',
+    hoverBg: '#ccfbf1',
+    activeBg: '#14b8a6',
+    activeText: '#ffffff'
+  };
   appointments: any[] = [];
   medications: any[] = [];
   todayTasks: any[] = [];
