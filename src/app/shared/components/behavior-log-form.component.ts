@@ -5,14 +5,15 @@ import { SafetyAlertService } from '../../core/services/safety-alert.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PatientProfileResponse } from '../../core/services/patient.service';
 import { BehaviorType, CreateManualBehaviorLogRequest } from '../../core/models/safety-alert.model';
+import { ImageUploadComponent } from './image-upload/image-upload.component';
 
 @Component({
   selector: 'app-behavior-log-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ImageUploadComponent],
   template: `
-    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" (click)="onBackdropClick($event)">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" (click)="onBackdropClick($event)">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 relative" (click)="$event.stopPropagation()" style="max-height: calc(100vh - 4rem); overflow-y: auto;">
         <!-- Header -->
         <div class="bg-emerald-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
           <h2 class="text-xl font-bold text-white">📝 Log Patient Behavior</h2>
@@ -107,6 +108,16 @@ import { BehaviorType, CreateManualBehaviorLogRequest } from '../../core/models/
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
           </div>
 
+          <!-- Image Upload -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Images</label>
+            <app-image-upload
+              [maxImages]="5"
+              (imagesUploaded)="onImagesUploaded($event)"
+              (uploadError)="onUploadError($event)">
+            </app-image-upload>
+          </div>
+
           <!-- Error Message -->
           <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {{ errorMessage }}
@@ -156,6 +167,7 @@ export class BehaviorLogFormComponent implements OnInit {
   isSubmitting = false;
   errorMessage = '';
   successMessage = '';
+  uploadedImageUrls: string[] = [];
 
   behaviorTypes = [
     { value: 'FALL', label: 'Fall' },
@@ -197,6 +209,14 @@ export class BehaviorLogFormComponent implements OnInit {
     );
   }
 
+  onImagesUploaded(urls: string[]): void {
+    this.uploadedImageUrls = urls;
+  }
+
+  onUploadError(error: string): void {
+    this.errorMessage = error;
+  }
+
   onSubmit(): void {
     if (!this.isFormValid()) {
       this.errorMessage = 'Please fill in all required fields.';
@@ -212,7 +232,8 @@ export class BehaviorLogFormComponent implements OnInit {
 
     const requestData: CreateManualBehaviorLogRequest = {
       ...this.formData,
-      reportedBy: currentUser.id
+      reportedBy: currentUser.id,
+      imageUrls: this.uploadedImageUrls
     };
 
     this.isSubmitting = true;
@@ -234,6 +255,7 @@ export class BehaviorLogFormComponent implements OnInit {
   }
 
   onClose(): void {
+    this.uploadedImageUrls = [];
     this.close.emit();
   }
 

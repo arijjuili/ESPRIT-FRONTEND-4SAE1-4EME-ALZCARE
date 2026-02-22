@@ -42,6 +42,10 @@ export class BehaviorsPageComponent implements OnInit, OnDestroy {
   selectedBehavior: BehaviorLogResponse | null = null;
   showDetailModal = false;
   
+  // Lightbox State
+  lightboxOpen = false;
+  lightboxCurrentIndex = 0;
+  
   // Filters
   filters: BehaviorFilters = {
     patientId: '',
@@ -392,5 +396,63 @@ export class BehaviorsPageComponent implements OnInit, OnDestroy {
   get sourceIcon(): string {
     if (!this.selectedBehavior) return '';
     return this.selectedBehavior.source === 'AUTO' ? '🤖' : '👤';
+  }
+  
+  // Lightbox Methods
+  
+  /**
+   * Get optimized image URL for display
+   */
+  getOptimizedImageUrl(url: string): string {
+    // For now, return the URL as-is; can be enhanced with image optimization later
+    return url;
+  }
+  
+  /**
+   * Open lightbox to view images
+   */
+  openLightbox(index: number): void {
+    if (!this.selectedBehavior?.imageUrls?.length) return;
+    this.lightboxCurrentIndex = index;
+    this.lightboxOpen = true;
+    document.body.style.overflow = 'hidden';
+  }
+  
+  /**
+   * Close lightbox
+   */
+  closeLightbox(): void {
+    this.lightboxOpen = false;
+    document.body.style.overflow = '';
+  }
+  
+  /**
+   * Go to next image in lightbox
+   */
+  nextImage(): void {
+    if (!this.selectedBehavior?.imageUrls?.length) return;
+    this.lightboxCurrentIndex = (this.lightboxCurrentIndex + 1) % this.selectedBehavior.imageUrls.length;
+  }
+  
+  /**
+   * Go to previous image in lightbox
+   */
+  previousImage(): void {
+    if (!this.selectedBehavior?.imageUrls?.length) return;
+    const count = this.selectedBehavior.imageUrls.length;
+    this.lightboxCurrentIndex = (this.lightboxCurrentIndex - 1 + count) % count;
+  }
+  
+  /**
+   * Handle keyboard navigation in lightbox
+   */
+  onLightboxKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.closeLightbox();
+    } else if (event.key === 'ArrowRight') {
+      this.nextImage();
+    } else if (event.key === 'ArrowLeft') {
+      this.previousImage();
+    }
   }
 }

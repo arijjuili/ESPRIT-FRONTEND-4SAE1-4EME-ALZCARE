@@ -60,7 +60,7 @@ alzheimerApp/src/app/
 
 | Metric | Count |
 |--------|-------|
-| Total Components | 40+ |
+| Total Components | 42+ |
 | Admin Dashboard Pages | 9 (Medical, Caregivers, Interactive, Community, Users, Analytics, Settings, Schedules) |
 | Patient Pages | 7 (Dashboard, Activities, Medications, Games, Community, Profile, Redesign) |
 | Caregiver Pages | 2 (Dashboard, Behaviors) |
@@ -176,7 +176,7 @@ Real API integration via `ApiService` with proper error handling and fallback to
 |-----------|---------|
 | `landing` | Public landing page with CTA |
 
-### Shared Components (7 Components)
+### Shared Components (8 Components)
 | Component | Purpose |
 |-----------|---------|
 | `navbar` | Role-aware sidebar navigation with collapse |
@@ -186,6 +186,7 @@ Real API integration via `ApiService` with proper error handling and fallback to
 | `notification-bell` | Bell icon with dropdown for recent notifications |
 | `notification-list` | Full notification center with filters |
 | `toast-container` | Global toast notification container |
+| `image-upload` | Cloudinary image upload with drag-drop, camera, gallery |
 
 ### Notification System Components (4 Components)
 | Component | Purpose | Location |
@@ -291,6 +292,10 @@ The admin dashboard provides comprehensive management for all 12 application axe
 **Problem:** 16+ `console.log` and `console.error` statements in production code across multiple services and components.  
 **Fix:** Removed all console statements from `auth.service.ts`, `login.component.ts`, `schedule-list.component.ts`, and `behavior-log-form.component.ts`. Replaced with proper error handling and toast notifications.
 
+### Issue #11: Image Upload for Behavior Logs (2026-02-22)
+**Problem:** Caregivers could only paste image URLs when logging behavior incidents. No direct upload capability existed, making it difficult to attach photos taken at the scene.  
+**Fix:** Implemented Cloudinary unsigned uploads with reusable `ImageUploadComponent`. Features include: drag-drop upload, camera capture, gallery selection, progress tracking, thumbnail previews, and full-screen lightbox gallery with keyboard navigation.
+
 ---
 
 ## 🤖 Agent Instructions (For AI Assistant)
@@ -313,4 +318,4 @@ The admin dashboard provides comprehensive management for all 12 application axe
 
 ---
 
-*Last Updated: 2026-02-21 (Session 21: pre-push fixes complete - form validation, memory leaks, error handling, ValidationUtils utility, enhanced pagination)*
+*Last Updated: 2026-02-22 (Session 23: Cloudinary image upload component, lightbox gallery, quick access behavior log fix)*

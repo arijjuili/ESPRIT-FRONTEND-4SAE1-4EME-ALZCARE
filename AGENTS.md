@@ -136,6 +136,16 @@ src/app/
 
 ## ✅ Recently Implemented (See CHANGELOG.md for details)
 
+### Session 23 (2026-02-22) - Cloudinary Image Upload for Behavior Logging
+- **Image Upload Component** - Reusable drag-drop upload with camera/gallery support
+- **Lightbox Gallery** - Full-screen image slideshow with keyboard navigation
+- **Quick Access Fix** - Dashboard "Log Behavior" button properly opens form with patient context
+- **Cloudinary Integration** - Direct unsigned uploads to CDN with progress tracking
+
+### Session 22 (2026-02-22) - Behavior Log Form Fixes
+- Fixed missing `reportedBy` field causing 400 Bad Request
+- Fixed severity slider track fill not following cursor
+
 ### Session 21 (2026-02-21) - Pre-Push Code Quality Fixes
 - Fixed 7 form validation issues (email, password, date ranges)
 - Fixed 5 memory leaks with `takeUntil(destroy$)` pattern
@@ -202,5 +212,5 @@ src/app/
 
 ---
 
-*Last Updated: 2026-02-21*
+*Last Updated: 2026-02-22 (Session 23: Cloudinary image upload, lightbox gallery, quick access behavior log fix)*
 *Document Version: 3.0*

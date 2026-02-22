@@ -4,13 +4,15 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { SafetyAlertService } from '../../../../core/services/safety-alert.service';
 import { PatientService, PatientProfileResponse } from '../../../../core/services/patient.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { ImageUploadComponent } from '../../../../shared/components/image-upload/image-upload.component';
 
 @Component({
   selector: 'app-behavior-log-form',
   templateUrl: './behavior-log-form.component.html',
   styleUrls: ['./behavior-log-form.component.scss'],
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule]
+  imports: [CommonModule, ReactiveFormsModule, ImageUploadComponent]
 })
 export class BehaviorLogFormComponent implements OnInit {
   @Input() patientId = '';
@@ -19,6 +21,7 @@ export class BehaviorLogFormComponent implements OnInit {
   
   behaviorForm: FormGroup;
   isSubmitting = false;
+  uploadedImageUrls: string[] = [];
   
   // Patient data
   patients: PatientProfileResponse[] = [];
@@ -49,7 +52,8 @@ export class BehaviorLogFormComponent implements OnInit {
     private fb: FormBuilder, 
     private safetyService: SafetyAlertService,
     private patientService: PatientService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private authService: AuthService
   ) {
     this.behaviorForm = this.fb.group({
       patientId: [this.patientId, Validators.required],
@@ -59,7 +63,7 @@ export class BehaviorLogFormComponent implements OnInit {
       description: ['', Validators.required],
       triggers: [''],
       witnesses: [''],
-      imageUrl: [''] // Manual URL input for now
+      imageUrls: [[]] // Array of uploaded image URLs
     });
   }
   
@@ -114,16 +118,46 @@ export class BehaviorLogFormComponent implements OnInit {
     if (severity === 3) return 'bg-warning';
     return 'bg-danger';
   }
+
+  /**
+   * Get severity value as percentage for slider track fill
+   * Maps 1-5 to 0-100%
+   */
+  getSeverityPercentage(): number {
+    const severity = this.severityValue;
+    return ((severity - 1) / 4) * 100;
+  }
   
+  /**
+   * Handle images uploaded from the image upload component
+   */
+  onImagesUploaded(urls: string[]): void {
+    this.uploadedImageUrls = urls;
+    this.behaviorForm.patchValue({ imageUrls: urls });
+  }
+
+  /**
+   * Handle upload errors
+   */
+  onUploadError(error: string): void {
+    this.toastService.error(error);
+  }
+
   onSubmit(): void {
     if (this.behaviorForm.valid) {
       this.isSubmitting = true;
-      const request = this.behaviorForm.value;
-      // Convert imageUrl to array if provided
-      if (request.imageUrl) {
-        (request as any).imageUrls = [request.imageUrl];
-        delete request.imageUrl;
-      }
+      const formValue = this.behaviorForm.value;
+      
+      // Get current user ID for reportedBy
+      const currentUser = this.authService.getCurrentUser();
+      const reportedBy = currentUser?.id || '';
+      
+      const request = {
+        ...formValue,
+        reportedBy,
+        imageUrls: this.uploadedImageUrls
+      };
+      
       this.safetyService.createManualBehaviorLog(request).subscribe({
         next: () => {
           this.isSubmitting = false;
@@ -142,6 +176,7 @@ export class BehaviorLogFormComponent implements OnInit {
   
   onCancel(): void {
     this.behaviorForm.reset({ severity: 3 });
+    this.uploadedImageUrls = [];
     this.cancel.emit();
   }
 }

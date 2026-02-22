@@ -14,9 +14,12 @@ A comprehensive care management platform designed to support patients with Alzhe
 
 ### Caregiver Dashboard
 - **Dashboard**: Overview of assigned patients and key metrics
+  - Quick access "Log Behavior" button with patient pre-selection
 - **Behavior Tracking**: Log and monitor patient behaviors and incidents
-  - Behavior log form for recording incidents
-  - Behavior log list for reviewing history
+  - Behavior log form with **image upload** (drag-drop, gallery, camera)
+  - Behavior log list for reviewing history with photo thumbnails
+  - Full-screen lightbox/slideshow for viewing attached images
+  - Keyboard navigation (arrows, escape) in lightbox
   - Patient-specific behavior tracking
 
 ### Doctor Dashboard
@@ -125,6 +128,21 @@ The app supports role-based access control with **automatic token refresh** (no 
 Authentication is handled via Keycloak OAuth2 with silent token refresh for seamless user experience.
 
 ## 📝 Latest Updates
+
+### Session 23: 2026-02-22
+- ✅ **Cloudinary Image Upload** - Direct image uploads for behavior logging
+  - Drag & drop file upload
+  - Gallery selection (up to 5 images)
+  - Camera capture on mobile devices
+  - Full-screen lightbox viewer with slideshow navigation
+  - Image thumbnails in behavior lists
+  - Quick access behavior log fix (caregiver dashboard)
+
+### Session 22: 2026-02-22
+- ✅ Behavior log form fixes (reportedBy field, severity slider)
+
+### Session 21: 2026-02-21
+- ✅ Pre-push code quality fixes (validation, memory leaks, console logs)
 
 ### Session 20: 2026-02-21
 - ✅ Notification Schedule Management - Admin UI for creating/managing scheduled notification campaigns

@@ -33,19 +33,14 @@
     </div>
   </div>
 
-  <!-- Behavior Log Form (Collapsible) -->
+  <!-- Behavior Log Form (Collapsible Inline) -->
   <div *ngIf="showForm" class="mb-6 sm:mb-8 animate-fade-in">
     <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-emerald-100">
-      <div class="px-4 sm:px-6 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-emerald-100">
-        <h2 class="text-lg font-bold text-gray-900">📝 Log New Behavior Incident</h2>
-      </div>
-      <div class="p-4 sm:p-6">
-        <app-behavior-log-form 
-          [patientId]="routePatientId || ''"
-          (formSubmit)="onFormSubmitted()"
-          (cancel)="onFormCancelled()">
-        </app-behavior-log-form>
-      </div>
+      <app-behavior-log-form 
+        [patientId]="routePatientId || ''"
+        (formSubmit)="onFormSubmitted()"
+        (cancel)="onFormCancelled()">
+      </app-behavior-log-form>
     </div>
   </div>
 
@@ -288,9 +283,9 @@
 
 <!-- Detail Modal -->
 <div *ngIf="showDetailModal && selectedBehavior" 
-     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto"
      (click)="closeDetailModal()">
-  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-modal-in"
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 relative animate-modal-in"
        (click)="$event.stopPropagation()">
     
     <!-- Modal Header -->
@@ -416,7 +411,9 @@
       <div *ngIf="selectedBehavior.imageUrls?.length" class="mb-6">
         <label class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">Images</label>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div *ngFor="let url of selectedBehavior.imageUrls" class="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+          <div *ngFor="let url of selectedBehavior.imageUrls; let i = index" 
+               class="aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition"
+               (click)="openLightbox(i)">
             <img [src]="url" alt="Behavior evidence" class="w-full h-full object-cover">
           </div>
         </div>
@@ -434,6 +431,83 @@
       <button (click)="closeDetailModal()" 
               class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition-colors">
         Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox Modal -->
+<div *ngIf="lightboxOpen && selectedBehavior?.imageUrls?.length"
+     class="fixed inset-0 z-[200] bg-black/95 flex flex-col"
+     (click)="closeLightbox()"
+     (keydown)="onLightboxKeydown($event)"
+     tabindex="0">
+  
+  <!-- Header -->
+  <div class="flex items-center justify-between p-4 flex-shrink-0">
+    <!-- Image Counter -->
+    <div class="text-white text-sm font-medium bg-white/20 px-4 py-2 rounded-full">
+      {{ lightboxCurrentIndex + 1 }} / {{ selectedBehavior!.imageUrls!.length }}
+    </div>
+    
+    <!-- Close Button -->
+    <button
+      type="button"
+      class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition"
+      (click)="closeLightbox(); $event.stopPropagation()"
+      title="Close (Esc)">
+      <span class="text-2xl">×</span>
+    </button>
+  </div>
+  
+  <!-- Main Content Area -->
+  <div class="flex-1 flex items-center justify-center relative px-16 md:px-20">
+    
+    <!-- Previous Button -->
+    <button
+      *ngIf="selectedBehavior!.imageUrls!.length > 1"
+      type="button"
+      class="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition z-10"
+      (click)="previousImage(); $event.stopPropagation()"
+      title="Previous (←)">
+      <span class="text-2xl">‹</span>
+    </button>
+    
+    <!-- Image -->
+    <div class="w-full h-full flex items-center justify-center p-4" (click)="$event.stopPropagation()">
+      <img
+        [src]="getOptimizedImageUrl(selectedBehavior!.imageUrls![lightboxCurrentIndex])"
+        [alt]="'Image ' + (lightboxCurrentIndex + 1)"
+        class="max-w-full max-h-[calc(100vh-140px)] object-contain rounded-lg shadow-2xl"
+        (click)="$event.stopPropagation()" />
+    </div>
+    
+    <!-- Next Button -->
+    <button
+      *ngIf="selectedBehavior!.imageUrls!.length > 1"
+      type="button"
+      class="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition z-10"
+      (click)="nextImage(); $event.stopPropagation()"
+      title="Next (→)">
+      <span class="text-2xl">›</span>
+    </button>
+  </div>
+  
+  <!-- Thumbnail Strip -->
+  <div *ngIf="selectedBehavior!.imageUrls!.length > 1" 
+       class="flex-shrink-0 p-4 bg-black/50 overflow-x-auto"
+       (click)="$event.stopPropagation()">
+    <div class="flex justify-center gap-2">
+      <button
+        *ngFor="let url of selectedBehavior!.imageUrls; let i = index"
+        type="button"
+        class="w-16 h-16 rounded-lg overflow-hidden border-2 transition flex-shrink-0"
+        [class.border-white]="i === lightboxCurrentIndex"
+        [class.border-transparent]="i !== lightboxCurrentIndex"
+        [class.opacity-100]="i === lightboxCurrentIndex"
+        [class.opacity-50]="i !== lightboxCurrentIndex"
+        (click)="lightboxCurrentIndex = i; $event.stopPropagation()">
+        <img [src]="url" [alt]="'Thumbnail ' + (i + 1)" class="w-full h-full object-cover">
       </button>
     </div>
   </div>

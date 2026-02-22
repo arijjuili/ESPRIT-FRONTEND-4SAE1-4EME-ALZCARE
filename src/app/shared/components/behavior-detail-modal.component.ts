@@ -14,8 +14,8 @@ import { BehaviorLogResponse, BehaviorType, BehaviorSource, BehaviorValidationSt
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" (click)="onBackdropClick($event)">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" (click)="onBackdropClick($event)">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8 relative" (click)="$event.stopPropagation()" style="max-height: calc(100vh - 4rem); overflow-y: auto;">
         
         <!-- Header -->
         <div class="bg-emerald-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
@@ -140,9 +140,10 @@ import { BehaviorLogResponse, BehaviorType, BehaviorSource, BehaviorValidationSt
           <div *ngIf="behavior.imageUrls && behavior.imageUrls.length > 0">
             <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Attached Images</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div *ngFor="let imageUrl of behavior.imageUrls" class="relative group">
+              <div *ngFor="let imageUrl of behavior.imageUrls; let i = index" class="relative group">
                 <img [src]="imageUrl" alt="Behavior evidence" 
-                     class="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition">
+                     class="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition"
+                     (click)="openLightbox(i)">
                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-lg transition flex items-center justify-center">
                   <span class="text-white opacity-0 group-hover:opacity-100 text-2xl">🔍</span>
                 </div>
@@ -201,6 +202,91 @@ import { BehaviorLogResponse, BehaviorType, BehaviorSource, BehaviorValidationSt
         </div>
       </div>
     </div>
+
+    <!-- Lightbox Modal -->
+    <div 
+      *ngIf="lightboxOpen"
+      class="fixed inset-0 z-[200] flex items-center justify-center"
+      (click)="closeLightbox()"
+      (keydown)="onLightboxKeydown($event)"
+      tabindex="0">
+      
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/90 transition-opacity"></div>
+      
+      <!-- Lightbox Content -->
+      <div 
+        class="relative z-10 w-full h-full flex flex-col"
+        (click)="$event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 text-white">
+          <span class="text-sm font-medium">
+            {{ lightboxCurrentIndex + 1 }} / {{ behavior.imageUrls.length }}
+          </span>
+          <button
+            type="button"
+            class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition"
+            (click)="closeLightbox()"
+            title="Close (Esc)">
+            <span class="text-xl">×</span>
+          </button>
+        </div>
+
+        <!-- Image Container -->
+        <div class="flex-1 flex items-center justify-center p-4 relative">
+          <!-- Previous Button -->
+          <button
+            *ngIf="behavior.imageUrls.length > 1"
+            type="button"
+            class="absolute left-4 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition"
+            (click)="previousImage()"
+            title="Previous (←)">
+            <span class="text-xl">‹</span>
+          </button>
+
+          <!-- Image -->
+          <img
+            *ngIf="behavior.imageUrls.length > 0"
+            [src]="behavior.imageUrls[lightboxCurrentIndex]"
+            [alt]="'Image ' + (lightboxCurrentIndex + 1)"
+            class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            (click)="$event.stopPropagation()" />
+
+          <!-- Next Button -->
+          <button
+            *ngIf="behavior.imageUrls.length > 1"
+            type="button"
+            class="absolute right-4 w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition"
+            (click)="nextImage()"
+            title="Next (→)">
+            <span class="text-xl">›</span>
+          </button>
+        </div>
+
+        <!-- Thumbnail Strip -->
+        <div 
+          *ngIf="behavior.imageUrls.length > 1"
+          class="p-4 bg-black/50">
+          <div class="flex justify-center gap-2 overflow-x-auto">
+            <button
+              *ngFor="let url of behavior.imageUrls; let i = index"
+              type="button"
+              class="w-16 h-16 rounded-lg overflow-hidden border-2 transition flex-shrink-0"
+              [class.border-white]="i === lightboxCurrentIndex"
+              [class.border-transparent]="i !== lightboxCurrentIndex"
+              [class.opacity-100]="i === lightboxCurrentIndex"
+              [class.opacity-50]="i !== lightboxCurrentIndex"
+              (click)="lightboxCurrentIndex = i">
+              <img 
+                [src]="url" 
+                [alt]="'Thumbnail ' + (i + 1)"
+                class="w-full h-full object-cover" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `,
   styles: [``]
 })
@@ -211,6 +297,10 @@ export class BehaviorDetailModalComponent {
   @Output() close = new EventEmitter<void>();
   @Output() edit = new EventEmitter<BehaviorLogResponse>();
   @Output() delete = new EventEmitter<string>();
+
+  // Lightbox state
+  lightboxOpen = false;
+  lightboxCurrentIndex = 0;
 
   // Behavior type icons mapping
   private behaviorTypeIcons: Record<BehaviorType, string> = {
@@ -250,6 +340,49 @@ export class BehaviorDetailModalComponent {
     'CONFIRMED': 'Confirmed',
     'FALSE_ALARM': 'False Alarm'
   };
+
+  // Lightbox methods
+  openLightbox(index: number): void {
+    this.lightboxCurrentIndex = index;
+    this.lightboxOpen = true;
+    // Prevent body scroll when lightbox is open
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeLightbox(): void {
+    this.lightboxOpen = false;
+    // Restore body scroll
+    document.body.style.overflow = '';
+  }
+
+  nextImage(): void {
+    if (this.behavior.imageUrls && this.behavior.imageUrls.length > 0) {
+      this.lightboxCurrentIndex = (this.lightboxCurrentIndex + 1) % this.behavior.imageUrls.length;
+    }
+  }
+
+  previousImage(): void {
+    if (this.behavior.imageUrls && this.behavior.imageUrls.length > 0) {
+      this.lightboxCurrentIndex = (this.lightboxCurrentIndex - 1 + this.behavior.imageUrls.length) % this.behavior.imageUrls.length;
+    }
+  }
+
+  onLightboxKeydown(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'Escape':
+        this.closeLightbox();
+        event.preventDefault();
+        break;
+      case 'ArrowLeft':
+        this.previousImage();
+        event.preventDefault();
+        break;
+      case 'ArrowRight':
+        this.nextImage();
+        event.preventDefault();
+        break;
+    }
+  }
 
   getBehaviorIcon(type: BehaviorType): string {
     return this.behaviorTypeIcons[type] || '📝';

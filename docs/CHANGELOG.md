@@ -1,5 +1,154 @@
 # Changelog - CareHub
 
+## Session 23 (2026-02-22) - Cloudinary Image Upload Integration
+
+### Feature: Direct Image Upload for Behavior Logging
+**Problem:** Caregivers could only paste image URLs when logging behavior incidents. No direct upload capability existed, making it difficult to attach photos taken at the scene.
+
+**Solution:** Implemented direct unsigned image uploads to Cloudinary with drag-drop, camera capture, and gallery viewing.
+
+**Architecture:**
+```
+┌─────────────────┐     Upload Images      ┌──────────────┐
+│  Angular App    │ ─────────────────────> │  Cloudinary  │
+│  (Frontend)     │   (Unsigned upload     │     CDN      │
+│                 │    with upload preset) │              │
+└─────────────────┘                        └──────┬───────┘
+       │                                          │
+       │ 2. Receive Image URLs                    │
+       │ <────────────────────────────────────────┘
+       │
+       │ 3. Submit Behavior Log with imageUrls[]
+       ▼
+┌─────────────────┐
+│  Safety Alert   │
+│  Engine (8003)  │
+└─────────────────┘
+```
+
+**Cloudinary Configuration:**
+| Config | Value |
+|--------|-------|
+| Cloud Name | `dpudy4roo` |
+| Upload Preset | `lzcare_behavior_logs` |
+| Folder | `behavior_logs` |
+| Max File Size | 5MB |
+| Allowed Formats | JPG, JPEG, PNG, HEIC, HEIF |
+| Transformation | Auto-fill, 720x1280, auto quality |
+
+**New Files Created:**
+| File | Purpose |
+|------|---------|
+| `core/services/image-upload.service.ts` | Cloudinary upload API with progress tracking, validation, image optimization |
+| `shared/components/image-upload/image-upload.component.ts` | Reusable upload component with drag-drop |
+| `shared/components/image-upload/image-upload.component.html` | Upload UI with gallery/camera buttons |
+| `shared/components/image-upload/image-upload.component.scss` | Component styles following design system |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `environments/environment.ts` | Added Cloudinary config (cloudName, uploadPreset, apiUrl, folder, maxFileSizeMB, allowedFormats) |
+| `environments/environment.prod.ts` | Added Cloudinary config |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.ts` | Integrated `<app-image-upload>` component |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.html` | Replaced URL input with image upload component |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Added image gallery & lightbox functionality |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Added thumbnail gallery with click-to-expand |
+| `shared/components/behavior-log-form.component.ts` | Updated shared form with image upload support |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | Added lightbox methods for detail modal images |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Added full lightbox modal with navigation |
+| `shared/components/behavior-detail-modal.component.ts` | Added lightbox for viewing images in detail modal |
+
+**Features Implemented:**
+- ✅ **Drag & Drop Upload** - Drop images directly onto upload zone
+- ✅ **Gallery Button** - Select multiple images from device (max 5)
+- ✅ **Camera Button** - Take photos directly using device camera (`capture="environment"`)
+- ✅ **Progress Tracking** - Individual progress bars for each uploading image
+- ✅ **File Validation** - Size limit (5MB), format validation (JPG/PNG/HEIC)
+- ✅ **Thumbnail Previews** - 80x80px preview with remove button
+- ✅ **Error Handling** - Toast notifications for upload failures
+- ✅ **Image Gallery** - Thumbnail grid in behavior log lists
+- ✅ **Lightbox Viewer** - Full-screen image viewing with:
+  - Navigation arrows (previous/next)
+  - Image counter ("2 / 5")
+  - Keyboard navigation (Escape, ArrowLeft, ArrowRight)
+  - Thumbnail strip for quick navigation
+  - Click outside to close
+
+**ImageUploadService API:**
+```typescript
+validateFile(file: File): FileValidationResult
+validateFiles(files: File[]): { valid: File[]; errors: string[] }
+uploadImage(file: File): Promise<UploadResult>
+uploadMultiple(files: File[]): Promise<UploadResult[]>
+uploadWithProgress(file: File, onProgress?): Promise<UploadResult>
+getThumbnailUrl(url: string, size?: number): string
+getOptimizedUrl(url: string, width?, height?): string
+```
+
+**Usage Example:**
+```html
+<app-image-upload
+  [maxImages]="5"
+  [maxFileSizeMB]="5"
+  (imagesUploaded)="onImagesUploaded($event)"
+  (uploadError)="onUploadError($event)">
+</app-image-upload>
+```
+
+**Security Notes:**
+- Uses **unsigned uploads** (no signature required)
+- Upload preset restricts: folder, file size, allowed formats
+- No sensitive data in behavior log images
+- Cloudinary free tier: 25GB storage + 25GB bandwidth
+
+**Acceptance Criteria Met:**
+- ✅ Upload up to 5 images per behavior log
+- ✅ Direct upload to Cloudinary (no backend bottleneck)
+- ✅ Thumbnail previews in form
+- ✅ Images removable before submit
+- ✅ URLs saved with behavior log
+- ✅ Gallery view in behavior lists
+- ✅ Full-screen lightbox viewing
+- ✅ Mobile-responsive design
+- ✅ Camera capture on mobile devices
+
+---
+
+## Session 22 (2026-02-22) - Behavior Log Form Fixes
+
+### Bug Fix: Missing `reportedBy` Field (400 Bad Request)
+**Problem:** Creating manual behavior logs failed with 400 Bad Request - backend validation rejected null `reportedBy` field.
+
+**Root Cause:** The `behavior-log-form.component.ts` was not including the `reportedBy` field when submitting the form, but the backend requires it.
+
+**Solution:** 
+- Injected `AuthService` to get current user ID
+- Added `reportedBy` to request payload from `authService.getCurrentUser().id`
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `behavior-log-form.component.ts` | Added `AuthService` import, injected in constructor, added `reportedBy` to request |
+
+---
+
+### Bug Fix: Severity Slider Track Fill Not Following Cursor
+**Problem:** When dragging the severity slider (1-5), the green fill color stayed at 50% instead of following the cursor position.
+
+**Root Cause:** The CSS `--value` variable for the slider track gradient was hardcoded and never updated when the slider value changed.
+
+**Solution:**
+- Added `getSeverityPercentage()` method to convert severity (1-5) to percentage (0-100%)
+- Added dynamic style binding `[style.--value.%]` to the range input
+
+**Files Changed:**
+| File | Changes |
+|------|---------|
+| `behavior-log-form.component.ts` | Added `getSeverityPercentage()` method |
+| `behavior-log-form.component.html` | Added `[style.--value.%]="getSeverityPercentage()"` binding to range input |
+
+---
+
 ## Session 21 (2026-02-21) - Pre-Push Code Quality Fixes
 
 ### Maintenance: Critical Fixes Before GitHub Push
