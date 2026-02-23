@@ -87,6 +87,19 @@ export class ApiService {
   }
 
   /**
+   * Get caregiver patients by caregiver user ID (optionally filtered by active status)
+   */
+  getCaregiverPatients(caregiverUserId: string, isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(
+      `${this.apiBaseUrl}/caregivers/user/${caregiverUserId}/patients`,
+      { params }
+    );
+  }
+
+  /**
    * Update patient profile
    */
   updatePatient(id: string, data: PatientUpdateRequest): Observable<PatientProfile> {

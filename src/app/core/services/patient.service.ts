@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { AuthService } from './auth.service';
 import { Observable } from 'rxjs';
 
 /**
@@ -35,7 +36,7 @@ export interface PatientProfileResponse {
 export class PatientService {
   private baseUrl = '/api/v1';
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private authService: AuthService) { }
 
   /**
    * Get Authorization headers with Bearer token from localStorage
@@ -52,7 +53,11 @@ export class PatientService {
    * Get all patients accessible to the current user
    */
   getPatients(): Observable<PatientProfileResponse[]> {
-    return this.http.get<PatientProfileResponse[]>(`${this.baseUrl}/patients`, {
+    const currentUser = this.authService.getCurrentUser();
+    const path = currentUser?.role === 'caregiver' && currentUser.id
+      ? `${this.baseUrl}/caregivers/user/${currentUser.id}/patients`
+      : `${this.baseUrl}/patients`;
+    return this.http.get<PatientProfileResponse[]>(path, {
       headers: this.getAuthHeaders()
     });
   }

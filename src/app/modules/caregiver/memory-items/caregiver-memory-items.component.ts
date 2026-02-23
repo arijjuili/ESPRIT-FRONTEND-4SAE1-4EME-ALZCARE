@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
+import { AuthService } from '../../../core/services/auth.service';
 import {
   MemoryCategory,
   MemoryItem,
@@ -17,8 +18,8 @@ interface MemoryItemForm {
   description: string;
   imageUrl: string;
   location: string;
-  personsText: string;
-  questionsText: string;
+  persons: string[];
+  questions: string[];
 }
 
 @Component({
@@ -52,8 +53,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     description: '',
     imageUrl: '',
     location: '',
-    personsText: '',
-    questionsText: ''
+    persons: [''],
+    questions: ['']
   };
 
   editForm: MemoryItemForm = {
@@ -63,13 +64,13 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     description: '',
     imageUrl: '',
     location: '',
-    personsText: '',
-    questionsText: ''
+    persons: [''],
+    questions: ['']
   };
 
   editingItem: MemoryItem | null = null;
 
-  constructor(private apiService: ApiService) {}
+  constructor(private apiService: ApiService, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.loadPatients();
@@ -120,8 +121,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: this.createForm.description.trim() || undefined,
       imageUrl: this.createForm.imageUrl.trim() || undefined,
       location: this.createForm.location.trim() || undefined,
-      persons: this.parseList(this.createForm.personsText),
-      questions: this.parseList(this.createForm.questionsText),
+      persons: this.cleanList(this.createForm.persons),
+      questions: this.cleanList(this.createForm.questions),
       createdAt: new Date().toISOString()
     };
 
@@ -151,8 +152,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: item.description || '',
       imageUrl: item.imageUrl || '',
       location: item.location || '',
-      personsText: (item.persons || []).join(', '),
-      questionsText: (item.questions || []).join(', ')
+      persons: item.persons && item.persons.length > 0 ? [...item.persons] : [''],
+      questions: item.questions && item.questions.length > 0 ? [...item.questions] : ['']
     };
   }
 
@@ -174,8 +175,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: this.editForm.description.trim() || undefined,
       imageUrl: this.editForm.imageUrl.trim() || undefined,
       location: this.editForm.location.trim() || undefined,
-      persons: this.parseList(this.editForm.personsText),
-      questions: this.parseList(this.editForm.questionsText)
+      persons: this.cleanList(this.editForm.persons),
+      questions: this.cleanList(this.editForm.questions)
     };
 
     this.loading = true;
@@ -233,13 +234,17 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: '',
       imageUrl: '',
       location: '',
-      personsText: '',
-      questionsText: ''
+      persons: [''],
+      questions: ['']
     };
   }
 
   trackById(_: number, item: MemoryItem): string {
     return item.id;
+  }
+
+  trackByIndex(index: number): number {
+    return index;
   }
 
   getPatientName(patientId: string): string {
@@ -256,16 +261,41 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     this.showCreateModal = false;
   }
 
-  private parseList(value: string): string[] | undefined {
-    const items = value
-      .split(',')
-      .map(item => item.trim())
-      .filter(item => item.length > 0);
+  addPerson(target: 'create' | 'edit'): void {
+    const list = target === 'create' ? this.createForm.persons : this.editForm.persons;
+    list.push('');
+  }
+
+  removePerson(target: 'create' | 'edit', index: number): void {
+    const list = target === 'create' ? this.createForm.persons : this.editForm.persons;
+    list.splice(index, 1);
+    if (list.length === 0) list.push('');
+  }
+
+  addQuestion(target: 'create' | 'edit'): void {
+    const list = target === 'create' ? this.createForm.questions : this.editForm.questions;
+    list.push('');
+  }
+
+  removeQuestion(target: 'create' | 'edit', index: number): void {
+    const list = target === 'create' ? this.createForm.questions : this.editForm.questions;
+    list.splice(index, 1);
+    if (list.length === 0) list.push('');
+  }
+
+  private cleanList(values: string[]): string[] | undefined {
+    const items = values.map(value => value.trim()).filter(value => value.length > 0);
     return items.length > 0 ? items : undefined;
   }
 
   private loadPatients(): void {
-    this.apiService.getPatients(true).subscribe({
+    const caregiverId = this.authService.getCurrentUser()?.id;
+    if (!caregiverId) {
+      this.patients = [];
+      return;
+    }
+
+    this.apiService.getCaregiverPatients(caregiverId, true).subscribe({
       next: (patients) => {
         this.patients = patients;
         patients.forEach(patient => {
