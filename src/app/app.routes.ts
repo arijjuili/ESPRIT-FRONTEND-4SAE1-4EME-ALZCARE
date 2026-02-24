@@ -42,6 +42,26 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/games/patient-games.component').then(m => m.PatientGamesComponent)
       },
       {
+        path: 'games/memory-match',
+        loadComponent: () => import('./modules/patient/games/memory-match/memory-match.component').then(m => m.MemoryMatchComponent)
+      },
+      {
+        path: 'games/pattern-recognition',
+        loadComponent: () => import('./modules/patient/games/pattern-recognition/pattern-recognition.component').then(m => m.PatternRecognitionComponent)
+      },
+      {
+        path: 'games/word-recall',
+        loadComponent: () => import('./modules/patient/games/word-recall/word-recall.component').then(m => m.WordRecallComponent)
+      },
+      {
+        path: 'games/spatial-navigation',
+        loadComponent: () => import('./modules/patient/games/spatial-navigation/spatial-navigation.component').then(m => m.SpatialNavigationComponent)
+      },
+      {
+        path: 'games/attention-task',
+        loadComponent: () => import('./modules/patient/games/attention-task/attention-task.component').then(m => m.AttentionTaskComponent)
+      },
+      {
         path: 'memory-wallet',
         loadComponent: () => import('./modules/patient/memory-wallet/patient-memory-wallet.component').then(m => m.PatientMemoryWalletComponent)
       },

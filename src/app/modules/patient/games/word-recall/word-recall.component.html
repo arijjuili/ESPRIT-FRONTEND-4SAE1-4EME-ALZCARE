@@ -1,0 +1,102 @@
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-emerald-50 via-lime-50 to-yellow-50">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
+      <div>
+        <a class="text-base font-bold text-emerald-700 hover:text-emerald-900" routerLink="/patient/games">← Back to Brain Games</a>
+        <p class="text-xs uppercase tracking-[0.3em] text-emerald-600 font-semibold mt-3">Word Recall</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Remember the Words</h1>
+        <p class="text-lg sm:text-xl text-gray-700 mt-3">Study the list, then type what you remember.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100 relative overflow-hidden">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Word Reveal</h2>
+        <div class="min-h-[220px] flex flex-wrap justify-center items-center gap-4">
+          <div
+            *ngFor="let word of visibleWords; let i = index"
+            class="h-20 w-20 rounded-full flex items-center justify-center text-base sm:text-lg font-bold shadow"
+            [ngClass]="colors[i % colors.length]">
+            {{ word }}
+          </div>
+          <div *ngIf="!showWords && !showAnswers" class="text-sm text-gray-500">Words will appear here for 6 seconds.</div>
+          <button
+            *ngIf="showAnswers"
+            (click)="startRound()"
+            class="text-sm sm:text-base font-semibold px-5 py-2 rounded-full bg-emerald-600 text-white shadow hover:bg-emerald-700 transition">
+            Play Again
+          </button>
+        </div>
+        <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur">
+          <button
+            (click)="startRound()"
+            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-700 transition">
+            Start Game
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">Your Recall</h2>
+        <div class="flex gap-2 mb-4">
+          <input
+            [(ngModel)]="input"
+            (keydown.enter)="addGuess()"
+            type="text"
+            placeholder="Type a word"
+            [disabled]="showAnswers"
+            class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100">
+          <button
+            (click)="addGuess()"
+            [disabled]="showAnswers"
+            class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition disabled:opacity-60">
+            Add
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 min-h-[80px]">
+          <button
+            *ngFor="let guess of guesses; let i = index"
+            (click)="removeGuess(i)"
+            [disabled]="showAnswers"
+            class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100 disabled:opacity-60">
+            {{ guess }} ✕
+          </button>
+        </div>
+
+        <button (click)="checkAnswers()" class="mt-4 w-full py-2 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition">
+          Check Answers
+        </button>
+
+        <div *ngIf="resultMessage" class="mt-4 text-sm font-semibold text-emerald-700">
+          {{ resultMessage }}
+        </div>
+
+
+        <div *ngIf="showAnswers" class="mt-4">
+          <p class="text-xs font-semibold text-gray-500 mb-2">Correct Words</p>
+          <div class="flex flex-wrap gap-2">
+            <span
+              *ngFor="let word of roundWords; let i = index"
+              class="px-3 py-1.5 rounded-full text-sm font-semibold"
+              [ngClass]="colors[i % colors.length]">
+              {{ word }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
+    <div class="text-5xl">{{ newBadge.icon }}</div>
+    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
+    <p class="text-lg font-semibold text-emerald-700 mt-2">{{ newBadge.title }}</p>
+    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">
+      Awesome!
+    </button>
+  </div>
+</div>

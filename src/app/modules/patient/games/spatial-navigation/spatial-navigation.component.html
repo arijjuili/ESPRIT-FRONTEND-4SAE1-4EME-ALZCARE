@@ -1,0 +1,67 @@
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
+      <div>
+        <a class="text-base font-bold text-indigo-700 hover:text-indigo-900" routerLink="/patient/games">← Back to Brain Games</a>
+        <p class="text-xs uppercase tracking-[0.3em] text-indigo-600 font-semibold mt-3">Spatial Navigation</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Map the Journey</h1>
+        <p class="text-lg sm:text-xl text-gray-900 mt-3">Use the arrows to reach the goal while avoiding blocks.</p>
+      </div>
+      <button (click)="resetBoard()" class="px-8 py-4 rounded-2xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition text-base">
+        New Map
+      </button>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-xl p-8 border border-indigo-100">
+      <div class="text-center mb-4">
+        <div class="text-lg sm:text-2xl font-bold" [ngClass]="success ? 'text-emerald-700 sparkle' : 'text-emerald-600'">
+          {{ status }}
+        </div>
+      </div>
+
+      <div class="flex flex-col items-center">
+        <div class="grid grid-cols-5 gap-3">
+          <div
+            *ngFor="let cell of grid"
+            class="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold"
+            [ngClass]="{
+              'bg-indigo-100': cell.type === 'empty',
+              'bg-indigo-600 text-white shadow-lg': cell.type === 'player',
+              'bg-amber-400 text-white shadow-lg animate-pulse': cell.type === 'target',
+              'bg-gray-300 text-gray-500': cell.type === 'block'
+            }">
+            <span *ngIf="cell.type === 'player'">🚶</span>
+            <span *ngIf="cell.type === 'target'">⭐</span>
+            <span *ngIf="cell.type === 'block'">⬛</span>
+          </div>
+        </div>
+
+        <div class="mt-6 flex items-center gap-3">
+          <div class="grid grid-cols-3 gap-2">
+            <div></div>
+            <button (click)="move(0,-1)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">⬆️</button>
+            <div></div>
+            <button (click)="move(-1,0)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">⬅️</button>
+            <button (click)="move(0,1)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">⬇️</button>
+            <button (click)="move(1,0)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">➡️</button>
+          </div>
+          <div class="text-xs text-gray-500">
+            Tip: plan your route around the blocks.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
+    <div class="text-5xl">{{ newBadge.icon }}</div>
+    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
+    <p class="text-lg font-semibold text-indigo-700 mt-2">{{ newBadge.title }}</p>
+    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">
+      Amazing!
+    </button>
+  </div>
+</div>

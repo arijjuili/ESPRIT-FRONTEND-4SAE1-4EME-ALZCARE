@@ -1,0 +1,62 @@
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50">
+  <div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
+      <div>
+        <a class="text-base font-bold text-rose-700 hover:text-rose-900" routerLink="/patient/games">← Back to Brain Games</a>
+        <p class="text-xs uppercase tracking-[0.3em] text-rose-600 font-semibold mt-3">Pattern Recognition</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Follow the Rhythm</h1>
+        <p class="text-sm text-gray-600 mt-2">Repeat the color pattern to advance rounds.</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 border border-rose-100 relative overflow-hidden">
+      <div class="text-center mb-6">
+        <p class="text-xs text-gray-500">Round</p>
+        <p class="text-3xl font-bold text-gray-900">{{ round }}</p>
+      </div>
+
+      <div class="text-center text-2xl sm:text-3xl font-bold text-rose-600 mb-6">
+        {{ message }}
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <button
+          *ngFor="let color of colors; let i = index"
+          (click)="pickColor(i)"
+          class="h-24 rounded-2xl shadow-md transition transform hover:-translate-y-1"
+          [ngClass]="[color.className, activeIndex === i ? 'ring-4 ring-white scale-105' : '']">
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 text-xs text-gray-500 justify-center">
+        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+        Watch the glow, then tap the colors in the same order.
+      </div>
+
+      <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/85 backdrop-blur">
+        <div class="text-center">
+          <button
+            (click)="startGame()"
+            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-rose-600 text-white shadow-2xl hover:bg-rose-700 transition">
+            Start Game
+          </button>
+          <div *ngIf="lastRoundReached" class="mt-4 text-lg font-semibold text-rose-700">
+            You reached round {{ lastRoundReached }}.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
+    <div class="text-5xl">{{ newBadge.icon }}</div>
+    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
+    <p class="text-lg font-semibold text-rose-700 mt-2">{{ newBadge.title }}</p>
+    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 transition">
+      Amazing!
+    </button>
+  </div>
+</div>

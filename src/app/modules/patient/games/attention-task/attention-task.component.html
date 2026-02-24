@@ -1,0 +1,57 @@
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
+      <div>
+        <a class="text-base font-bold text-amber-700 hover:text-amber-900" routerLink="/patient/games">← Back to Brain Games</a>
+        <p class="text-xs uppercase tracking-[0.3em] text-amber-600 font-semibold mt-3">Attention Task</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">React at the Right Moment</h1>
+        <p class="text-sm text-gray-600 mt-2">Wait for the signal, then tap as fast as you can.</p>
+      </div>
+      <button (click)="start()" class="px-8 py-4 rounded-2xl bg-amber-500 text-white font-semibold hover:bg-amber-600 transition text-base">
+        Start Round
+      </button>
+    </div>
+
+    <div class="bg-white rounded-3xl shadow-xl p-6 border border-amber-100 text-center">
+      <div
+        class="h-48 rounded-3xl flex items-center justify-center text-2xl font-bold transition"
+        [ngClass]="{
+          'bg-amber-100 text-amber-700': status === 'idle',
+          'bg-gray-100 text-gray-500': status === 'waiting',
+          'bg-emerald-400 text-white animate-pulse': status === 'go',
+          'bg-emerald-100 text-emerald-700': status === 'done',
+          'bg-danger/20 text-danger': status === 'false-start'
+        }"
+        (click)="clickTarget()">
+        <span *ngIf="status === 'idle'">Tap start to begin</span>
+        <span *ngIf="status === 'waiting'">Wait for green…</span>
+        <span *ngIf="status === 'go'">Tap!</span>
+        <span *ngIf="status === 'done'">Great reaction</span>
+        <span *ngIf="status === 'false-start'">Too soon! Try again.</span>
+      </div>
+
+      <div class="mt-6 flex items-center justify-center gap-6 text-sm">
+        <div class="bg-amber-50 rounded-2xl px-4 py-3 border border-amber-100">
+          <p class="text-xs text-gray-500">Reaction Time</p>
+          <p class="text-lg font-bold text-amber-700">{{ reactionMs || '—' }} ms</p>
+        </div>
+        <div class="bg-amber-50 rounded-2xl px-4 py-3 border border-amber-100">
+          <p class="text-xs text-gray-500">Best</p>
+          <p class="text-lg font-bold text-gray-900">{{ bestMs || '—' }} ms</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
+    <div class="text-5xl">{{ newBadge.icon }}</div>
+    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
+    <p class="text-lg font-semibold text-amber-700 mt-2">{{ newBadge.title }}</p>
+    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 transition">
+      Awesome!
+    </button>
+  </div>
+</div>

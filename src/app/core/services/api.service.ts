@@ -14,6 +14,9 @@ import {
   MemoryItem,
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
+  GameCatalogItem,
+  GameActivity,
+  GameActivityCreateRequest,
   QuizAttempt,
   QuizAttemptCreateRequest,
   QuizAttemptAnswerRequest
@@ -182,6 +185,28 @@ export class ApiService {
   getMemoryItems(patientId?: string): Observable<MemoryItem[]> {
     const params = patientId ? new HttpParams().set('patientId', patientId) : undefined;
     return this.http.get<MemoryItem[]>(`${this.cognitiveBaseUrl}/memory-items`, { params });
+  }
+
+  /**
+   * Get available games catalog
+   */
+  getGameCatalog(): Observable<GameCatalogItem[]> {
+    return this.http.get<GameCatalogItem[]>(`${this.cognitiveBaseUrl}/game-activities/catalog`);
+  }
+
+  /**
+   * List game activities (optionally filtered by patientId)
+   */
+  getGameActivities(patientId?: string): Observable<GameActivity[]> {
+    const params = patientId ? new HttpParams().set('patientId', patientId) : undefined;
+    return this.http.get<GameActivity[]>(`${this.cognitiveBaseUrl}/game-activities`, { params });
+  }
+
+  /**
+   * Create a game activity
+   */
+  createGameActivity(request: GameActivityCreateRequest): Observable<GameActivity> {
+    return this.http.post<GameActivity>(`${this.cognitiveBaseUrl}/game-activities`, request);
   }
 
   /**

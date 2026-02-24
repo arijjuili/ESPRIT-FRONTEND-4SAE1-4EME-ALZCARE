@@ -1,0 +1,68 @@
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
+      <div>
+        <a class="text-base font-bold text-sky-700 hover:text-sky-900" routerLink="/patient/games">← Back to Brain Games</a>
+        <p class="text-xs uppercase tracking-[0.3em] text-sky-600 font-semibold mt-3">Memory Match</p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Flip, Match, Celebrate</h1>
+        <p class="text-sm text-gray-600 mt-2">Find all pairs with as few moves as possible.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="bg-white rounded-2xl shadow-md px-4 py-3 border border-sky-100">
+          <p class="text-xs text-gray-500">Moves</p>
+          <p class="text-2xl font-bold text-sky-700">{{ moves }}</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow-md px-4 py-3 border border-sky-100">
+          <p class="text-xs text-gray-500">Pairs</p>
+          <p class="text-2xl font-bold text-gray-900">{{ matches }}/6</p>
+        </div>
+        <button (click)="resetGame()" class="px-5 py-3 rounded-2xl bg-sky-600 text-white font-semibold hover:bg-sky-700 transition">
+          New Round
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+      <button
+        *ngFor="let card of deck"
+        (click)="flipCard(card)"
+        class="group relative h-24 sm:h-28 rounded-2xl border border-white/80 shadow-lg bg-white/80 transition transform hover:-translate-y-1">
+        <div
+          class="absolute inset-0 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl transition"
+          [ngClass]="card.flipped || card.matched ? 'opacity-100' : 'opacity-0'">
+          {{ card.value }}
+        </div>
+        <div
+          class="absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white text-xl font-bold transition"
+          [ngClass]="card.flipped || card.matched ? 'opacity-0' : 'opacity-100'">
+          ?
+        </div>
+      </button>
+    </div>
+
+    <div *ngIf="complete" class="mt-10 relative overflow-hidden bg-white rounded-3xl shadow-2xl p-8 border border-sky-100">
+      <div class="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-sky-200/60 blur-2xl"></div>
+      <div class="absolute -bottom-6 -left-6 w-24 h-24 rounded-full bg-indigo-200/60 blur-2xl"></div>
+      <div class="text-center">
+        <div class="text-4xl sm:text-6xl font-extrabold text-sky-700 sparkle">🎉 Great job!</div>
+        <p class="text-lg sm:text-2xl font-semibold text-gray-700 mt-3">You matched all pairs in {{ moves }} moves.</p>
+        <div class="flex items-center justify-center gap-2 mt-4 text-2xl">✨ ✨ ✨</div>
+        <button (click)="resetGame()" class="mt-6 px-6 py-3 rounded-2xl bg-sky-600 text-white font-semibold hover:bg-sky-700 transition">
+          Play Again
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
+    <div class="text-5xl">{{ newBadge.icon }}</div>
+    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
+    <p class="text-lg font-semibold text-primary-700 mt-2">{{ newBadge.title }}</p>
+    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-primary-600 text-white font-semibold hover:bg-primary-700 transition">
+      Awesome!
+    </button>
+  </div>
+</div>

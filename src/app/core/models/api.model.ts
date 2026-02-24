@@ -240,6 +240,68 @@ export interface QuizAttemptAnswerRequest {
   attemptDate?: string;
 }
 
+// Game Catalog
+export type GameType =
+  | 'MEMORY_MATCH'
+  | 'PATTERN_RECOGNITION'
+  | 'WORD_RECALL'
+  | 'SPATIAL_NAVIGATION'
+  | 'ATTENTION_TASK';
+
+export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
+
+export interface GameCatalogItem {
+  gameType: GameType;
+  name: string;
+  description: string;
+  durationMinutes: number;
+  difficulty: DifficultyLevel;
+  icon: string;
+}
+
+export interface GameActivity {
+  id: string;
+  patientId: string;
+  gameType: GameType;
+  difficulty: DifficultyLevel;
+  targetDomain: string;
+  createdAt: string;
+  completedAt?: string;
+  score?: number;
+  maxScore?: number;
+  durationSeconds?: number;
+  voiceUsed?: boolean;
+  hintsUsed?: number;
+  mistakesMade?: number;
+  pointsEarned?: number;
+  dailyChallengeCompleted?: boolean;
+  badgeEarned?: string;
+  badgeDescription?: string;
+  badgeIconUrl?: string;
+  badgePoints?: number;
+}
+
+export interface GameActivityCreateRequest {
+  patientId: string;
+  gameType: GameType;
+  difficulty: DifficultyLevel;
+  targetDomain: string;
+  createdAt?: string;
+  completedAt?: string;
+  score?: number;
+  maxScore?: number;
+  durationSeconds?: number;
+  voiceUsed?: boolean;
+  hintsUsed?: number;
+  mistakesMade?: number;
+  pointsEarned?: number;
+  dailyChallengeCompleted?: boolean;
+  badgeEarned?: string;
+  badgeDescription?: string;
+  badgeIconUrl?: string;
+  badgePoints?: number;
+}
+
 // Keycloak Token Response
 export interface TokenResponse {
   access_token: string;

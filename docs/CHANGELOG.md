@@ -1,5 +1,69 @@
 # Changelog - CareHub
 
+## Session 28 (2026-02-24) - Gamified Game UX + Badges
+
+### Feature: Game UX Enhancements
+**Problem:** Game pages needed stronger guidance, clearer feedback, and a smooth return path.
+
+**Solution:** Added “Back to Brain Games” buttons, larger instruction messaging, start overlays, celebratory win states, and ensured spatial maps are solvable.
+
+**Feature: Working Daily Focus + Latest Badge**
+**Solution:** Added local session tracking and badge awards with animated overlays on completion. Daily focus now updates automatically after each game.
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `src/app/modules/patient/games/patient-games.component.ts` | Daily focus + latest badge logic |
+| `src/app/modules/patient/games/patient-games.component.html` | Dynamic daily focus + badge display |
+| `src/app/modules/patient/games/memory-match/*` | Bigger win state + back button + badge overlay |
+| `src/app/modules/patient/games/pattern-recognition/*` | Start overlay + larger messages + encouragement |
+| `src/app/modules/patient/games/word-recall/*` | Start overlay + answer reveal + colorful word chips |
+| `src/app/modules/patient/games/spatial-navigation/*` | Solvable map generation + animated success |
+| `src/app/modules/patient/games/attention-task/*` | Back button + badge overlay |
+
+### Follow-up: Game UX Tweaks + DB Best Time
+**Changes:** Larger back links, centered rhythm messages, mistake feedback with round reached, locked word recall inputs after checking answers, solvable map center alignment + glitter success, bigger buttons, and attention task best time sourced from DB.
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/GameActivityController.java` | Allow patient game activity creation |
+| `src/app/core/models/api.model.ts` | Game activity models for DB read/write |
+| `src/app/core/services/api.service.ts` | Game activity list/create endpoints |
+| `src/app/modules/patient/games/pattern-recognition/*` | Centered messages + round reached |
+| `src/app/modules/patient/games/word-recall/*` | Locked inputs + bigger instructions |
+| `src/app/modules/patient/games/spatial-navigation/*` | Centered grid + glitter success |
+| `src/app/modules/patient/games/attention-task/*` | DB-backed best time |
+| `src/app/modules/patient/games/memory-match/*` | Larger back link |
+
+## Session 27 (2026-02-24) - Brain Games Catalog + Gamified Pages
+
+### Feature: Backend-Driven Game Catalog
+**Problem:** The Brain Games page used static mock data and lacked per-game play pages.
+
+**Solution:** Added a backend catalog endpoint and wired the patient UI to load games from the cognitive-memory service. Implemented distinct, playable game pages with unique layouts.
+
+**Backend Updates:**
+| File | Changes |
+|------|---------|
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/responses/GameCatalogResponse.java` | New DTO for game catalog |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/GameActivityService.java` | Catalog definitions |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/GameActivityController.java` | Added `/game-activities/catalog` |
+
+**Frontend Updates:**
+| File | Changes |
+|------|---------|
+| `src/app/core/models/api.model.ts` | Added `GameCatalogItem`, `GameType`, `DifficultyLevel` |
+| `src/app/core/services/api.service.ts` | Added `getGameCatalog` |
+| `src/app/modules/patient/games/patient-games.component.ts` | Fetch catalog and route to games |
+| `src/app/modules/patient/games/patient-games.component.html` | Gamified layout |
+| `src/app/app.routes.ts` | Added routes for each game page |
+| `src/app/modules/patient/games/memory-match/*` | Memory Match game page |
+| `src/app/modules/patient/games/pattern-recognition/*` | Pattern Recognition game page |
+| `src/app/modules/patient/games/word-recall/*` | Word Recall game page |
+| `src/app/modules/patient/games/spatial-navigation/*` | Spatial Navigation game page |
+| `src/app/modules/patient/games/attention-task/*` | Attention Task game page |
+
 ## Session 26 (2026-02-24) - Server-Side Memory Quiz Availability
 
 ### Feature: Backend-Driven Availability for Memory Quizzes

@@ -1,0 +1,12 @@
+:host {
+  display: block;
+}
+
+.badge-pop {
+  animation: badgePop 0.6s ease-out;
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
