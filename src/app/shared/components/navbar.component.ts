@@ -121,6 +121,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['patient']
     },
     {
+      label: 'Memory Wallet',
+      path: '/patient/memory-wallet',
+      icon: '🧠',
+      roles: ['patient']
+    },
+    {
       label: 'Community',
       path: '/patient/community',
       icon: '👥',

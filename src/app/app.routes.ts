@@ -42,6 +42,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/games/patient-games.component').then(m => m.PatientGamesComponent)
       },
       {
+        path: 'memory-wallet',
+        loadComponent: () => import('./modules/patient/memory-wallet/patient-memory-wallet.component').then(m => m.PatientMemoryWalletComponent)
+      },
+      {
         path: 'community',
         loadComponent: () => import('./modules/patient/community/patient-community.component').then(m => m.PatientCommunityComponent)
       },

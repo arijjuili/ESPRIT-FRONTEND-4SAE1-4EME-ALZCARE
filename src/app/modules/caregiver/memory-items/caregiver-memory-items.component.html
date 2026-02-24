@@ -100,7 +100,7 @@
               </div>
             </div>
 
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600">
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600">
               <div>
                 <p class="font-semibold text-gray-700 mb-1">👥 Persons</p>
                 <p>{{ (item.persons || []).join(', ') || '—' }}</p>
@@ -108,6 +108,10 @@
               <div>
                 <p class="font-semibold text-gray-700 mb-1">❓ Questions</p>
                 <p>{{ (item.questions || []).join(', ') || '—' }}</p>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-700 mb-1">✅ Correct Answers</p>
+                <p>{{ (item.correctAnswers || []).join(', ') || '—' }}</p>
               </div>
             </div>
           </div>
@@ -132,21 +136,31 @@
         <select
           [(ngModel)]="createForm.patientId"
           name="createPatientId"
+          #createPatientId="ngModel"
+          required
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option value="" disabled>Select patient</option>
           <option *ngFor="let patient of patients" [value]="patient.userId">
             {{ patient.firstName }} {{ patient.lastName }}
           </option>
         </select>
+        <div *ngIf="createSubmitted && createPatientId.invalid" class="text-xs text-danger mt-1">
+          Patient is required.
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-600">Category *</label>
         <select
           [(ngModel)]="createForm.memoryCategory"
           name="createMemoryCategory"
+          #createMemoryCategory="ngModel"
+          required
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
         </select>
+        <div *ngIf="createSubmitted && createMemoryCategory.invalid" class="text-xs text-danger mt-1">
+          Category is required.
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-600">Title *</label>
@@ -154,7 +168,12 @@
           [(ngModel)]="createForm.title"
           name="createTitle"
           type="text"
+          #createTitle="ngModel"
+          required
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <div *ngIf="createSubmitted && createTitle.invalid" class="text-xs text-danger mt-1">
+          Title is required.
+        </div>
       </div>
       <div class="md:col-span-2">
         <label class="text-xs font-semibold text-gray-600">Description</label>
@@ -208,19 +227,33 @@
           <button type="button" (click)="addQuestion('create')" class="text-xs font-semibold text-primary-600 hover:text-primary-700">+ Add</button>
         </div>
         <div class="mt-2 space-y-2">
-          <div *ngFor="let question of createForm.questions; let i = index; trackBy: trackByIndex" class="flex items-center gap-2">
-            <input
-              [(ngModel)]="createForm.questions[i]"
-              name="createQuestion{{ i }}"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-            <button
-              type="button"
-              (click)="removeQuestion('create', i)"
-              [disabled]="createForm.questions.length === 1"
-              class="px-2 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
-              −
-            </button>
+          <div *ngFor="let question of createForm.questions; let i = index; trackBy: trackByIndex">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <input
+                [(ngModel)]="createForm.questions[i]"
+                name="createQuestion{{ i }}"
+                type="text"
+                placeholder="Question"
+                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <div class="flex items-center gap-2">
+                <input
+                  [(ngModel)]="createForm.correctAnswers[i]"
+                  name="createAnswer{{ i }}"
+                  type="text"
+                  placeholder="Correct answer"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <button
+                  type="button"
+                  (click)="removeQuestion('create', i)"
+                  [disabled]="createForm.questions.length === 1"
+                  class="px-2 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                  −
+                </button>
+              </div>
+            </div>
+            <div *ngIf="createSubmitted && isQuestionPairInvalid('create', i)" class="text-xs text-danger mt-1">
+              Question and correct answer are both required.
+            </div>
           </div>
         </div>
       </div>
@@ -258,9 +291,14 @@
         <select
           [(ngModel)]="editForm.memoryCategory"
           name="editMemoryCategory"
+          #editMemoryCategory="ngModel"
+          required
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
           <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
         </select>
+        <div *ngIf="editSubmitted && editMemoryCategory.invalid" class="text-xs text-danger mt-1">
+          Category is required.
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-600">Title *</label>
@@ -268,7 +306,12 @@
           [(ngModel)]="editForm.title"
           name="editTitle"
           type="text"
+          #editTitle="ngModel"
+          required
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <div *ngIf="editSubmitted && editTitle.invalid" class="text-xs text-danger mt-1">
+          Title is required.
+        </div>
       </div>
       <div class="md:col-span-2">
         <label class="text-xs font-semibold text-gray-600">Description</label>
@@ -322,19 +365,33 @@
           <button type="button" (click)="addQuestion('edit')" class="text-xs font-semibold text-primary-600 hover:text-primary-700">+ Add</button>
         </div>
         <div class="mt-2 space-y-2">
-          <div *ngFor="let question of editForm.questions; let i = index; trackBy: trackByIndex" class="flex items-center gap-2">
-            <input
-              [(ngModel)]="editForm.questions[i]"
-              name="editQuestion{{ i }}"
-              type="text"
-              class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-            <button
-              type="button"
-              (click)="removeQuestion('edit', i)"
-              [disabled]="editForm.questions.length === 1"
-              class="px-2 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
-              −
-            </button>
+          <div *ngFor="let question of editForm.questions; let i = index; trackBy: trackByIndex">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+              <input
+                [(ngModel)]="editForm.questions[i]"
+                name="editQuestion{{ i }}"
+                type="text"
+                placeholder="Question"
+                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <div class="flex items-center gap-2">
+                <input
+                  [(ngModel)]="editForm.correctAnswers[i]"
+                  name="editAnswer{{ i }}"
+                  type="text"
+                  placeholder="Correct answer"
+                  class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <button
+                  type="button"
+                  (click)="removeQuestion('edit', i)"
+                  [disabled]="editForm.questions.length === 1"
+                  class="px-2 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                  −
+                </button>
+              </div>
+            </div>
+            <div *ngIf="editSubmitted && isQuestionPairInvalid('edit', i)" class="text-xs text-danger mt-1">
+              Question and correct answer are both required.
+            </div>
           </div>
         </div>
       </div>

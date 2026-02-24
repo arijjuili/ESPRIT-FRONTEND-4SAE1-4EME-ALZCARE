@@ -1,5 +1,83 @@
 # Changelog - CareHub
 
+## Session 26 (2026-02-24) - Server-Side Memory Quiz Availability
+
+### Feature: Backend-Driven Availability for Memory Quizzes
+**Problem:** The client-only filtering could be bypassed or out of sync with the database.
+
+**Solution:** Added a server-side endpoint that returns available memory items for a patient based on quiz history within the last 7 days. The frontend now calls this endpoint.
+
+**Backend Updates:**
+| File | Changes |
+|------|---------|
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/MemoryItemService.java` | Added availability computation with weekly cooldown |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/MemoryItemController.java` | Added `/memory-items/available` endpoint |
+
+**Frontend Updates:**
+| File | Changes |
+|------|---------|
+| `src/app/core/services/api.service.ts` | Added `getAvailableMemoryItems` |
+| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Switched to server-side filtering |
+
+### Enhancement: Auto-Advance Quiz Without Manual Refresh
+**Problem:** Patients had to refresh the page to see the next available question.
+
+**Solution:** After submitting an answer, the quiz now fetches recent attempts and automatically advances to the next unanswered question if available. If all questions are answered, the quiz closes and the list refreshes.
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Auto-advance after answer submission |
+
+### Enhancement: Required Field Messages for Memory Items
+**Problem:** Caregivers didn't get field-specific feedback for missing required inputs.
+
+**Solution:** Added per-field validation messages for create/edit memory item forms (patient, category, title, question/answer pairs).
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.ts` | Added submit tracking and validation helpers |
+| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.html` | Inline required field messages |
+
+## Session 25 (2026-02-24) - Memory Quiz Cooldown + Completion Logic
+
+### Feature: Hide Memory Items After All Questions Answered (Weekly Reset)
+**Problem:** Memory items stayed visible even after patients answered every question, and there was no weekly reset for retaking the quiz.
+
+**Solution:** Patient memory wallet now hides items only after all questions are answered within the last 7 days. If only some questions are answered, the item stays visible. After a week, the item reappears automatically. All quiz attempts remain saved.
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `src/app/core/services/api.service.ts` | Added quiz attempt list endpoint |
+| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Added completion/cooldown filtering logic |
+
+## Session 24 (2026-02-24) - Deterministic Memory Quiz Answers
+
+### Feature: Stored Correct Answers per Memory Question
+**Problem:** The memory quiz was selecting the correct answer randomly from persons or the title, so the same question could be marked correct or incorrect across runs.
+
+**Solution:** Added `correctAnswers` to memory items and updated caregiver forms to capture answers per question. Patient quizzes now use the stored correct answer for the chosen question while still randomizing other options.
+
+**Backend Updates:**
+| File | Changes |
+|------|---------|
+| `cognitive-memory/src/main/resources/db/migration/V2__add_correct_answers_to_memory_item.sql` | Added `correct_answers TEXT[]` column |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/entities/MemoryItem.java` | Added `correctAnswers` field |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/requests/MemoryItemCreateRequest.java` | Added `correctAnswers` |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/requests/MemoryItemUpdateRequest.java` | Added `correctAnswers` |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/responses/MemoryItemResponse.java` | Added `correctAnswers` |
+| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/MemoryItemService.java` | Validation for questions/answers length |
+
+**Frontend Updates:**
+| File | Changes |
+|------|---------|
+| `src/app/core/models/api.model.ts` | Added `correctAnswers` to memory item interfaces |
+| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.ts` | Added correct answer handling and validation |
+| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.html` | Added correct answer inputs and display |
+| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Use stored correct answers per question |
+
 ## Session 23 (2026-02-22) - Cloudinary Image Upload Integration
 
 ### Feature: Direct Image Upload for Behavior Logging

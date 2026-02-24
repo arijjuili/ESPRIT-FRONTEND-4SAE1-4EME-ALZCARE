@@ -20,6 +20,7 @@ interface MemoryItemForm {
   location: string;
   persons: string[];
   questions: string[];
+  correctAnswers: string[];
 }
 
 @Component({
@@ -45,6 +46,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   showEditModal = false;
   showDeleteModal = false;
   pendingDelete: MemoryItem | null = null;
+  createSubmitted = false;
+  editSubmitted = false;
 
   createForm: MemoryItemForm = {
     patientId: '',
@@ -54,7 +57,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     imageUrl: '',
     location: '',
     persons: [''],
-    questions: ['']
+    questions: [''],
+    correctAnswers: ['']
   };
 
   editForm: MemoryItemForm = {
@@ -65,7 +69,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     imageUrl: '',
     location: '',
     persons: [''],
-    questions: ['']
+    questions: [''],
+    correctAnswers: ['']
   };
 
   editingItem: MemoryItem | null = null;
@@ -106,11 +111,17 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   }
 
   createMemoryItem(): void {
+    this.createSubmitted = true;
     this.error = '';
     this.success = '';
 
     if (!this.createForm.patientId.trim() || !this.createForm.title.trim()) {
       this.error = 'Patient and title are required';
+      return;
+    }
+
+    const questionPayload = this.buildQuestionAnswerPayload(this.createForm);
+    if (!questionPayload) {
       return;
     }
 
@@ -122,7 +133,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       imageUrl: this.createForm.imageUrl.trim() || undefined,
       location: this.createForm.location.trim() || undefined,
       persons: this.cleanList(this.createForm.persons),
-      questions: this.cleanList(this.createForm.questions),
+      questions: questionPayload.questions,
+      correctAnswers: questionPayload.correctAnswers,
       createdAt: new Date().toISOString()
     };
 
@@ -145,6 +157,17 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   startEdit(item: MemoryItem): void {
     this.editingItem = item;
     this.showEditModal = true;
+    this.editSubmitted = false;
+    const questions = item.questions && item.questions.length > 0 ? [...item.questions] : [''];
+    const correctAnswers = item.correctAnswers && item.correctAnswers.length > 0
+      ? [...item.correctAnswers]
+      : new Array(questions.length).fill('');
+    if (correctAnswers.length < questions.length) {
+      correctAnswers.push(...new Array(questions.length - correctAnswers.length).fill(''));
+    }
+    if (correctAnswers.length > questions.length) {
+      correctAnswers.splice(questions.length);
+    }
     this.editForm = {
       patientId: item.patientId,
       memoryCategory: item.memoryCategory,
@@ -153,7 +176,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       imageUrl: item.imageUrl || '',
       location: item.location || '',
       persons: item.persons && item.persons.length > 0 ? [...item.persons] : [''],
-      questions: item.questions && item.questions.length > 0 ? [...item.questions] : ['']
+      questions,
+      correctAnswers
     };
   }
 
@@ -162,12 +186,19 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     this.showEditModal = false;
     this.success = '';
     this.error = '';
+    this.editSubmitted = false;
   }
 
   updateMemoryItem(): void {
     if (!this.editingItem) return;
+    this.editSubmitted = true;
     this.error = '';
     this.success = '';
+
+    const questionPayload = this.buildQuestionAnswerPayload(this.editForm);
+    if (!questionPayload) {
+      return;
+    }
 
     const payload: MemoryItemUpdateRequest = {
       memoryCategory: this.editForm.memoryCategory,
@@ -176,7 +207,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       imageUrl: this.editForm.imageUrl.trim() || undefined,
       location: this.editForm.location.trim() || undefined,
       persons: this.cleanList(this.editForm.persons),
-      questions: this.cleanList(this.editForm.questions)
+      questions: questionPayload.questions,
+      correctAnswers: questionPayload.correctAnswers
     };
 
     this.loading = true;
@@ -235,8 +267,10 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       imageUrl: '',
       location: '',
       persons: [''],
-      questions: ['']
+      questions: [''],
+      correctAnswers: ['']
     };
+    this.createSubmitted = false;
   }
 
   trackById(_: number, item: MemoryItem): string {
@@ -254,11 +288,13 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   openCreateModal(): void {
     this.error = '';
     this.success = '';
+    this.createSubmitted = false;
     this.showCreateModal = true;
   }
 
   closeCreateModal(): void {
     this.showCreateModal = false;
+    this.createSubmitted = false;
   }
 
   addPerson(target: 'create' | 'edit'): void {
@@ -273,19 +309,59 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   }
 
   addQuestion(target: 'create' | 'edit'): void {
-    const list = target === 'create' ? this.createForm.questions : this.editForm.questions;
-    list.push('');
+    const form = target === 'create' ? this.createForm : this.editForm;
+    form.questions.push('');
+    form.correctAnswers.push('');
   }
 
   removeQuestion(target: 'create' | 'edit', index: number): void {
-    const list = target === 'create' ? this.createForm.questions : this.editForm.questions;
-    list.splice(index, 1);
-    if (list.length === 0) list.push('');
+    const form = target === 'create' ? this.createForm : this.editForm;
+    form.questions.splice(index, 1);
+    form.correctAnswers.splice(index, 1);
+    if (form.questions.length === 0) {
+      form.questions.push('');
+      form.correctAnswers.push('');
+    }
   }
 
   private cleanList(values: string[]): string[] | undefined {
     const items = values.map(value => value.trim()).filter(value => value.length > 0);
     return items.length > 0 ? items : undefined;
+  }
+
+  isQuestionPairInvalid(target: 'create' | 'edit', index: number): boolean {
+    const form = target === 'create' ? this.createForm : this.editForm;
+    const question = (form.questions[index] || '').trim();
+    const answer = (form.correctAnswers[index] || '').trim();
+    return (question.length > 0 && answer.length === 0) || (answer.length > 0 && question.length === 0);
+  }
+
+  private buildQuestionAnswerPayload(form: MemoryItemForm): { questions?: string[]; correctAnswers?: string[] } | null {
+    const questions = form.questions.map(value => value.trim());
+    const answers = form.correctAnswers.map(value => value.trim());
+    const maxLength = Math.max(questions.length, answers.length);
+    const mergedQuestions: string[] = [];
+    const mergedAnswers: string[] = [];
+
+    for (let i = 0; i < maxLength; i++) {
+      const question = questions[i] || '';
+      const answer = answers[i] || '';
+      if (!question && !answer) {
+        continue;
+      }
+      if (!question || !answer) {
+        this.error = 'Each question must have a matching correct answer';
+        return null;
+      }
+      mergedQuestions.push(question);
+      mergedAnswers.push(answer);
+    }
+
+    if (mergedQuestions.length === 0) {
+      return { questions: undefined, correctAnswers: undefined };
+    }
+
+    return { questions: mergedQuestions, correctAnswers: mergedAnswers };
   }
 
   private loadPatients(): void {

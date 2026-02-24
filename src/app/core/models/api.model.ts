@@ -176,6 +176,7 @@ export interface MemoryItem {
   location?: string;
   persons?: string[];
   questions?: string[];
+  correctAnswers?: string[];
   createdAt: string;
 }
 
@@ -189,6 +190,7 @@ export interface MemoryItemCreateRequest {
   location?: string;
   persons?: string[];
   questions?: string[];
+  correctAnswers?: string[];
   createdAt: string;
 }
 
@@ -202,7 +204,40 @@ export interface MemoryItemUpdateRequest {
   location?: string;
   persons?: string[];
   questions?: string[];
+  correctAnswers?: string[];
   createdAt?: string;
+}
+
+// Quiz Attempt Response
+export interface QuizAttempt {
+  id: string;
+  patientId: string;
+  memoryItemId: string;
+  attemptDate: string;
+  questionAsked: string;
+  correctAnswer: string;
+  patientAnswer?: string;
+  isCorrect?: boolean;
+  responseTimeSeconds?: number;
+}
+
+// Quiz Attempt Create Request
+export interface QuizAttemptCreateRequest {
+  patientId: string;
+  memoryItemId: string;
+  attemptDate: string;
+  questionAsked: string;
+  correctAnswer: string;
+  patientAnswer?: string;
+  isCorrect?: boolean;
+  responseTimeSeconds?: number;
+}
+
+// Quiz Attempt Answer Request
+export interface QuizAttemptAnswerRequest {
+  patientAnswer: string;
+  responseTimeSeconds?: number;
+  attemptDate?: string;
 }
 
 // Keycloak Token Response

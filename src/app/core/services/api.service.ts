@@ -13,7 +13,10 @@ import {
   TokenResponse,
   MemoryItem,
   MemoryItemCreateRequest,
-  MemoryItemUpdateRequest
+  MemoryItemUpdateRequest,
+  QuizAttempt,
+  QuizAttemptCreateRequest,
+  QuizAttemptAnswerRequest
 } from '../models/api.model';
 
 @Injectable({
@@ -182,6 +185,14 @@ export class ApiService {
   }
 
   /**
+   * Get available memory items for quiz (filtered server-side)
+   */
+  getAvailableMemoryItems(patientId: string): Observable<MemoryItem[]> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<MemoryItem[]>(`${this.cognitiveBaseUrl}/memory-items/available`, { params });
+  }
+
+  /**
    * Create a new memory item
    */
   createMemoryItem(request: MemoryItemCreateRequest): Observable<MemoryItem> {
@@ -200,5 +211,37 @@ export class ApiService {
    */
   deleteMemoryItem(id: string): Observable<void> {
     return this.http.delete<void>(`${this.cognitiveBaseUrl}/memory-items/${id}`);
+  }
+
+  // ==================== QUIZ ATTEMPTS ====================
+
+  /**
+   * Create a quiz attempt
+   */
+  createQuizAttempt(request: QuizAttemptCreateRequest): Observable<QuizAttempt> {
+    return this.http.post<QuizAttempt>(`${this.cognitiveBaseUrl}/quiz-attempts`, request);
+  }
+
+  /**
+   * Get quiz attempts (optionally filtered by patientId or memoryItemId)
+   */
+  getQuizAttempts(patientId?: string, memoryItemId?: string): Observable<QuizAttempt[]> {
+    let params = new HttpParams();
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (memoryItemId) {
+      params = params.set('memoryItemId', memoryItemId);
+    }
+    return this.http.get<QuizAttempt[]>(`${this.cognitiveBaseUrl}/quiz-attempts`, {
+      params: params.keys().length ? params : undefined
+    });
+  }
+
+  /**
+   * Submit a quiz answer
+   */
+  submitQuizAnswer(attemptId: string, request: QuizAttemptAnswerRequest): Observable<QuizAttempt> {
+    return this.http.patch<QuizAttempt>(`${this.cognitiveBaseUrl}/quiz-attempts/${attemptId}/answer`, request);
   }
 }
