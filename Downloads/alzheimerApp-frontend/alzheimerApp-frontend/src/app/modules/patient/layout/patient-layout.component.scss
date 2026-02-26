@@ -1,0 +1,26 @@
+:host {
+  --role-primary-light: #f0fdfa;
+  --role-primary: #14b8a6;
+  --role-primary-100: #ccfbf1;
+}
+
+.layout-container {
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  
+  @media (max-width: 1023px) {
+    flex-direction: column;
+  }
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: linear-gradient(135deg, var(--role-primary-light) 0%, #ffffff 50%, var(--role-primary-light) 100%);
+  padding-top: 0;
+  
+  @media (max-width: 1023px) {
+    padding-top: 56px; // Space for mobile header
+  }
+}

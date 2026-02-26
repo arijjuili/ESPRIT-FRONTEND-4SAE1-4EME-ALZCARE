@@ -1,0 +1,100 @@
+<!-- Mobile Header - Role themed -->
+<div class="mobile-header" [style.background-color]="currentTheme.primaryLight" [style.border-color]="currentTheme.borderColor">
+  <button 
+    (click)="toggleSidebar()"
+    class="mobile-menu-btn"
+    [style.color]="currentTheme.primary">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+    </svg>
+  </button>
+  <div class="mobile-brand" *ngIf="!currentUser">
+    <div class="brand-logo" [style.background]="'linear-gradient(135deg, ' + currentTheme.gradientFrom + ' 0%, ' + currentTheme.gradientTo + ' 100%)'">♥</div>
+    <span [style.color]="currentTheme.primaryDark">CareHub</span>
+  </div>
+  <span *ngIf="currentUser" class="mobile-user-name">{{ currentUser.name }}</span>
+</div>
+
+<!-- Sidebar Overlay (mobile) -->
+<div 
+  *ngIf="sidebarOpen" 
+  (click)="toggleSidebar()"
+  class="sidebar-overlay">
+</div>
+
+<!-- Sidebar Navigation - Role themed -->
+<nav class="sidebar"
+  [class.open]="sidebarOpen"
+  [class.collapsed]="sidebarCollapsed"
+  [style.--sidebar-bg-from]="currentTheme.primaryLight"
+  [style.--sidebar-border-color]="currentTheme.borderColor"
+  [style.--active-bg]="currentTheme.activeBg"
+  [style.--active-text]="currentTheme.activeText"
+  [style.--hover-bg]="currentTheme.hoverBg"
+  [style.--primary-color]="currentTheme.primary"
+  [style.--primary-dark]="currentTheme.primaryDark"
+  [style.--gradient-from]="currentTheme.gradientFrom"
+  [style.--gradient-to]="currentTheme.gradientTo">
+  
+  <div class="sidebar-content" [class.compact]="sidebarCollapsed">
+    <!-- Logo & Branding (desktop only) -->
+    <div class="brand-section" [class.centered]="sidebarCollapsed">
+      <div class="brand-logo" [style.background]="'linear-gradient(135deg, ' + currentTheme.gradientFrom + ' 0%, ' + currentTheme.gradientTo + ' 100%)'">♥</div>
+      <div class="brand-text" *ngIf="!sidebarCollapsed">
+        <h1 [style.color]="currentTheme.primaryDark">CareHub</h1>
+        <p [style.color]="currentTheme.primary">Care Management</p>
+      </div>
+    </div>
+
+    <!-- Collapse Button (desktop only) -->
+    <div class="collapse-section" [class.centered]="sidebarCollapsed">
+      <button
+        (click)="toggleCollapsed()"
+        class="collapse-btn"
+        [style.color]="currentTheme.primary"
+        [title]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+        <svg [class.rotate-180]="sidebarCollapsed" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- User Info with Role Badge -->
+    <div *ngIf="currentUser" class="user-section" [class.centered]="sidebarCollapsed">
+      <div class="user-avatar" [style.background]="'linear-gradient(135deg, ' + currentTheme.gradientFrom + ' 0%, ' + currentTheme.gradientTo + ' 100%)'">
+        {{ currentUser.name.charAt(0) }}
+      </div>
+      <div class="user-info" *ngIf="!sidebarCollapsed">
+        <span class="role-badge" [style.background-color]="currentTheme.primaryLight" [style.color]="currentTheme.primaryDark">{{ roleLabel }}</span>
+        <p class="user-name">{{ currentUser.name }}</p>
+      </div>
+    </div>
+
+    <!-- Navigation Links (role-aware) -->
+    <div class="nav-section">
+      <a 
+        *ngFor="let item of visibleNavItems"
+        [routerLink]="item.path"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: false }"
+        (click)="closeSidebar()"
+        class="nav-link"
+        [class.justify-center]="sidebarCollapsed"
+        [title]="sidebarCollapsed ? item.label : ''">
+        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-label" *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+      </a>
+    </div>
+
+    <!-- Logout Button -->
+    <div class="logout-section">
+      <button 
+        (click)="logout()"
+        class="logout-btn"
+        [title]="sidebarCollapsed ? 'Logout' : ''">
+        <span>🚪</span>
+        <span *ngIf="!sidebarCollapsed">Logout</span>
+      </button>
+    </div>
+  </div>
+</nav>
