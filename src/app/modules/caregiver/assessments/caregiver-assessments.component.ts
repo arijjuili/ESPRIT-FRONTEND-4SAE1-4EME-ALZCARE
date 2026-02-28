@@ -81,4 +81,28 @@ export class CaregiverAssessmentsComponent implements OnInit {
       }
     });
   }
+
+  formatDate(value?: string | null): string {
+    if (!value) return 'Not available';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  getScoreValue(score: unknown): number | null {
+    if (typeof score === 'number') return score;
+    if (typeof score === 'string' && score.trim().length) {
+      const parsed = Number(score);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  getScoreTone(score: unknown): 'high' | 'medium' | 'low' | 'na' {
+    const value = this.getScoreValue(score);
+    if (value === null) return 'na';
+    if (value >= 24) return 'high';
+    if (value >= 18) return 'medium';
+    return 'low';
+  }
 }

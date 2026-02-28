@@ -181,6 +181,46 @@ export class DoctorAssessmentsComponent implements OnInit {
     return result ? result.id : null;
   }
 
+  formatDate(value?: string | null): string {
+    if (!value) return 'Not scheduled';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  getDueStatus(assessment: HealthRecord): 'overdue' | 'upcoming' {
+    const dueDateValue = assessment.nextDueDate || assessment.date;
+    if (!dueDateValue) return 'upcoming';
+    const dueDate = new Date(dueDateValue);
+    if (Number.isNaN(dueDate.getTime())) return 'upcoming';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today ? 'overdue' : 'upcoming';
+  }
+
+  getLatestScore(assessment: HealthRecord): number | null {
+    const result = this.latestResults[assessment.patientId];
+    const score = result?.unifiedScore;
+    if (typeof score === 'number') return score;
+    if (score !== null && score !== undefined) {
+      const parsed = Number(score);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  getLatestResultCount(): number {
+    return Object.keys(this.latestResults).length;
+  }
+
+  getScoreTone(score: number | null): 'high' | 'medium' | 'low' | 'na' {
+    if (score === null) return 'na';
+    if (score >= 24) return 'high';
+    if (score >= 18) return 'medium';
+    return 'low';
+  }
+
   private buildLatestResults(records: HealthRecord[]): Record<string, HealthRecord> {
     const map: Record<string, HealthRecord> = {};
     records.forEach(record => {
