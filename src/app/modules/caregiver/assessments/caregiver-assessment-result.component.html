@@ -1,0 +1,37 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Assessment Result</h1>
+    <a class="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50" routerLink="/caregiver/assessments">
+      Back to Assessments
+    </a>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-md p-6">
+    <p class="text-sm text-gray-500" *ngIf="isLoading">Loading assessment...</p>
+    <p class="text-sm text-red-500" *ngIf="error">{{ error }}</p>
+
+    <div *ngIf="assessment">
+      <div class="mb-4">
+        <p class="text-sm text-gray-500">Completed at</p>
+        <p class="font-semibold text-gray-900">{{ assessment.completedAt || 'Not completed yet' }}</p>
+      </div>
+      <div class="mb-6">
+        <p class="text-sm text-gray-500">Score</p>
+        <p class="text-2xl font-bold text-primary-700">{{ assessment.unifiedScore ?? 'N/A' }}</p>
+      </div>
+
+      <div>
+        <h2 class="text-lg font-bold text-gray-900 mb-3">Responses</h2>
+        <div class="space-y-3" *ngIf="getResponseEntries().length; else noResponses">
+          <div class="border border-gray-100 rounded-xl p-4" *ngFor="let entry of getResponseEntries()">
+            <p class="text-sm font-semibold text-gray-700">{{ entry.key }}</p>
+            <p class="text-sm text-gray-600 mt-1">{{ entry.value }}</p>
+          </div>
+        </div>
+        <ng-template #noResponses>
+          <p class="text-sm text-gray-500">No responses submitted yet.</p>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>

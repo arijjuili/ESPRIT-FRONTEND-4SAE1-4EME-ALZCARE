@@ -1,0 +1,27 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
+  <div class="mb-6 flex items-center justify-between">
+    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Assessments</h1>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-md p-6">
+    <p class="text-sm text-gray-500" *ngIf="isLoading">Loading assessments...</p>
+    <p class="text-sm text-red-500" *ngIf="error">{{ error }}</p>
+
+    <div class="space-y-4" *ngIf="!isLoading">
+      <div *ngFor="let item of assessments" class="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p class="font-semibold text-gray-900">{{ item.patientName }}</p>
+          <p class="text-xs text-gray-500">Next due: {{ item.assessment.nextDueDate || item.assessment.date }}</p>
+        </div>
+        <a
+          class="px-3 py-1 rounded-lg border border-primary-200 text-primary-700 text-sm font-semibold hover:bg-primary-50"
+          [routerLink]="['/caregiver/assessments', item.assessment.id]"
+        >
+          View Result
+        </a>
+      </div>
+
+      <p class="text-sm text-gray-500" *ngIf="!assessments.length">No assessments found.</p>
+    </div>
+  </div>
+</div>

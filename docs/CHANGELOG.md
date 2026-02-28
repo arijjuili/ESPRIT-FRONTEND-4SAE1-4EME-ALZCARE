@@ -1,5 +1,24 @@
 # Changelog - CareHub
 
+## Session 29 (2026-02-25) - Daily Check-In + MMSE Assessments
+
+### Feature: HealthRecord-Based Assessments + Check-Ins
+**Problem:** Needed daily check-in flow and MMSE assessments scheduled via HealthRecord with doctor/caregiver views.
+**Solution:** Added HealthRecord scheduling fields, assessment submission endpoint, doctor-patient lookup, and full UI for patient check-in + MMSE submission, doctor CRUD, caregiver result view.
+**Files Changed:**  
+`alzheimerApp-backend/identity-service/src/main/java/com/alzcare/identity/controllers/DoctorProfileController.java`  
+`alzheimerApp-backend/identity-service/src/main/java/com/alzcare/identity/entities/PatientProfile.java`  
+`alzheimerApp-backend/cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/HealthRecordService.java`  
+`alzheimerApp/src/app/modules/patient/dashboard/patient-dashboard.component.ts`  
+`alzheimerApp/src/app/modules/patient/assessment/patient-assessment.component.ts`  
+`alzheimerApp/src/app/modules/doctor/assessments/doctor-assessments.component.ts`  
+`alzheimerApp/src/app/modules/caregiver/assessments/caregiver-assessments.component.ts`
+
+### Next Session Notes (if any)
+- [ ] Consider adding assessment history (new HealthRecord per completion)
+
+---
+
 ## Session 28 (2026-02-24) - Gamified Game UX + Badges
 
 ### Feature: Game UX Enhancements

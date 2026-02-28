@@ -11,6 +11,10 @@ import {
   AutonomyAssessment,
   AutonomyAssessmentRequest,
   TokenResponse,
+  RecordType,
+  HealthRecord,
+  HealthRecordCreateRequest,
+  AssessmentSubmissionRequest,
   MemoryItem,
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
@@ -106,6 +110,19 @@ export class ApiService {
   }
 
   /**
+   * Get doctor patients by doctor user ID (optionally filtered by active status)
+   */
+  getDoctorPatients(doctorUserId: string, isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(
+      `${this.apiBaseUrl}/doctors/user/${doctorUserId}/patients`,
+      { params }
+    );
+  }
+
+  /**
    * Update patient profile
    */
   updatePatient(id: string, data: PatientUpdateRequest): Observable<PatientProfile> {
@@ -178,6 +195,60 @@ export class ApiService {
   }
 
   // ==================== COGNITIVE MEMORY ====================
+
+  /**
+   * Create a health record (daily check-in or assessment)
+   */
+  createHealthRecord(request: HealthRecordCreateRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records`, request);
+  }
+
+  /**
+   * List health records (optionally filtered)
+   */
+  getHealthRecords(patientId?: string, doctorUserId?: string, recordType?: RecordType): Observable<HealthRecord[]> {
+    let params = new HttpParams();
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (doctorUserId) {
+      params = params.set('doctorUserId', doctorUserId);
+    }
+    if (recordType) {
+      params = params.set('recordType', recordType);
+    }
+    return this.http.get<HealthRecord[]>(`${this.cognitiveBaseUrl}/health-records`, {
+      params: params.keys().length ? params : undefined
+    });
+  }
+
+  /**
+   * Get health record by ID
+   */
+  getHealthRecordById(id: string): Observable<HealthRecord> {
+    return this.http.get<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}`);
+  }
+
+  /**
+   * Update a health record (doctor/admin)
+   */
+  updateHealthRecord(id: string, request: Partial<HealthRecordCreateRequest>): Observable<HealthRecord> {
+    return this.http.put<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}`, request);
+  }
+
+  /**
+   * Delete a health record
+   */
+  deleteHealthRecord(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.cognitiveBaseUrl}/health-records/${id}`);
+  }
+
+  /**
+   * Submit assessment responses
+   */
+  submitAssessment(id: string, request: AssessmentSubmissionRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}/submit`, request);
+  }
 
   /**
    * Get memory items (optionally filtered by patientId)

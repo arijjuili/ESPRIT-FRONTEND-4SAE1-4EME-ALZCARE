@@ -2000,6 +2000,43 @@ export interface PagedScheduleResponse {
 
 ---
 
+## Cognitive Memory - Health Records
+
+Base path: `/api/v1/cognitive/health-records`
+
+| Method | Endpoint | Description | Roles |
+|--------|----------|-------------|-------|
+| POST | `/api/v1/cognitive/health-records` | Create health record (DAILY_CHECKIN for patient, ASSESSMENT for doctor/admin) | PATIENT/DOCTOR/ADMIN |
+| GET | `/api/v1/cognitive/health-records` | List health records (filters: `patientId`, `doctorUserId`, `recordType`) | PATIENT/CAREGIVER/DOCTOR/ADMIN |
+| GET | `/api/v1/cognitive/health-records/{id}` | Get record by ID | PATIENT/CAREGIVER/DOCTOR/ADMIN |
+| PUT | `/api/v1/cognitive/health-records/{id}` | Update assessment record | DOCTOR/ADMIN |
+| DELETE | `/api/v1/cognitive/health-records/{id}` | Delete assessment record | DOCTOR/ADMIN |
+| POST | `/api/v1/cognitive/health-records/{id}/submit` | Submit assessment responses | PATIENT/ADMIN |
+
+### HealthRecord Fields (Key)
+```
+recordType: 'ASSESSMENT' | 'DAILY_CHECKIN' | 'PROGRESS'
+assessmentType?: string (default MMSE for assessments)
+frequencyMonths?: number
+checkInFrequencyHours?: number
+nextDueDate?: string (YYYY-MM-DD)
+responses?: Record<string, unknown>
+```
+
+---
+
+## Identity Service - Doctor Patients
+
+Base path: `/api/v1/doctors`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/doctors/user/{userId}/patients` | Get patients assigned to doctor (optional `isActive`) |
+| POST | `/api/v1/doctors/user/{doctorUserId}/patients/{patientUserId}` | Assign patient to doctor |
+| DELETE | `/api/v1/doctors/user/{doctorUserId}/patients/{patientUserId}` | Unassign patient from doctor |
+
+---
+
 ## Coming Soon (Other Services)
 
 | Service | Port | Base Path | Status |
@@ -2007,7 +2044,7 @@ export interface PagedScheduleResponse {
 | Event Ingestion | 8002 | `/api/v1/events` | 🔴 Not Implemented |
 | Safety Alert Engine | 8003 | `/api/v1/safety` | ✅ Implemented |
 | Notification Service | 8004 | `/api/v1/notifications` | ✅ Frontend Ready |
-| Cognitive Memory | 8005 | `/api/v1/cognitive` | 🔴 Not Implemented |
+| Cognitive Memory | 8005 | `/api/v1/cognitive` | 🟡 Partial (Health Records) |
 | Daily Care | 8006 | `/api/v1/daily-care` | 🔴 Not Implemented |
 | Medical Management | 8007 | `/api/v1/medical` | 🔴 Not Implemented |
 | Care Team | 8008 | `/api/v1/care-team` | 🔴 Not Implemented |
@@ -2015,4 +2052,4 @@ export interface PagedScheduleResponse {
 
 ---
 
-*AlzCare Platform | API Reference | Last Updated: 2026-02-21 (Added missing endpoints: User Admin APIs, Notification Schedules, complete Behavior Log and Alert APIs)*
+*AlzCare Platform | API Reference | Last Updated: 2026-02-25 (Added HealthRecord + assessment endpoints and doctor patients lookup)*

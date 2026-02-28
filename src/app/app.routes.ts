@@ -72,6 +72,10 @@ export const routes: Routes = [
       {
         path: 'profile',
         loadComponent: () => import('./modules/patient/profile/patient-profile.component').then(m => m.PatientProfileComponent)
+      },
+      {
+        path: 'assessment',
+        loadComponent: () => import('./modules/patient/assessment/patient-assessment.component').then(m => m.PatientAssessmentComponent)
       }
     ]
   },
@@ -102,6 +106,14 @@ export const routes: Routes = [
         path: 'behaviors/:patientId',
         loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
 
+      },
+      {
+        path: 'assessments',
+        loadComponent: () => import('./modules/caregiver/assessments/caregiver-assessments.component').then(m => m.CaregiverAssessmentsComponent)
+      },
+      {
+        path: 'assessments/:id',
+        loadComponent: () => import('./modules/caregiver/assessments/caregiver-assessment-result.component').then(m => m.CaregiverAssessmentResultComponent)
       }
     ]
   },
@@ -118,6 +130,14 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/doctor/dashboard/doctor-dashboard.component').then(m => m.DoctorDashboardComponent)
+      },
+      {
+        path: 'assessments',
+        loadComponent: () => import('./modules/doctor/assessments/doctor-assessments.component').then(m => m.DoctorAssessmentsComponent)
+      },
+      {
+        path: 'assessments/:id',
+        loadComponent: () => import('./modules/doctor/assessments/doctor-assessment-result.component').then(m => m.DoctorAssessmentResultComponent)
       }
     ]
   },

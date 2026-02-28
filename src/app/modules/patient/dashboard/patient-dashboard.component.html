@@ -10,6 +10,16 @@
     </div>
   </div>
 
+  <!-- Assessment Submitted Banner -->
+  <div *ngIf="assessmentSubmittedMessage" class="mb-6">
+    <div class="bg-success/10 border border-success/30 rounded-xl p-4">
+      <p class="text-sm font-semibold text-success">{{ assessmentSubmittedMessage }}</p>
+      <p class="text-xs text-gray-600 mt-1" *ngIf="assessmentSubmittedDueDate">
+        Next due date: {{ assessmentSubmittedDueDate }}
+      </p>
+    </div>
+  </div>
+
   <!-- Health Status Alert -->
   <div class="mb-8">
     <app-alert-card 
@@ -54,6 +64,38 @@
       <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">hours • Good</p>
       <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
         <div class="h-full bg-info w-3/5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assessment Status -->
+  <div class="mb-6 sm:mb-8">
+    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-primary-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h2 class="text-lg sm:text-xl font-bold text-gray-900">🧠 Cognitive Assessment</h2>
+        <p class="text-sm text-gray-600 mt-1" *ngIf="isLoadingAssessment">Loading assessment status...</p>
+        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDaysLeft === null">No assessment scheduled yet.</p>
+        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDaysLeft !== null && !assessmentDue">
+          Next assessment in {{ assessmentDaysLeft }} day{{ assessmentDaysLeft === 1 ? '' : 's' }}.
+        </p>
+        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDue">
+          Your assessment is due now.
+        </p>
+      </div>
+      <div class="flex items-center gap-3" *ngIf="assessmentRecordId">
+        <a
+          *ngIf="assessmentDue"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 transition"
+          [routerLink]="['/patient/assessment']"
+        >
+          Take Assessment
+        </a>
+        <span
+          *ngIf="!assessmentDue"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-50 text-primary-700 font-semibold border border-primary-200"
+        >
+          Not due yet
+        </span>
       </div>
     </div>
   </div>
@@ -167,6 +209,89 @@
           <p class="text-gray-600 text-sm">Yesterday at 5:00 PM</p>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Daily Check-In Modal -->
+<div *ngIf="showCheckInModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  <div
+    class="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden"
+    (touchstart)="handleCheckInTouchStart($event)"
+    (touchend)="handleCheckInTouchEnd($event)"
+  >
+    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-500">Daily Check-In</p>
+        <h3 class="text-xl font-bold text-gray-900">How are you feeling today?</h3>
+      </div>
+      <span class="text-sm text-gray-400">Step {{ checkInStepIndex + 1 }} / 3</span>
+    </div>
+
+    <div class="px-6 py-6">
+      <div *ngIf="checkInStepIndex === 0">
+        <p class="text-gray-700 font-semibold mb-4">Mood</p>
+        <div class="flex flex-wrap gap-3">
+          <button
+            *ngFor="let value of [1,2,3,4,5]"
+            class="px-4 py-2 rounded-full border text-sm font-semibold transition"
+            [ngClass]="checkInAnswers.mood === value ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'"
+            (click)="setCheckInAnswer('mood', value)"
+          >
+            {{ value }}
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">1 = very low, 5 = very good</p>
+      </div>
+
+      <div *ngIf="checkInStepIndex === 1">
+        <p class="text-gray-700 font-semibold mb-4">Sleep Quality</p>
+        <div class="flex flex-wrap gap-3">
+          <button
+            *ngFor="let value of [1,2,3,4,5]"
+            class="px-4 py-2 rounded-full border text-sm font-semibold transition"
+            [ngClass]="checkInAnswers.sleep === value ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'"
+            (click)="setCheckInAnswer('sleep', value)"
+          >
+            {{ value }}
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">1 = very poor, 5 = excellent</p>
+      </div>
+
+      <div *ngIf="checkInStepIndex === 2">
+        <p class="text-gray-700 font-semibold mb-4">Appetite</p>
+        <div class="flex flex-wrap gap-3">
+          <button
+            *ngFor="let value of [1,2,3,4,5]"
+            class="px-4 py-2 rounded-full border text-sm font-semibold transition"
+            [ngClass]="checkInAnswers.appetite === value ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-600 hover:border-primary-300'"
+            (click)="setCheckInAnswer('appetite', value)"
+          >
+            {{ value }}
+          </button>
+        </div>
+        <p class="text-xs text-gray-500 mt-3">1 = very low, 5 = very good</p>
+      </div>
+
+      <p class="text-sm text-red-500 mt-4" *ngIf="checkInError">{{ checkInError }}</p>
+    </div>
+
+    <div class="px-6 py-5 border-t border-gray-100 flex items-center justify-between">
+      <button
+        class="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 font-semibold hover:border-gray-300"
+        (click)="prevCheckInStep()"
+        [disabled]="checkInStepIndex === 0"
+      >
+        Swipe Right
+      </button>
+      <button
+        class="px-5 py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 transition disabled:opacity-60"
+        (click)="nextCheckInStep()"
+        [disabled]="checkInSubmitting"
+      >
+        {{ checkInStepIndex < 2 ? 'Swipe Left' : (checkInSubmitting ? 'Saving...' : 'Submit') }}
+      </button>
     </div>
   </div>
 </div>

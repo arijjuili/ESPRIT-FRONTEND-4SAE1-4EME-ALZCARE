@@ -54,9 +54,20 @@ function isTokenRequest(url: string): boolean {
  * Add auth header to request
  */
 function addAuthHeader(req: HttpRequest<unknown>, token: string): HttpRequest<unknown> {
+  const storedUser = localStorage.getItem('currentUser');
+  const role = storedUser ? (() => {
+    try {
+      const parsed = JSON.parse(storedUser);
+      return parsed?.role ? String(parsed.role).toUpperCase() : null;
+    } catch {
+      return null;
+    }
+  })() : null;
+
   return req.clone({
     setHeaders: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...(role ? { 'X-User-Roles': `ROLE_${role}` } : {})
     }
   });
 }

@@ -28,6 +28,13 @@ export enum MemoryCategory {
   WORK = 'WORK'
 }
 
+// Health Record Type Enum
+export enum RecordType {
+  ASSESSMENT = 'ASSESSMENT',
+  DAILY_CHECKIN = 'DAILY_CHECKIN',
+  PROGRESS = 'PROGRESS'
+}
+
 // Patient Profile Response
 export interface PatientProfile {
   id: string;
@@ -44,6 +51,7 @@ export interface PatientProfile {
   emergencyContact?: string;
   address?: string;
   isActive: boolean;
+  doctorUserId?: string;
   totalPoints?: number;
   currentStreak?: number;
   lastPlayedDate?: string;
@@ -163,6 +171,73 @@ export interface AutonomyAssessmentRequest {
   mobilityLevel: AutonomyLevel;
   feedingLevel: AutonomyLevel;
   notes?: string;
+}
+
+// Health Record Response
+export interface HealthRecord {
+  id: string;
+  patientId: string;
+  doctorUserId?: string;
+  recordType: RecordType;
+  date: string;
+  nextDueDate?: string;
+  frequencyMonths?: number;
+  checkInFrequencyHours?: number;
+  isActive?: boolean;
+  completedAt?: string;
+  assessmentType?: string;
+  googleFormUrl?: string;
+  assessmentQuestions?: string[];
+  responses?: Record<string, unknown>;
+  domainScores?: Record<string, unknown>;
+  doctorNotes?: string;
+  mood?: number;
+  confusion?: number;
+  memory?: number;
+  sleep?: number;
+  appetite?: number;
+  checkInNotes?: string;
+  flaggedForDoctor?: boolean;
+  unifiedScore?: number;
+  declineRatePercent?: number;
+  memoryScore?: number;
+  attentionScore?: number;
+  languageScore?: number;
+  neurospatialScore?: number;
+  executiveScore?: number;
+}
+
+// Health Record Create Request
+export interface HealthRecordCreateRequest {
+  patientId: string;
+  doctorUserId?: string;
+  recordType: RecordType;
+  date: string;
+  nextDueDate?: string;
+  frequencyMonths?: number;
+  checkInFrequencyHours?: number;
+  isActive?: boolean;
+  completedAt?: string;
+  assessmentType?: string;
+  assessmentQuestions?: string[];
+  responses?: Record<string, unknown>;
+  domainScores?: Record<string, unknown>;
+  doctorNotes?: string;
+  mood?: number;
+  confusion?: number;
+  memory?: number;
+  sleep?: number;
+  appetite?: number;
+  checkInNotes?: string;
+  flaggedForDoctor?: boolean;
+  unifiedScore?: number;
+}
+
+export interface AssessmentSubmissionRequest {
+  responses?: Record<string, unknown>;
+  domainScores?: Record<string, unknown>;
+  unifiedScore?: number;
+  doctorNotes?: string;
 }
 
 // Memory Item Response
