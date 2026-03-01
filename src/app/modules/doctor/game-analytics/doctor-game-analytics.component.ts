@@ -55,6 +55,13 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
   private allGameActivities: GameActivity[] = [];
   private allPatients: PatientProfileResponse[] = [];
 
+  private readonly GAME_TYPE_MAP: Record<string, string> = {
+    'memory': 'MEMORY_MATCH',
+    'pattern': 'PATTERN_RECOGNITION',
+    'word': 'WORD_RECALL',
+    'attention': 'ATTENTION_TASK'
+  };
+
   lineChartData: ChartData<'line'> = { labels: [], datasets: [] };
   doughnutChartData: ChartData<'doughnut'> = { labels: [], datasets: [] };
   barChartData: ChartData<'bar'> = { labels: [], datasets: [] };
@@ -117,67 +124,56 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/doctor/cognitive-patient', patientId]);
   }
 
+  private getFilteredActivities(): GameActivity[] {
+    if (this.selectedGame === 'all') {
+      return this.allGameActivities;
+    }
+    const targetType = this.GAME_TYPE_MAP[this.selectedGame];
+    return this.allGameActivities.filter(a => a.gameType === targetType);
+  }
+
   loadData(): void {
     this.isLoading = true;
     this.error = null;
     this.animatedCards = [];
 
     const user = this.authService.getCurrentUser();
-    console.log('[GameAnalytics] Current user:', user);
-    
     if (!user) {
       this.error = 'User not authenticated';
-      console.log('[GameAnalytics] No user, loading fallback');
       this.loadFallbackData();
       return;
     }
 
-    console.log('[GameAnalytics] Fetching patients for user:', user.id, 'role:', user.role);
-    
     this.patientService.getPatients().pipe(
       catchError(err => {
-        console.error('[GameAnalytics] Error fetching patients:', err);
+        console.error('Error fetching patients:', err);
         return of([]);
       })
     ).subscribe(patients => {
-      console.log('[GameAnalytics] Patients received:', patients);
       this.allPatients = patients || [];
       
       if (patients && patients.length > 0) {
-        console.log('[GameAnalytics] Fetching game activities for', patients.length, 'patients');
         const patientIds = patients.map(p => p.userId);
-        console.log('[GameAnalytics] User IDs:', patientIds);
-        
         const activities$ = patientIds.map(pid => 
-          this.apiService.getGameActivities(pid).pipe(
-            catchError(err => {
-              console.error('[GameAnalytics] Error fetching activities for patient', pid, err);
-              return of([]);
-            })
-          )
+          this.apiService.getGameActivities(pid).pipe(catchError(() => of([])))
         );
         
         forkJoin(activities$).subscribe({
           next: (activitiesArrays) => {
-            console.log('[GameAnalytics] All activities:', activitiesArrays);
             this.allGameActivities = activitiesArrays.flat();
-            console.log('[GameAnalytics] Flattened activities:', this.allGameActivities);
-            
             if (this.allGameActivities.length > 0) {
               this.hasData = true;
-              console.log('[GameAnalytics] Has data:', this.hasData);
             }
             this.processData();
             this.isLoading = false;
           },
           error: (err) => {
-            console.error('[GameAnalytics] Error fetching game activities:', err);
+            console.error('Error fetching game activities:', err);
             this.loadFallbackData();
             this.isLoading = false;
           }
         });
       } else {
-        console.log('[GameAnalytics] No patients found');
         this.loadFallbackData();
         this.isLoading = false;
       }
@@ -273,8 +269,9 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
     };
 
     const gameMap = new Map<string, { plays: number; scores: number[] }>();
+    const filteredActivities = this.getFilteredActivities();
     
-    this.allGameActivities.forEach(activity => {
+    filteredActivities.forEach(activity => {
       const gameType = activity.gameType;
       if (!gameMap.has(gameType)) {
         gameMap.set(gameType, { plays: 0, scores: [] });
@@ -285,13 +282,25 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
     });
 
     if (gameMap.size === 0) {
-      this.gameStats = [
-        { name: 'Memory Match', icon: '🎴', totalPlays: 0, avgScore: 0, trend: 0, color: '#8b5cf6' },
-        { name: 'Pattern Recognition', icon: '🎨', totalPlays: 0, avgScore: 0, trend: 0, color: '#ec4899' },
-        { name: 'Word Recall', icon: '📝', totalPlays: 0, avgScore: 0, trend: 0, color: '#14b8a6' },
-        { name: 'Spatial Navigation', icon: '🧭', totalPlays: 0, avgScore: 0, trend: 0, color: '#f59e0b' },
-        { name: 'Attention Task', icon: '🎯', totalPlays: 0, avgScore: 0, trend: 0, color: '#3b82f6' }
-      ];
+      if (this.selectedGame === 'all') {
+        this.gameStats = [
+          { name: 'Memory Match', icon: '🎴', totalPlays: 0, avgScore: 0, trend: 0, color: '#8b5cf6' },
+          { name: 'Pattern Recognition', icon: '🎨', totalPlays: 0, avgScore: 0, trend: 0, color: '#ec4899' },
+          { name: 'Word Recall', icon: '📝', totalPlays: 0, avgScore: 0, trend: 0, color: '#14b8a6' },
+          { name: 'Spatial Navigation', icon: '🧭', totalPlays: 0, avgScore: 0, trend: 0, color: '#f59e0b' },
+          { name: 'Attention Task', icon: '🎯', totalPlays: 0, avgScore: 0, trend: 0, color: '#3b82f6' }
+        ];
+      } else {
+        const targetType = this.GAME_TYPE_MAP[this.selectedGame];
+        this.gameStats = [{
+          name: gameNames[targetType] || this.selectedGame,
+          icon: gameIcons[targetType] || '🎮',
+          totalPlays: 0,
+          avgScore: 0,
+          trend: 0,
+          color: gameColors[targetType] || '#6b7280'
+        }];
+      }
     } else {
       this.gameStats = Array.from(gameMap.entries()).map(([gameType, data]) => ({
         name: gameNames[gameType] || gameType,
@@ -306,12 +315,13 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
 
   private processPatients(): void {
     const patientActivityMap = new Map<string, { activities: GameActivity[]; lastActivity: Date | null }>();
+    const filteredActivities = this.getFilteredActivities();
 
     this.allPatients.forEach(p => {
       patientActivityMap.set(p.userId, { activities: [], lastActivity: null });
     });
 
-    this.allGameActivities.forEach(activity => {
+    filteredActivities.forEach(activity => {
       const patientData = patientActivityMap.get(activity.patientId);
       if (patientData) {
         patientData.activities.push(activity);
@@ -360,12 +370,27 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
 
   private processLineChart(): void {
     const days = this.getDaysForRange();
-    const games = ['MEMORY_MATCH', 'PATTERN_RECOGNITION', 'WORD_RECALL'];
-    const colors = ['#8b5cf6', '#ec4899', '#14b8a6'];
+    const filteredActivities = this.getFilteredActivities();
+    
+    let games: string[] = [];
+    if (this.selectedGame === 'all') {
+      games = ['MEMORY_MATCH', 'PATTERN_RECOGNITION', 'WORD_RECALL', 'ATTENTION_TASK'];
+    } else {
+      games = [this.GAME_TYPE_MAP[this.selectedGame]];
+    }
 
-    const datasets = games.map((game, idx) => {
+    const gameColors: Record<string, string> = {
+      'MEMORY_MATCH': '#8b5cf6',
+      'PATTERN_RECOGNITION': '#ec4899',
+      'WORD_RECALL': '#14b8a6',
+      'SPATIAL_NAVIGATION': '#f59e0b',
+      'ATTENTION_TASK': '#3b82f6'
+    };
+
+    const datasets = games.map((game) => {
+      const color = gameColors[game] || '#6b7280';
       const data = days.map(day => {
-        const dayActivities = this.allGameActivities.filter(a =>
+        const dayActivities = filteredActivities.filter(a =>
           a.gameType === game && this.isSameDay(new Date(a.createdAt), day)
         );
         const scores = dayActivities.map(a => a.score || 0).filter(s => s > 0);
@@ -375,11 +400,11 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
       return {
         label: this.getGameName(game),
         data,
-        borderColor: colors[idx],
-        backgroundColor: colors[idx] + '20',
+        borderColor: color,
+        backgroundColor: color + '20',
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: colors[idx],
+        pointBackgroundColor: color,
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
         pointRadius: 4
@@ -394,8 +419,9 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
 
   private processDoughnutChart(): void {
     const gameCounts = new Map<string, number>();
+    const filteredActivities = this.getFilteredActivities();
     
-    this.allGameActivities.forEach(activity => {
+    filteredActivities.forEach(activity => {
       const count = gameCounts.get(activity.gameType) || 0;
       gameCounts.set(activity.gameType, count + 1);
     });
@@ -420,14 +446,18 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
       'ATTENTION_TASK': 'Attention Task'
     };
 
-    const gameColors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b', '#3b82f6'];
-    let colorIdx = 0;
+    const gameColorsMap: Record<string, string> = {
+      'MEMORY_MATCH': '#8b5cf6',
+      'PATTERN_RECOGNITION': '#ec4899',
+      'WORD_RECALL': '#14b8a6',
+      'SPATIAL_NAVIGATION': '#f59e0b',
+      'ATTENTION_TASK': '#3b82f6'
+    };
 
     gameCounts.forEach((count, gameType) => {
       labels.push(gameNames[gameType] || gameType);
       data.push(count);
-      colors.push(gameColors[colorIdx % gameColors.length]);
-      colorIdx++;
+      colors.push(gameColorsMap[gameType] || '#6b7280');
     });
 
     this.doughnutChartData = {
@@ -438,9 +468,10 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
 
   private processBarChart(): void {
     const thisWeek = this.getDaysForRange();
+    const filteredActivities = this.getFilteredActivities();
 
     const thisWeekData = thisWeek.map(day => 
-      this.allGameActivities.filter(a => this.isSameDay(new Date(a.createdAt), day)).length
+      filteredActivities.filter(a => this.isSameDay(new Date(a.createdAt), day)).length
     );
 
     const lastWeekData = thisWeekData.map(() => Math.floor(Math.random() * 5));
@@ -463,7 +494,9 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
       'Spatial': []
     };
 
-    this.allGameActivities.forEach(activity => {
+    const filteredActivities = this.getFilteredActivities();
+
+    filteredActivities.forEach(activity => {
       if (activity.score) {
         if (activity.gameType === 'MEMORY_MATCH' || activity.gameType === 'WORD_RECALL') {
           domainScores['Memory'].push(activity.score);
@@ -567,14 +600,15 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
 
   selectGame(game: string): void {
     this.selectedGame = game;
+    this.processData();
   }
 
   getTotalPlays(): number {
-    return this.allGameActivities.length;
+    return this.getFilteredActivities().length;
   }
 
   getAverageScore(): number {
-    const scores = this.allGameActivities.map(a => a.score || 0).filter(s => s > 0);
+    const scores = this.getFilteredActivities().map(a => a.score || 0).filter(s => s > 0);
     if (scores.length === 0) return 0;
     return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   }
@@ -583,7 +617,7 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
     const activePatientIds = new Set(
-      this.allGameActivities
+      this.getFilteredActivities()
         .filter(a => new Date(a.createdAt) > oneDayAgo)
         .map(a => a.patientId)
     );

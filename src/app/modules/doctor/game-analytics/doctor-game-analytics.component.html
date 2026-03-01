@@ -20,13 +20,13 @@
       </div>
       <div class="flex gap-2">
         <button 
-          *ngFor="let game of ['all', 'memory', 'pattern', 'word']"
+          *ngFor="let game of ['all', 'memory', 'pattern', 'word', 'attention']"
           (click)="selectGame(game)"
           class="px-4 py-2 rounded-xl font-medium transition-all duration-300"
           [ngClass]="selectedGame === game 
             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' 
             : 'bg-white text-gray-600 hover:bg-indigo-50'">
-          {{ game === 'all' ? 'All Games' : game === 'memory' ? 'Memory' : game === 'pattern' ? 'Pattern' : 'Word' }}
+          {{ game === 'all' ? 'All Games' : game === 'memory' ? 'Memory' : game === 'pattern' ? 'Pattern' : game === 'word' ? 'Word' : 'Attention' }}
         </button>
       </div>
     </div>
