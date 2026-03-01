@@ -1,3 +1,22 @@
+<div class="relative min-h-screen">
+<app-game-splash
+  *ngIf="showSplash"
+  gameName="Word Recall"
+  gameIcon="📝"
+  primaryColor="#14b8a6"
+  secondaryColor="#10b981"
+  [duration]="3000"
+  (splashComplete)="onSplashComplete()">
+</app-game-splash>
+
+<app-game-guidelines
+  *ngIf="showGuidelines"
+  title="How to Play Word Recall"
+  [steps]="guidelineSteps"
+  primaryColor="#14b8a6"
+  (close)="onGuidelinesClose()">
+</app-game-guidelines>
+
 <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-emerald-50 via-lime-50 to-yellow-50">
   <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
@@ -19,7 +38,9 @@
             [ngClass]="colors[i % colors.length]">
             {{ word }}
           </div>
-          <div *ngIf="!showWords && !showAnswers" class="text-sm text-gray-500">Words will appear here for 6 seconds.</div>
+          <div *ngIf="started && !showWords && !showAnswers" class="text-sm text-gray-500">
+            Reveal finished. Now recall the words by typing or using voice.
+          </div>
           <button
             *ngIf="showAnswers"
             (click)="startRound()"
@@ -86,6 +107,42 @@
         </div>
       </div>
     </div>
+
+    <div class="mt-6 flex flex-col items-center gap-2">
+      <p class="text-xs text-slate-600" *ngIf="voiceFeedback">{{ voiceFeedback }}</p>
+      <p class="text-xs text-emerald-700 font-semibold" *ngIf="voiceEnabled">Hold to speak</p>
+      <button
+        type="button"
+        class="voice-orb"
+        [ngClass]="{
+          'voice-orb--on': voiceEnabled && !voiceListening,
+          'voice-orb--hold': voiceListening,
+          'voice-orb--off': !voiceEnabled || !canUseVoiceInput()
+        }"
+        [disabled]="!canUseVoiceInput() && !voiceListening"
+        (click)="onVoiceButtonClick()"
+        (mousedown)="onVoiceHoldStart($event)"
+        (mouseup)="onVoiceHoldEnd()"
+        (mouseleave)="onVoiceHoldEnd()"
+        (touchstart)="onVoiceHoldStart($event)"
+        (touchend)="onVoiceHoldEnd()"
+        (touchcancel)="onVoiceHoldEnd()"
+        (keydown.space)="onVoiceHoldStart($event)"
+        (keyup.space)="onVoiceHoldEnd()"
+        (keydown.enter)="onVoiceHoldStart($event)"
+        (keyup.enter)="onVoiceHoldEnd()"
+        aria-label="Voice command button"
+        title="Click to toggle voice, hold to speak"
+      >
+        <span *ngIf="!voiceListening" class="voice-orb__icon" aria-hidden="true">
+          <lucide-icon name="audio-lines"></lucide-icon>
+        </span>
+        <span *ngIf="voiceListening" class="voice-orb__stop" aria-hidden="true"></span>
+      </button>
+      <p class="text-xs font-semibold text-slate-600">
+        {{ voiceListening ? 'Stop' : (!canUseVoiceInput() ? 'Available after reveal ends' : (voiceEnabled ? 'Hold to speak' : 'Click to enable voice')) }}
+      </p>
+    </div>
   </div>
 </div>
 
@@ -99,4 +156,5 @@
       Awesome!
     </button>
   </div>
+</div>
 </div>

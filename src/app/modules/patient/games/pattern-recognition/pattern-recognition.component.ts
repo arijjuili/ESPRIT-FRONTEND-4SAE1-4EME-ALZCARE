@@ -1,6 +1,11 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ApiService } from '../../../../core/services/api.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { GameActivityCreateRequest } from '../../../../core/models/api.model';
+import { GameSplashComponent } from '../../../../shared/components/game-splash/game-splash.component';
+import { GameGuidelinesComponent, GuidelineStep } from '../../../../shared/components/game-guidelines/game-guidelines.component';
 
 interface PatternColor {
   label: string;
@@ -10,11 +15,14 @@ interface PatternColor {
 @Component({
   selector: 'app-pattern-recognition',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, GameSplashComponent, GameGuidelinesComponent],
   templateUrl: './pattern-recognition.component.html',
   styleUrls: ['./pattern-recognition.component.scss']
 })
 export class PatternRecognitionComponent implements OnDestroy {
+  showSplash = true;
+  showGuidelines = false;
+  
   colors: PatternColor[] = [
     { label: 'Rose', className: 'bg-rose-500' },
     { label: 'Amber', className: 'bg-amber-400' },
@@ -33,11 +41,32 @@ export class PatternRecognitionComponent implements OnDestroy {
   finishRound = 5;
   private timeouts: number[] = [];
 
+  guidelineSteps: GuidelineStep[] = [
+    { title: 'Watch the Pattern', description: 'Pay attention to the color sequence shown.', icon: '👀' },
+    { title: 'Repeat the Sequence', description: 'Click the colors in the same order as shown.', icon: '🔁' },
+    { title: 'Advance Rounds', description: 'Each round adds one more color to remember!', icon: '🎯' }
+  ];
+
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService
+  ) {}
+
+  onSplashComplete(): void {
+    this.showSplash = false;
+    this.showGuidelines = true;
+  }
+
+  onGuidelinesClose(): void {
+    this.showGuidelines = false;
+  }
+
   startGame(): void {
     this.started = true;
     this.round = 1;
     this.sequence = [];
     this.lastRoundReached = 0;
+    this.message = 'Press Start to see the pattern.';
     this.nextRound();
   }
 
@@ -82,6 +111,7 @@ export class PatternRecognitionComponent implements OnDestroy {
       this.message = `${picked} You reached round ${achieved}.`;
       this.started = false;
       this.playerInput = [];
+      this.recordToDb();
       return;
     }
 
@@ -118,6 +148,35 @@ export class PatternRecognitionComponent implements OnDestroy {
     sessions.push(today);
     localStorage.setItem('alzcare_game_sessions', JSON.stringify(sessions));
     this.checkDailyFocusBadge(sessions, today);
+    this.recordToDb();
+  }
+
+  private recordToDb(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    const roundScore = Math.round((this.lastRoundReached / this.finishRound) * 100);
+    const payload: GameActivityCreateRequest = {
+      patientId: userId,
+      gameType: 'PATTERN_RECOGNITION',
+      difficulty: 'EASY',
+      targetDomain: 'cognitive',
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      durationSeconds: 0,
+      score: roundScore,
+      maxScore: 100,
+      voiceUsed: false,
+      mistakesMade: 1,
+      pointsEarned: roundScore,
+      adaptiveMode: false,
+      difficultyAdjustments: 0,
+      voiceCommandCount: 0,
+      accuracyPercent: roundScore
+    };
+    this.apiService.createGameActivity(payload).subscribe({
+      next: () => {},
+      error: () => {}
+    });
   }
 
   private awardBadge(): void {

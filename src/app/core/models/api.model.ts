@@ -354,6 +354,10 @@ export interface GameActivity {
   badgeDescription?: string;
   badgeIconUrl?: string;
   badgePoints?: number;
+  adaptiveMode?: boolean;
+  difficultyAdjustments?: number;
+  voiceCommandCount?: number;
+  accuracyPercent?: number;
 }
 
 export interface GameActivityCreateRequest {
@@ -375,6 +379,10 @@ export interface GameActivityCreateRequest {
   badgeDescription?: string;
   badgeIconUrl?: string;
   badgePoints?: number;
+  adaptiveMode?: boolean;
+  difficultyAdjustments?: number;
+  voiceCommandCount?: number;
+  accuracyPercent?: number;
 }
 
 // Keycloak Token Response

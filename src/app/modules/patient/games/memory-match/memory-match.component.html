@@ -1,4 +1,23 @@
-<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50">
+<div class="relative min-h-screen">
+  <app-game-splash
+    *ngIf="showSplash"
+    gameName="Memory Match"
+    gameIcon="🎴"
+    primaryColor="#8b5cf6"
+    secondaryColor="#ec4899"
+    [duration]="3000"
+    (splashComplete)="onSplashComplete()">
+  </app-game-splash>
+
+  <app-game-guidelines
+    *ngIf="showGuidelines"
+    title="How to Play Memory Match"
+    [steps]="guidelineSteps"
+    primaryColor="#8b5cf6"
+    (close)="onGuidelinesClose()">
+  </app-game-guidelines>
+
+  <div class="px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50">
   <div class="max-w-6xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
       <div>
@@ -65,4 +84,5 @@
       Awesome!
     </button>
   </div>
+</div>
 </div>

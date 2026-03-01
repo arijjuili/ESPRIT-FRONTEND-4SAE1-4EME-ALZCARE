@@ -17,7 +17,6 @@ import { RoleTheme } from '../../../shared/components/navbar.component';
 export class DoctorDashboardComponent implements OnInit {
   doctorName = '';
   
-  // Role theme for notification bell (blue for doctor)
   currentTheme: RoleTheme = {
     name: 'Doctor',
     primary: '#3b82f6',
@@ -33,15 +32,16 @@ export class DoctorDashboardComponent implements OnInit {
   patients: any[] = [];
   appointments: any[] = [];
 
-  constructor(private authService: AuthService, private dataService: DataService) {}
+  constructor(
+    private authService: AuthService,
+    private dataService: DataService
+  ) {}
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
     
     if (currentUser) {
       this.doctorName = currentUser.name;
-      
-      // Get all patients and appointments
       this.patients = this.dataService.getPatients();
       this.appointments = this.dataService.getAppointments();
     }

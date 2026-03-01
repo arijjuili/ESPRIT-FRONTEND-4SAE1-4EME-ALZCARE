@@ -21,3 +21,167 @@ body {
 button, input, [role="button"] {
   transition: all 0.2s ease;
 }
+
+.game-splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.game-splash-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(251, 191, 36, 0.35), transparent 45%),
+    radial-gradient(circle at 78% 18%, rgba(14, 165, 233, 0.32), transparent 42%),
+    radial-gradient(circle at 62% 82%, rgba(217, 70, 239, 0.28), transparent 46%),
+    linear-gradient(130deg, #0f172a, #1e1b4b, #312e81);
+  animation: splashShift 5s ease-in-out infinite alternate;
+}
+
+.game-splash-shell {
+  position: relative;
+  z-index: 2;
+  width: min(560px, 100%);
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.45);
+  padding: 1.5rem;
+  color: #e2e8f0;
+}
+
+.game-splash-logo {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 1.5rem;
+  margin: 0 auto 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #f97316, #ec4899 46%, #22d3ee);
+  box-shadow: 0 14px 34px rgba(244, 114, 182, 0.45);
+  animation: splashBob 1.45s ease-in-out infinite;
+}
+
+.game-splash-title {
+  text-align: center;
+  font-size: clamp(1.3rem, 2.1vw, 1.8rem);
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 0.35rem;
+}
+
+.game-splash-subtitle {
+  margin: 0;
+  text-align: center;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.game-splash-skip {
+  margin-top: 1rem;
+  width: 100%;
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0.72rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: linear-gradient(90deg, #22d3ee, #facc15, #fb7185);
+}
+
+.game-guideline-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.game-guideline-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(2px);
+}
+
+.game-guideline-card {
+  position: relative;
+  z-index: 2;
+  width: min(560px, 100%);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #ffffff;
+  box-shadow: 0 24px 58px rgba(15, 23, 42, 0.35);
+  padding: 1rem 1rem 1.1rem;
+}
+
+.game-guideline-close {
+  border: none;
+  background: transparent;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.game-guideline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.game-guideline-title {
+  margin-top: 0.5rem;
+  margin-bottom: 0.35rem;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.game-guideline-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.guide-focus {
+  position: relative;
+  z-index: 80;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.95), 0 10px 30px rgba(14, 165, 233, 0.4);
+  animation: guidePulse 1.25s ease-in-out infinite;
+}
+
+@keyframes splashShift {
+  0% { filter: hue-rotate(0deg) saturate(1); }
+  100% { filter: hue-rotate(-18deg) saturate(1.2); }
+}
+
+@keyframes splashBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.04); }
+}
+
+@keyframes guidePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.025); }
+}

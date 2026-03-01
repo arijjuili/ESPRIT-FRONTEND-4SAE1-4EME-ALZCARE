@@ -181,6 +181,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '🧠',
       roles: ['caregiver']
     },
+    {
+      label: 'Game Analytics',
+      path: '/caregiver/cognitive-analytics',
+      icon: '📈',
+      roles: ['caregiver']
+    },
     // Doctor routes
     {
       label: 'Dashboard',
@@ -210,6 +216,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Assessments',
       path: '/doctor/assessments',
       icon: '🧠',
+      roles: ['doctor']
+    },
+    {
+      label: 'Game Analytics',
+      path: '/doctor/cognitive-analytics',
+      icon: '📈',
       roles: ['doctor']
     },
     // Admin routes - 12 Axes Management

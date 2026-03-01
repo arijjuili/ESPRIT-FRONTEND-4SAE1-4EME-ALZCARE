@@ -1,12 +1,14 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { Subject, forkJoin } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
+import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { GameActivity } from '../../../core/models/api.model';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
 import { BehaviorLogFormComponent } from '../../../shared/components/behavior-log-form.component';
@@ -48,9 +50,22 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   recentBehaviors: BehaviorLogResponse[] = [];
   isLoadingBehaviors = false;
   selectedPatientId = '';
+  gameAnalyticsLoading = false;
+  gameAnalyticsError = '';
+  totalGameSessions = 0;
+  avgAccuracy = 0;
+  adaptiveSessionsRate = 0;
+  patientGameMetrics: Array<{
+    patientName: string;
+    sessions: number;
+    accuracy: number;
+    voiceUsage: number;
+    adaptiveAdjustments: number;
+  }> = [];
 
   constructor(
     private authService: AuthService, 
+    private apiService: ApiService,
     private dataService: DataService,
     private safetyAlertService: SafetyAlertService,
     private patientService: PatientService,
@@ -85,12 +100,14 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         this.patients = patients;
         // Load behaviors after patients are loaded
         this.loadRecentBehaviors();
+        this.loadGameAnalytics();
       },
       error: (err) => {
         console.error('Failed to load patients:', err);
         // Fallback to empty array if API fails
         this.patients = [];
         this.loadRecentBehaviors();
+        this.loadGameAnalytics();
       }
     });
   }
@@ -242,5 +259,73 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   viewAllBehaviors(): void {
     // Navigate to behaviors page
     this.router.navigate(['/caregiver/behaviors']);
+  }
+
+  private loadGameAnalytics(): void {
+    if (!this.patients.length) {
+      this.resetGameAnalytics();
+      return;
+    }
+
+    this.gameAnalyticsLoading = true;
+    this.gameAnalyticsError = '';
+    const requests = this.patients.map(patient => this.apiService.getGameActivities(patient.userId));
+    forkJoin(requests).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (activitiesByPatient) => {
+        this.patientGameMetrics = this.patients.map((patient, index) =>
+          this.computePatientGameMetrics(patient, activitiesByPatient[index] || [])
+        );
+        const allActivities = activitiesByPatient.flat();
+        this.totalGameSessions = allActivities.length;
+        this.avgAccuracy = this.patientGameMetrics.length
+          ? Math.round(this.patientGameMetrics.reduce((sum, metric) => sum + metric.accuracy, 0) / this.patientGameMetrics.length)
+          : 0;
+        this.adaptiveSessionsRate = allActivities.length
+          ? Math.round((allActivities.filter(activity => activity.adaptiveMode).length / allActivities.length) * 100)
+          : 0;
+        this.gameAnalyticsLoading = false;
+      },
+      error: () => {
+        this.gameAnalyticsError = 'Failed to load game analytics.';
+        this.gameAnalyticsLoading = false;
+      }
+    });
+  }
+
+  private resetGameAnalytics(): void {
+    this.totalGameSessions = 0;
+    this.avgAccuracy = 0;
+    this.adaptiveSessionsRate = 0;
+    this.patientGameMetrics = [];
+    this.gameAnalyticsLoading = false;
+    this.gameAnalyticsError = '';
+  }
+
+  private computePatientGameMetrics(
+    patient: PatientProfileResponse,
+    activities: GameActivity[]
+  ): { patientName: string; sessions: number; accuracy: number; voiceUsage: number; adaptiveAdjustments: number } {
+    const sessions = activities.length;
+    const accuracy = sessions
+      ? Math.round(activities.reduce((sum, activity) => {
+        if (typeof activity.accuracyPercent === 'number') return sum + activity.accuracyPercent;
+        if (activity.maxScore && activity.maxScore > 0 && typeof activity.score === 'number') {
+          return sum + (activity.score / activity.maxScore) * 100;
+        }
+        return sum;
+      }, 0) / sessions)
+      : 0;
+    const voiceUsage = sessions
+      ? Math.round((activities.filter(activity => activity.voiceUsed).length / sessions) * 100)
+      : 0;
+    const adaptiveAdjustments = activities.reduce((sum, activity) => sum + (activity.difficultyAdjustments || 0), 0);
+
+    return {
+      patientName: `${patient.firstName} ${patient.lastName}`,
+      sessions,
+      accuracy,
+      voiceUsage,
+      adaptiveAdjustments
+    };
   }
 }

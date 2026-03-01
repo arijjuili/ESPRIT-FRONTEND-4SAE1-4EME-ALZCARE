@@ -1,0 +1,10 @@
+:host {
+  display: block;
+}
+
+.highlight-box {
+  position: absolute;
+  border-radius: 1rem;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  z-index: 45;
+}

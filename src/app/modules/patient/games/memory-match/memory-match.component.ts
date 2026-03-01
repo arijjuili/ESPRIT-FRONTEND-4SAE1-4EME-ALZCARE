@@ -1,6 +1,11 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ApiService } from '../../../../core/services/api.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { GameActivityCreateRequest } from '../../../../core/models/api.model';
+import { GameSplashComponent } from '../../../../shared/components/game-splash/game-splash.component';
+import { GameGuidelinesComponent, GuidelineStep } from '../../../../shared/components/game-guidelines/game-guidelines.component';
 
 interface MemoryCard {
   id: number;
@@ -12,11 +17,14 @@ interface MemoryCard {
 @Component({
   selector: 'app-memory-match',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, GameSplashComponent, GameGuidelinesComponent],
   templateUrl: './memory-match.component.html',
   styleUrls: ['./memory-match.component.scss']
 })
 export class MemoryMatchComponent {
+  showSplash = true;
+  showGuidelines = false;
+  
   private icons = ['🍎', '🎸', '🚲', '🌸', '🦋', '⭐'];
   deck: MemoryCard[] = [];
   moves = 0;
@@ -24,8 +32,26 @@ export class MemoryMatchComponent {
   busy = false;
   newBadge: { title: string; description: string; icon: string } | null = null;
 
-  constructor() {
+  guidelineSteps: GuidelineStep[] = [
+    { title: 'Flip Cards', description: 'Click on any card to flip it over and reveal the hidden symbol.', icon: '👆' },
+    { title: 'Find Pairs', description: 'Try to find two cards with the same symbol.', icon: '🃏' },
+    { title: 'Match All', description: 'Find all 6 pairs to win the game!', icon: '🏆' }
+  ];
+
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService
+  ) {
     this.resetGame();
+  }
+
+  onSplashComplete(): void {
+    this.showSplash = false;
+    this.showGuidelines = true;
+  }
+
+  onGuidelinesClose(): void {
+    this.showGuidelines = false;
   }
 
   resetGame(): void {
@@ -91,6 +117,36 @@ export class MemoryMatchComponent {
     sessions.push(today);
     localStorage.setItem('alzcare_game_sessions', JSON.stringify(sessions));
     this.checkDailyFocusBadge(sessions, today);
+    this.recordToDb();
+  }
+
+  private recordToDb(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    const totalPairs = 6;
+    const score = Math.round((this.matches / totalPairs) * 100);
+    const payload: GameActivityCreateRequest = {
+      patientId: userId,
+      gameType: 'MEMORY_MATCH',
+      difficulty: 'EASY',
+      targetDomain: 'memory',
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      durationSeconds: 0,
+      score,
+      maxScore: 100,
+      voiceUsed: false,
+      mistakesMade: this.moves - this.matches,
+      pointsEarned: score,
+      adaptiveMode: false,
+      difficultyAdjustments: 0,
+      voiceCommandCount: 0,
+      accuracyPercent: score
+    };
+    this.apiService.createGameActivity(payload).subscribe({
+      next: () => {},
+      error: () => {}
+    });
   }
 
   private awardBadge(): void {

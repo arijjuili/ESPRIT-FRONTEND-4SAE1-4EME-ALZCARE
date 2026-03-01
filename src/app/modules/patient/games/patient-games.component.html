@@ -18,6 +18,19 @@
         </div>
       </div>
     </div>
+    <div class="relative z-10 mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button
+        (click)="toggleVoiceCommands()"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition"
+        [ngClass]="voiceListening ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+      >
+        <span aria-hidden="true">{{ voiceListening ? '🎙️' : '🎤' }}</span>
+        <span>{{ voiceListening ? 'Stop Voice Commands' : 'Start Voice Commands' }}</span>
+      </button>
+      <p class="text-xs text-slate-600" *ngIf="voiceStatus">{{ voiceStatus }}</p>
+      <p class="text-xs text-slate-500" *ngIf="!voiceStatus && voiceSupported">Try: “play attention task”.</p>
+      <p class="text-xs text-rose-600" *ngIf="!voiceSupported">Voice commands are not supported in this browser.</p>
+    </div>
   </section>
 
   <div *ngIf="error" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</div>
@@ -37,7 +50,7 @@
         <p class="text-sm text-slate-600 mt-2">{{ game.description }}</p>
         <div class="mt-4 flex items-center justify-between text-xs font-semibold">
           <span class="text-slate-500">⏱ {{ game.durationMinutes }} min</span>
-          <span class="text-indigo-700">Skill Boost</span>
+          <span class="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">Adaptive: {{ game.recommendedDifficulty }}</span>
         </div>
         <button (click)="playGame(game)" class="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition">Play Now</button>
       </div>

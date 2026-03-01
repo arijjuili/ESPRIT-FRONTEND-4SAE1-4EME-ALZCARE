@@ -114,6 +114,14 @@ export const routes: Routes = [
       {
         path: 'assessments/:id',
         loadComponent: () => import('./modules/caregiver/assessments/caregiver-assessment-result.component').then(m => m.CaregiverAssessmentResultComponent)
+      },
+      {
+        path: 'cognitive-analytics',
+        loadComponent: () => import('./modules/caregiver/game-analytics/caregiver-game-analytics.component').then(m => m.CaregiverGameAnalyticsComponent)
+      },
+      {
+        path: 'cognitive-patient/:id',
+        loadComponent: () => import('./modules/doctor/patient-analytics/patient-analytics.component').then(m => m.PatientAnalyticsComponent)
       }
     ]
   },
@@ -138,6 +146,14 @@ export const routes: Routes = [
       {
         path: 'assessments/:id',
         loadComponent: () => import('./modules/doctor/assessments/doctor-assessment-result.component').then(m => m.DoctorAssessmentResultComponent)
+      },
+      {
+        path: 'cognitive-analytics',
+        loadComponent: () => import('./modules/doctor/game-analytics/doctor-game-analytics.component').then(m => m.DoctorGameAnalyticsComponent)
+      },
+      {
+        path: 'cognitive-patient/:id',
+        loadComponent: () => import('./modules/doctor/patient-analytics/patient-analytics.component').then(m => m.PatientAnalyticsComponent)
       }
     ]
   },

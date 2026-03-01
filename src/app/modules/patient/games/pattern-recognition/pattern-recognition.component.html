@@ -1,3 +1,22 @@
+<div class="relative min-h-screen">
+<app-game-splash
+  *ngIf="showSplash"
+  gameName="Pattern Recognition"
+  gameIcon="🎨"
+  primaryColor="#ec4899"
+  secondaryColor="#f59e0b"
+  [duration]="3000"
+  (splashComplete)="onSplashComplete()">
+</app-game-splash>
+
+<app-game-guidelines
+  *ngIf="showGuidelines"
+  title="How to Play Pattern Recognition"
+  [steps]="guidelineSteps"
+  primaryColor="#ec4899"
+  (close)="onGuidelinesClose()">
+</app-game-guidelines>
+
 <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50">
   <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
@@ -33,15 +52,18 @@
         Watch the glow, then tap the colors in the same order.
       </div>
 
-      <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/85 backdrop-blur">
+      <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur z-10">
         <div class="text-center">
           <button
             (click)="startGame()"
             class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-rose-600 text-white shadow-2xl hover:bg-rose-700 transition">
-            Start Game
+            {{ lastRoundReached ? 'Play Again' : 'Start Game' }}
           </button>
-          <div *ngIf="lastRoundReached" class="mt-4 text-lg font-semibold text-rose-700">
-            You reached round {{ lastRoundReached }}.
+          <div *ngIf="lastRoundReached" class="mt-4 text-2xl font-bold text-rose-700">
+            🎉 You reached round {{ lastRoundReached }}!
+          </div>
+          <div *ngIf="!lastRoundReached" class="mt-4 text-lg font-semibold text-rose-600">
+            Watch the pattern and repeat it!
           </div>
         </div>
       </div>
@@ -59,4 +81,5 @@
       Amazing!
     </button>
   </div>
+</div>
 </div>

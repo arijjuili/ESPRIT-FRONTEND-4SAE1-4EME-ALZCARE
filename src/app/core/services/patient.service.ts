@@ -70,4 +70,13 @@ export class PatientService {
       headers: this.getAuthHeaders()
     });
   }
+
+  /**
+   * Get patient by user ID (Keycloak user ID)
+   */
+  getPatientByUserId(userId: string): Observable<PatientProfileResponse> {
+    return this.http.get<PatientProfileResponse>(`${this.baseUrl}/patients/${userId}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
 }

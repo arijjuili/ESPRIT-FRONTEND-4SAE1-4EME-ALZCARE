@@ -1,3 +1,22 @@
+<div class="relative min-h-screen">
+<app-game-splash
+  *ngIf="showSplash"
+  gameName="Spatial Navigation"
+  gameIcon="🧭"
+  primaryColor="#8b5cf6"
+  secondaryColor="#6366f1"
+  [duration]="3000"
+  (splashComplete)="onSplashComplete()">
+</app-game-splash>
+
+<app-game-guidelines
+  *ngIf="showGuidelines"
+  title="How to Play Spatial Navigation"
+  [steps]="guidelineSteps"
+  primaryColor="#8b5cf6"
+  (close)="onGuidelinesClose()">
+</app-game-guidelines>
+
 <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50">
   <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
@@ -19,24 +38,9 @@
         </div>
       </div>
 
-      <div class="flex flex-col items-center">
-        <div class="grid grid-cols-5 gap-3">
-          <div
-            *ngFor="let cell of grid"
-            class="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold"
-            [ngClass]="{
-              'bg-indigo-100': cell.type === 'empty',
-              'bg-indigo-600 text-white shadow-lg': cell.type === 'player',
-              'bg-amber-400 text-white shadow-lg animate-pulse': cell.type === 'target',
-              'bg-gray-300 text-gray-500': cell.type === 'block'
-            }">
-            <span *ngIf="cell.type === 'player'">🚶</span>
-            <span *ngIf="cell.type === 'target'">⭐</span>
-            <span *ngIf="cell.type === 'block'">⬛</span>
-          </div>
-        </div>
-
-        <div class="mt-6 flex items-center gap-3">
+      <div class="relative">
+        <div class="flex flex-col items-center gap-6 lg:grid lg:grid-cols-[15rem_auto_15rem] lg:items-start lg:justify-center lg:gap-4">
+          <div class="order-1 lg:order-none flex flex-col items-center lg:items-start gap-2">
           <div class="grid grid-cols-3 gap-2">
             <div></div>
             <button (click)="move(0,-1)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">⬆️</button>
@@ -45,10 +49,66 @@
             <button (click)="move(0,1)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">⬇️</button>
             <button (click)="move(1,0)" class="h-10 w-10 rounded-xl bg-indigo-100 hover:bg-indigo-200">➡️</button>
           </div>
-          <div class="text-xs text-gray-500">
-            Tip: plan your route around the blocks.
+          <div class="text-xs text-gray-500 text-center lg:text-left max-w-[15rem]">
+            Tip: use these arrows or your keyboard arrows (↑ ↓ ← →).
           </div>
         </div>
+
+          <div class="order-2 lg:order-none flex justify-center">
+            <div class="grid grid-cols-5 gap-3">
+              <div
+                *ngFor="let cell of grid"
+                class="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold"
+                [ngClass]="{
+                  'bg-indigo-100': cell.type === 'empty',
+                  'bg-indigo-600 text-white shadow-lg': cell.type === 'player',
+                  'bg-amber-400 text-white shadow-lg animate-pulse': cell.type === 'target',
+                  'bg-gray-300 text-gray-500': cell.type === 'block'
+                }">
+                <span *ngIf="cell.type === 'player'">🚶</span>
+                <span *ngIf="cell.type === 'target'">⭐</span>
+                <span *ngIf="cell.type === 'block'">⬛</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hidden lg:block"></div>
+        </div>
+      </div>
+
+      <div class="mt-8 flex flex-col items-center gap-2">
+        <p class="text-xs text-slate-600" *ngIf="voiceFeedback">{{ voiceFeedback }}</p>
+        <p class="text-xs text-indigo-700 font-semibold" *ngIf="voiceEnabled">Hold to speak</p>
+        <button
+          type="button"
+          class="voice-orb"
+          [ngClass]="{
+            'voice-orb--on': voiceEnabled && !voiceListening,
+            'voice-orb--hold': voiceListening,
+            'voice-orb--off': !voiceEnabled
+          }"
+          (click)="onVoiceButtonClick()"
+          (mousedown)="onVoiceHoldStart($event)"
+          (mouseup)="onVoiceHoldEnd()"
+          (mouseleave)="onVoiceHoldEnd()"
+          (touchstart)="onVoiceHoldStart($event)"
+          (touchend)="onVoiceHoldEnd()"
+          (touchcancel)="onVoiceHoldEnd()"
+          (keydown.space)="onVoiceHoldStart($event)"
+          (keyup.space)="onVoiceHoldEnd()"
+          (keydown.enter)="onVoiceHoldStart($event)"
+          (keyup.enter)="onVoiceHoldEnd()"
+          aria-label="Voice command button"
+          title="Click to toggle voice, hold to speak"
+        >
+          <span *ngIf="!voiceListening" class="voice-orb__icon" aria-hidden="true">
+            <lucide-icon name="audio-lines"></lucide-icon>
+          </span>
+          <span *ngIf="voiceListening" class="voice-orb__stop" aria-hidden="true"></span>
+        </button>
+        <p class="text-xs font-semibold text-slate-600">
+          {{ voiceListening ? 'Stop' : (voiceEnabled ? 'Hold to speak' : 'Click to enable voice') }}
+        </p>
       </div>
     </div>
   </div>
@@ -64,4 +124,5 @@
       Amazing!
     </button>
   </div>
+</div>
 </div>
