@@ -21,20 +21,31 @@
   <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
       <div>
-        <a class="text-base font-bold text-rose-700 hover:text-rose-900" routerLink="/patient/games">← Back to Brain Games</a>
-        <p class="text-xs uppercase tracking-[0.3em] text-rose-600 font-semibold mt-3">Pattern Recognition</p>
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Follow the Rhythm</h1>
+        <a class="text-base font-bold text-rose-700 hover:text-rose-900 flex items-center gap-2 group" routerLink="/patient/games">
+          <span class="transform group-hover:-translate-x-1 transition duration-300">←</span>
+          Back to Brain Games
+        </a>
+        <p class="text-xs uppercase tracking-[0.3em] text-rose-600 font-semibold mt-3 flex items-center gap-2">
+          <span class="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
+          Pattern Recognition
+        </p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">
+          Follow the <span class="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-500">Rhythm</span>
+        </h1>
         <p class="text-sm text-gray-600 mt-2">Repeat the color pattern to advance rounds.</p>
       </div>
     </div>
 
     <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 border border-rose-100 relative overflow-hidden">
-      <div class="text-center mb-6">
-        <p class="text-xs text-gray-500">Round</p>
-        <p class="text-3xl font-bold text-gray-900">{{ round }}</p>
+      <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-rose-200/40 blur-2xl animate-pulse"></div>
+      <div class="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-orange-200/40 blur-xl animate-pulse" style="animation-delay: 1s;"></div>
+      
+      <div class="text-center mb-6 relative z-10">
+        <p class="text-xs text-gray-500 uppercase tracking-widest">Round</p>
+        <p class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-500">{{ round }}</p>
       </div>
 
-      <div class="text-center text-2xl sm:text-3xl font-bold text-rose-600 mb-6">
+      <div class="text-center text-2xl sm:text-3xl font-bold text-rose-600 mb-6 relative z-10">
         {{ message }}
       </div>
 
@@ -42,24 +53,24 @@
         <button
           *ngFor="let color of colors; let i = index"
           (click)="pickColor(i)"
-          class="h-24 rounded-2xl shadow-md transition transform hover:-translate-y-1"
-          [ngClass]="[color.className, activeIndex === i ? 'ring-4 ring-white scale-105' : '']">
+          class="h-24 rounded-2xl shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105 hover:shadow-xl"
+          [ngClass]="[color.className, activeIndex === i ? 'ring-4 ring-white scale-110 shadow-2xl' : '']">
         </button>
       </div>
 
       <div class="flex items-center gap-2 text-xs text-gray-500 justify-center">
-        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+        <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
         Watch the glow, then tap the colors in the same order.
       </div>
 
-      <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur z-10">
+      <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur z-20">
         <div class="text-center">
           <button
             (click)="startGame()"
-            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-rose-600 text-white shadow-2xl hover:bg-rose-700 transition">
-            {{ lastRoundReached ? 'Play Again' : 'Start Game' }}
+            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-2xl hover:from-rose-600 hover:to-pink-600 transition-all duration-300 hover:scale-105 hover:shadow-rose-300">
+            {{ lastRoundReached ? 'Play Again 🔄' : 'Start Game 🎮' }}
           </button>
-          <div *ngIf="lastRoundReached" class="mt-4 text-2xl font-bold text-rose-700">
+          <div *ngIf="lastRoundReached" class="mt-4 text-2xl font-bold text-rose-700 animate-bounce">
             🎉 You reached round {{ lastRoundReached }}!
           </div>
           <div *ngIf="!lastRoundReached" class="mt-4 text-lg font-semibold text-rose-600">
@@ -71,15 +82,36 @@
   </div>
 </div>
 
-<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
-  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
-    <div class="text-5xl">{{ newBadge.icon }}</div>
-    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
-    <p class="text-lg font-semibold text-rose-700 mt-2">{{ newBadge.title }}</p>
-    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
-    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 transition">
-      Amazing!
-    </button>
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop relative overflow-hidden">
+    <div class="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-rose-200 to-transparent"></div>
+    <div class="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-rose-200/50 blur-2xl"></div>
+    <div class="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-orange-200/50 blur-2xl"></div>
+    
+    <div class="relative z-10">
+      <div class="text-5xl transform animate-bounce">{{ newBadge.icon }}</div>
+      <h2 class="text-2xl font-bold text-gray-900 mt-4">Badge Unlocked! 🏆</h2>
+      <p class="text-lg font-semibold text-rose-600 mt-2">{{ newBadge.title }}</p>
+      <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+      <div class="flex items-center justify-center gap-2 mt-4 text-2xl">
+        <span>⭐</span><span>⭐</span><span>⭐</span>
+      </div>
+      <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-semibold hover:from-rose-600 hover:to-pink-600 transition-all duration-300 hover:scale-[1.02]">
+        Amazing! ✨
+      </button>
+    </div>
   </div>
 </div>
 </div>
+
+<style>
+.badge-pop {
+  animation: badgePop 0.5s ease-out;
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>

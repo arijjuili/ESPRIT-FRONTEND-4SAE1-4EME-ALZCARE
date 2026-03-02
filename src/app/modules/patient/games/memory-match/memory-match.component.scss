@@ -2,12 +2,13 @@
   display: block;
 }
 
-.sparkle {
-  animation: pulseGlow 1.4s ease-in-out infinite;
-}
-
-.badge-pop {
-  animation: badgePop 0.6s ease-out;
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
 }
 
 @keyframes pulseGlow {
@@ -17,5 +18,35 @@
 
 @keyframes badgePop {
   0% { transform: scale(0.85); opacity: 0; }
+  50% { transform: scale(1.05); }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.sparkle {
+  animation: pulseGlow 1.4s ease-in-out infinite;
+}
+
+.badge-pop {
+  animation: badgePop 0.6s ease-out;
+}
+
+.shimmer-effect {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.bounce-in {
+  animation: bounce-in 0.5s ease-out forwards;
 }

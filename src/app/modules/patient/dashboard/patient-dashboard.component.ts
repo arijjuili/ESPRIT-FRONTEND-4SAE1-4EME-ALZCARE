@@ -180,6 +180,14 @@ export class PatientDashboardComponent implements OnInit {
     this.checkInAnswers[field] = value;
   }
 
+  autoAdvance(): void {
+    if (this.checkInStepIndex < 2) {
+      setTimeout(() => {
+        this.nextCheckInStep();
+      }, 400);
+    }
+  }
+
   submitDailyCheckIn(): void {
     const patientId = this.authService.getCurrentUser()?.id;
     if (!patientId || this.checkInSubmitting) return;

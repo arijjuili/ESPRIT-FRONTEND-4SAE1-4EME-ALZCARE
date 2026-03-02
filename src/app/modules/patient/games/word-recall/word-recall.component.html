@@ -21,57 +21,71 @@
   <div class="max-w-5xl mx-auto">
     <div class="flex items-center justify-between flex-wrap gap-4 mb-8">
       <div>
-        <a class="text-base font-bold text-emerald-700 hover:text-emerald-900" routerLink="/patient/games">← Back to Brain Games</a>
-        <p class="text-xs uppercase tracking-[0.3em] text-emerald-600 font-semibold mt-3">Word Recall</p>
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">Remember the Words</h1>
+        <a class="text-base font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-2 group" routerLink="/patient/games">
+          <span class="transform group-hover:-translate-x-1 transition duration-300">←</span>
+          Back to Brain Games
+        </a>
+        <p class="text-xs uppercase tracking-[0.3em] text-emerald-600 font-semibold mt-3 flex items-center gap-2">
+          <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          Word Recall
+        </p>
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mt-2">
+          Remember the <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">Words</span>
+        </h1>
         <p class="text-lg sm:text-xl text-gray-700 mt-3">Study the list, then type what you remember.</p>
       </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100 relative overflow-hidden">
-        <h2 class="text-lg font-bold text-gray-900 mb-4">Word Reveal</h2>
-        <div class="min-h-[220px] flex flex-wrap justify-center items-center gap-4">
+        <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-emerald-200/40 blur-2xl animate-pulse"></div>
+        <div class="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-teal-200/40 blur-xl animate-pulse" style="animation-delay: 1s;"></div>
+        
+        <h2 class="text-lg font-bold text-gray-900 mb-4 relative z-10">Word Reveal</h2>
+        <div class="min-h-[220px] flex flex-wrap justify-center items-center gap-4 relative z-10">
           <div
             *ngFor="let word of visibleWords; let i = index"
-            class="h-20 w-20 rounded-full flex items-center justify-center text-base sm:text-lg font-bold shadow"
-            [ngClass]="colors[i % colors.length]">
+            class="h-20 w-20 rounded-full flex items-center justify-center text-base sm:text-lg font-bold shadow-lg transform hover:scale-110 transition duration-300 animate-fade-in"
+            [ngClass]="colors[i % colors.length]"
+            [style.animation-delay]="i * 0.1 + 's'">
             {{ word }}
           </div>
-          <div *ngIf="started && !showWords && !showAnswers" class="text-sm text-gray-500">
-            Reveal finished. Now recall the words by typing or using voice.
+          <div *ngIf="started && !showWords && !showAnswers" class="text-sm text-gray-500 text-center">
+            ⏳ Reveal finished. Now recall the words by typing or using voice.
           </div>
           <button
             *ngIf="showAnswers"
             (click)="startRound()"
-            class="text-sm sm:text-base font-semibold px-5 py-2 rounded-full bg-emerald-600 text-white shadow hover:bg-emerald-700 transition">
-            Play Again
+            class="text-sm sm:text-base font-semibold px-5 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-105 hover:shadow-emerald-200">
+            Play Again 🔄
           </button>
         </div>
-        <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur">
+        <div *ngIf="!started" class="absolute inset-0 flex items-center justify-center bg-white/80 backdrop-blur z-20">
           <button
             (click)="startRound()"
-            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-emerald-600 text-white shadow-2xl hover:bg-emerald-700 transition">
-            Start Game
+            class="text-xl sm:text-2xl font-bold px-10 py-5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-2xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-105 hover:shadow-emerald-300">
+            Start Game 🎮
           </button>
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100">
-        <h2 class="text-lg font-bold text-gray-900 mb-4">Your Recall</h2>
+      <div class="bg-white rounded-3xl shadow-xl p-6 border border-emerald-100 relative overflow-hidden">
+        <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-emerald-200/40 blur-2xl animate-pulse"></div>
+        
+        <h2 class="text-lg font-bold text-gray-900 mb-4 relative z-10">Your Recall</h2>
         <div class="flex gap-2 mb-4">
           <input
             [(ngModel)]="input"
             (keydown.enter)="addGuess()"
             type="text"
-            placeholder="Type a word"
+            placeholder="Type a word..."
             [disabled]="showAnswers"
-            class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100">
+            class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 disabled:bg-gray-100 transition duration-300">
           <button
             (click)="addGuess()"
             [disabled]="showAnswers"
-            class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition disabled:opacity-60">
-            Add
+            class="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-105 disabled:opacity-60">
+            Add ✓
           </button>
         </div>
 
@@ -80,26 +94,27 @@
             *ngFor="let guess of guesses; let i = index"
             (click)="removeGuess(i)"
             [disabled]="showAnswers"
-            class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100 disabled:opacity-60">
+            class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100 disabled:opacity-60 hover:bg-emerald-100 transition duration-300 hover:scale-105">
             {{ guess }} ✕
           </button>
         </div>
 
-        <button (click)="checkAnswers()" class="mt-4 w-full py-2 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition">
-          Check Answers
+        <button (click)="checkAnswers()" 
+                class="mt-4 w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-200">
+          Check Answers 📋
         </button>
 
-        <div *ngIf="resultMessage" class="mt-4 text-sm font-semibold text-emerald-700">
+        <div *ngIf="resultMessage" class="mt-4 text-sm font-semibold text-emerald-700 px-4 py-2 bg-emerald-50 rounded-xl">
           {{ resultMessage }}
         </div>
 
 
-        <div *ngIf="showAnswers" class="mt-4">
-          <p class="text-xs font-semibold text-gray-500 mb-2">Correct Words</p>
+        <div *ngIf="showAnswers" class="mt-4 animate-fade-in">
+          <p class="text-xs font-semibold text-gray-500 mb-2">✓ Correct Words</p>
           <div class="flex flex-wrap gap-2">
             <span
               *ngFor="let word of roundWords; let i = index"
-              class="px-3 py-1.5 rounded-full text-sm font-semibold"
+              class="px-3 py-1.5 rounded-full text-sm font-semibold transform hover:scale-105 transition duration-300"
               [ngClass]="colors[i % colors.length]">
               {{ word }}
             </span>
@@ -108,7 +123,7 @@
       </div>
     </div>
 
-    <div class="mt-6 flex flex-col items-center gap-2">
+    <div class="mt-8 flex flex-col items-center gap-3">
       <p class="text-xs text-slate-600" *ngIf="voiceFeedback">{{ voiceFeedback }}</p>
       <p class="text-xs text-emerald-700 font-semibold" *ngIf="voiceEnabled">Hold to speak</p>
       <button
@@ -140,21 +155,51 @@
         <span *ngIf="voiceListening" class="voice-orb__stop" aria-hidden="true"></span>
       </button>
       <p class="text-xs font-semibold text-slate-600">
-        {{ voiceListening ? 'Stop' : (!canUseVoiceInput() ? 'Available after reveal ends' : (voiceEnabled ? 'Hold to speak' : 'Click to enable voice')) }}
+        {{ voiceListening ? '🛑 Stop' : (!canUseVoiceInput() ? '⏳ Available after reveal ends' : (voiceEnabled ? '🎤 Hold to speak' : '🎤 Click to enable voice')) }}
       </p>
     </div>
   </div>
 </div>
 
-<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
-  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop">
-    <div class="text-5xl">{{ newBadge.icon }}</div>
-    <h2 class="text-2xl font-bold text-gray-900 mt-4">New Badge Unlocked!</h2>
-    <p class="text-lg font-semibold text-emerald-700 mt-2">{{ newBadge.title }}</p>
-    <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
-    <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition">
-      Awesome!
-    </button>
+<div *ngIf="newBadge" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-6">
+  <div class="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-md w-full badge-pop relative overflow-hidden">
+    <div class="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-emerald-200 to-transparent"></div>
+    <div class="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-emerald-200/50 blur-2xl"></div>
+    <div class="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-teal-200/50 blur-2xl"></div>
+    
+    <div class="relative z-10">
+      <div class="text-5xl transform animate-bounce">{{ newBadge.icon }}</div>
+      <h2 class="text-2xl font-bold text-gray-900 mt-4">Badge Unlocked! 🏆</h2>
+      <p class="text-lg font-semibold text-emerald-600 mt-2">{{ newBadge.title }}</p>
+      <p class="text-sm text-gray-600 mt-2">{{ newBadge.description }}</p>
+      <div class="flex items-center justify-center gap-2 mt-4 text-2xl">
+        <span>⭐</span><span>⭐</span><span>⭐</span>
+      </div>
+      <button (click)="closeBadge()" class="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-[1.02]">
+        Awesome! ✨
+      </button>
+    </div>
   </div>
 </div>
 </div>
+
+<style>
+@keyframes fade-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.badge-pop {
+  animation: badgePop 0.5s ease-out;
+}
+
+@keyframes badgePop {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+</style>
