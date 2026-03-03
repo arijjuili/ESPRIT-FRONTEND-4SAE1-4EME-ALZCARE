@@ -181,7 +181,6 @@
               <th class="text-left py-3 px-4 text-gray-500 font-semibold text-sm">Game</th>
               <th class="text-left py-3 px-4 text-gray-500 font-semibold text-sm">Total Plays</th>
               <th class="text-left py-3 px-4 text-gray-500 font-semibold text-sm">Avg Score</th>
-              <th class="text-left py-3 px-4 text-gray-500 font-semibold text-sm">Trend</th>
               <th class="text-left py-3 px-4 text-gray-500 font-semibold text-sm">Performance</th>
             </tr>
           </thead>
@@ -199,12 +198,6 @@
               </td>
               <td class="py-4 px-4 text-gray-600">{{ game.totalPlays }}</td>
               <td class="py-4 px-4 text-gray-600">{{ game.avgScore }}%</td>
-              <td class="py-4 px-4">
-                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-medium"
-                      [ngClass]="game.trend > 0 ? 'bg-green-100 text-green-700' : game.trend < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'">
-                  {{ game.trend > 0 ? '↑' : game.trend < 0 ? '↓' : '→' }} {{ game.trend > 0 ? '+' : '' }}{{ game.trend }}%
-                </span>
-              </td>
               <td class="py-4 px-4">
                 <div class="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
                   <div class="h-full rounded-full transition-all duration-1000" 
