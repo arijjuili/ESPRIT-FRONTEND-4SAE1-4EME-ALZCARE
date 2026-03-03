@@ -8,7 +8,8 @@ import {
   MemoryItem,
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
-  PatientProfile
+  PatientProfile,
+  QuizAttempt
 } from '../../../core/models/api.model';
 
 interface MemoryItemForm {
@@ -23,6 +24,29 @@ interface MemoryItemForm {
   correctAnswers: string[];
 }
 
+interface MemoryAttemptPoint {
+  label: string;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+}
+
+interface MemoryWalletAnalyticsSummary {
+  totalAttempts: number;
+  answeredAttempts: number;
+  correctAnswers: number;
+  accuracyPercent: number;
+  avgResponseSeconds: number;
+  totalItems: number;
+  completedItems: number;
+  pendingItems: number;
+  completionRate: number;
+  trend: 'up' | 'down' | 'stable';
+  trendDelta: number;
+  recentAttempts: QuizAttempt[];
+  dailySeries: MemoryAttemptPoint[];
+}
+
 @Component({
   selector: 'app-caregiver-memory-items',
   standalone: true,
@@ -32,15 +56,18 @@ interface MemoryItemForm {
 })
 export class CaregiverMemoryItemsComponent implements OnInit {
   memoryItems: MemoryItem[] = [];
+  quizAttempts: QuizAttempt[] = [];
   patients: PatientProfile[] = [];
   loading = false;
+  analyticsLoading = false;
   error = '';
   success = '';
 
-  patientNameFilter = '';
   categoryFilter: MemoryCategory | 'ALL' = 'ALL';
   categories = Object.values(MemoryCategory);
   patientNames: Record<string, string> = {};
+  selectedAnalyticsPatientId = '';
+  analytics: MemoryWalletAnalyticsSummary = this.emptyAnalytics();
 
   showCreateModal = false;
   showEditModal = false;
@@ -48,6 +75,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   pendingDelete: MemoryItem | null = null;
   createSubmitted = false;
   editSubmitted = false;
+  createImageFileName = '';
+  editImageFileName = '';
 
   createForm: MemoryItemForm = {
     patientId: '',
@@ -80,16 +109,22 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   ngOnInit(): void {
     this.loadPatients();
     this.loadMemoryItems();
+    this.loadQuizAttempts();
   }
 
   get filteredMemoryItems(): MemoryItem[] {
+    return this.getPageFilteredMemoryItems();
+  }
+
+  private getPageFilteredMemoryItems(): MemoryItem[] {
     let items = this.memoryItems;
+    if (this.selectedAnalyticsPatientId) {
+      items = items.filter(item => item.patientId === this.selectedAnalyticsPatientId);
+    }
     if (this.categoryFilter !== 'ALL') {
       items = items.filter(item => item.memoryCategory === this.categoryFilter);
     }
-    const nameFilter = this.patientNameFilter.trim().toLowerCase();
-    if (!nameFilter) return items;
-    return items.filter(item => this.getPatientName(item.patientId).toLowerCase().includes(nameFilter));
+    return items;
   }
 
   loadMemoryItems(): void {
@@ -100,6 +135,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       next: (items) => {
         this.memoryItems = items;
         this.resolvePatientNames(items);
+        this.recomputeAnalytics();
         this.loading = false;
       },
       error: (err) => {
@@ -179,6 +215,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       questions,
       correctAnswers
     };
+    this.editImageFileName = item.imageUrl ? 'Current image selected' : '';
   }
 
   cancelEdit(): void {
@@ -187,6 +224,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     this.success = '';
     this.error = '';
     this.editSubmitted = false;
+    this.editImageFileName = '';
   }
 
   updateMemoryItem(): void {
@@ -217,6 +255,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
         this.success = 'Memory item updated successfully';
         this.editingItem = null;
         this.showEditModal = false;
+        this.editImageFileName = '';
         this.loadMemoryItems();
       },
       error: (err) => {
@@ -270,6 +309,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       questions: [''],
       correctAnswers: ['']
     };
+    this.createImageFileName = '';
     this.createSubmitted = false;
   }
 
@@ -279,6 +319,10 @@ export class CaregiverMemoryItemsComponent implements OnInit {
 
   trackByIndex(index: number): number {
     return index;
+  }
+
+  trackByAttemptId(_: number, attempt: QuizAttempt): string {
+    return attempt.id;
   }
 
   getPatientName(patientId: string): string {
@@ -295,6 +339,33 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   closeCreateModal(): void {
     this.showCreateModal = false;
     this.createSubmitted = false;
+    this.createImageFileName = '';
+  }
+
+  onAnalyticsPatientChange(): void {
+    this.recomputeAnalytics();
+  }
+
+  onCategoryFilterChange(): void {
+    this.recomputeAnalytics();
+  }
+
+  onCreateImageSelected(event: Event): void {
+    this.readImageFile(event, 'create');
+  }
+
+  onEditImageSelected(event: Event): void {
+    this.readImageFile(event, 'edit');
+  }
+
+  clearImage(target: 'create' | 'edit'): void {
+    if (target === 'create') {
+      this.createForm.imageUrl = '';
+      this.createImageFileName = '';
+      return;
+    }
+    this.editForm.imageUrl = '';
+    this.editImageFileName = '';
   }
 
   addPerson(target: 'create' | 'edit'): void {
@@ -364,6 +435,47 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     return { questions: mergedQuestions, correctAnswers: mergedAnswers };
   }
 
+  private readImageFile(event: Event, target: 'create' | 'edit'): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      this.error = 'Please select a valid image file.';
+      input.value = '';
+      return;
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      this.error = 'Image size must be 5MB or less.';
+      input.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      if (!result) {
+        this.error = 'Failed to read image file.';
+        return;
+      }
+      if (target === 'create') {
+        this.createForm.imageUrl = result;
+        this.createImageFileName = file.name;
+      } else {
+        this.editForm.imageUrl = result;
+        this.editImageFileName = file.name;
+      }
+    };
+    reader.onerror = () => {
+      this.error = 'Failed to read image file.';
+    };
+    reader.readAsDataURL(file);
+  }
+
   private loadPatients(): void {
     const caregiverId = this.authService.getCurrentUser()?.id;
     if (!caregiverId) {
@@ -378,11 +490,232 @@ export class CaregiverMemoryItemsComponent implements OnInit {
           const name = `${patient.firstName} ${patient.lastName}`.trim();
           this.patientNames[patient.userId] = name || patient.userId;
         });
+        this.recomputeAnalytics();
       },
       error: () => {
         // fallback: keep dropdown empty; names will be resolved per memory item if possible
       }
     });
+  }
+
+  private loadQuizAttempts(): void {
+    this.analyticsLoading = true;
+    this.apiService.getQuizAttempts().subscribe({
+      next: (attempts) => {
+        this.quizAttempts = attempts;
+        this.recomputeAnalytics();
+        this.analyticsLoading = false;
+      },
+      error: () => {
+        this.analyticsLoading = false;
+      }
+    });
+  }
+
+  private recomputeAnalytics(): void {
+    const filteredItems = this.getPageFilteredMemoryItems();
+    const attempts = this.getAnalyticsAttempts(filteredItems);
+    const answeredAttempts = attempts.filter(attempt => (attempt.patientAnswer || '').trim().length > 0);
+    const correctAnswers = answeredAttempts.filter(attempt => attempt.isCorrect === true).length;
+    const accuracyPercent = answeredAttempts.length > 0
+      ? Math.round((correctAnswers / answeredAttempts.length) * 100)
+      : 0;
+
+    const responseTimes = answeredAttempts
+      .map(attempt => attempt.responseTimeSeconds ?? 0)
+      .filter(seconds => seconds > 0);
+    const avgResponseSeconds = responseTimes.length > 0
+      ? Math.round(responseTimes.reduce((sum, seconds) => sum + seconds, 0) / responseTimes.length)
+      : 0;
+
+    const completedItemIds = this.getCompletedItemIdsWithinDays(answeredAttempts, filteredItems, 7);
+    const completedItems = completedItemIds.size;
+    const totalItems = filteredItems.length;
+    const pendingItems = Math.max(totalItems - completedItems, 0);
+    const completionRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    const trendSnapshot = this.calculateAccuracyTrend(answeredAttempts);
+    const recentAttempts = [...answeredAttempts]
+      .sort((a, b) => this.toDate(b.attemptDate).getTime() - this.toDate(a.attemptDate).getTime())
+      .slice(0, 6);
+
+    this.analytics = {
+      totalAttempts: attempts.length,
+      answeredAttempts: answeredAttempts.length,
+      correctAnswers,
+      accuracyPercent,
+      avgResponseSeconds,
+      totalItems,
+      completedItems,
+      pendingItems,
+      completionRate,
+      trend: trendSnapshot.trend,
+      trendDelta: trendSnapshot.delta,
+      recentAttempts,
+      dailySeries: this.buildDailySeries(answeredAttempts, 7)
+    };
+  }
+
+  private getAnalyticsAttempts(filteredItems: MemoryItem[]): QuizAttempt[] {
+    if (filteredItems.length === 0) {
+      return [];
+    }
+    const itemIds = new Set(filteredItems.map(item => item.id));
+    const patientIds = new Set(filteredItems.map(item => item.patientId));
+    return this.quizAttempts.filter(attempt =>
+      itemIds.has(attempt.memoryItemId) &&
+      patientIds.has(attempt.patientId)
+    );
+  }
+
+  private getCompletedItemIdsWithinDays(attempts: QuizAttempt[], items: MemoryItem[], days: number): Set<string> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    const answeredQuestionsByItem = new Map<string, Set<string>>();
+    attempts.forEach(attempt => {
+      const attemptDate = this.toDate(attempt.attemptDate);
+      if (Number.isNaN(attemptDate.getTime()) || attemptDate < cutoff) {
+        return;
+      }
+      if (!attempt.memoryItemId || !attempt.questionAsked) {
+        return;
+      }
+      const set = answeredQuestionsByItem.get(attempt.memoryItemId) || new Set<string>();
+      set.add(attempt.questionAsked.trim());
+      answeredQuestionsByItem.set(attempt.memoryItemId, set);
+    });
+
+    const completed = new Set<string>();
+    items.forEach(item => {
+      const questions = item.questions && item.questions.length > 0
+        ? item.questions.map(question => question.trim())
+        : ['Who or what is this memory about?'];
+      const answered = answeredQuestionsByItem.get(item.id) || new Set<string>();
+      if (questions.every(question => answered.has(question))) {
+        completed.add(item.id);
+      }
+    });
+    return completed;
+  }
+
+  private calculateAccuracyTrend(attempts: QuizAttempt[]): { trend: 'up' | 'down' | 'stable'; delta: number } {
+    const today = new Date();
+    const recentCutoff = new Date(today);
+    recentCutoff.setDate(today.getDate() - 7);
+    const previousCutoff = new Date(today);
+    previousCutoff.setDate(today.getDate() - 14);
+
+    const recent = attempts.filter(attempt => {
+      const date = this.toDate(attempt.attemptDate);
+      return date >= recentCutoff;
+    });
+    const previous = attempts.filter(attempt => {
+      const date = this.toDate(attempt.attemptDate);
+      return date >= previousCutoff && date < recentCutoff;
+    });
+
+    const recentAccuracy = this.computeAccuracy(recent);
+    const previousAccuracy = this.computeAccuracy(previous);
+    const delta = recentAccuracy - previousAccuracy;
+
+    if (previous.length === 0 || Math.abs(delta) < 5) {
+      return { trend: 'stable', delta: Math.round(delta) };
+    }
+    return delta > 0
+      ? { trend: 'up', delta: Math.round(delta) }
+      : { trend: 'down', delta: Math.round(delta) };
+  }
+
+  private computeAccuracy(attempts: QuizAttempt[]): number {
+    const valid = attempts.filter(attempt => (attempt.patientAnswer || '').trim().length > 0);
+    if (valid.length === 0) {
+      return 0;
+    }
+    const correct = valid.filter(attempt => attempt.isCorrect === true).length;
+    return (correct / valid.length) * 100;
+  }
+
+  private buildDailySeries(attempts: QuizAttempt[], days: number): MemoryAttemptPoint[] {
+    const series: MemoryAttemptPoint[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      const dayKey = this.toDateKey(day);
+      const dayAttempts = attempts.filter(attempt => this.toDateKey(this.toDate(attempt.attemptDate)) === dayKey);
+      const correct = dayAttempts.filter(attempt => attempt.isCorrect === true).length;
+      const accuracy = dayAttempts.length > 0 ? Math.round((correct / dayAttempts.length) * 100) : 0;
+      series.push({
+        label: day.toLocaleDateString('en-US', { weekday: 'short' }),
+        attempts: dayAttempts.length,
+        correct,
+        accuracy
+      });
+    }
+    return series;
+  }
+
+  getTrendLabel(): string {
+    if (this.analytics.trend === 'up') {
+      return `↑ Improving (${this.analytics.trendDelta}%)`;
+    }
+    if (this.analytics.trend === 'down') {
+      return `↓ Declining (${Math.abs(this.analytics.trendDelta)}%)`;
+    }
+    return '→ Stable';
+  }
+
+  getTrendClass(): string {
+    if (this.analytics.trend === 'up') return 'text-emerald-600';
+    if (this.analytics.trend === 'down') return 'text-rose-600';
+    return 'text-slate-600';
+  }
+
+  getAttemptStatus(attempt: QuizAttempt): string {
+    if ((attempt.patientAnswer || '').trim().length === 0) return 'Pending';
+    return attempt.isCorrect ? 'Correct' : 'Incorrect';
+  }
+
+  getAttemptStatusClass(attempt: QuizAttempt): string {
+    if ((attempt.patientAnswer || '').trim().length === 0) return 'bg-amber-100 text-amber-700';
+    return attempt.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+  }
+
+  formatAttemptDate(date: string): string {
+    const parsed = this.toDate(date);
+    if (Number.isNaN(parsed.getTime())) {
+      return date;
+    }
+    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  private toDate(date: string): Date {
+    return new Date(`${date}T00:00:00`);
+  }
+
+  private toDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private emptyAnalytics(): MemoryWalletAnalyticsSummary {
+    return {
+      totalAttempts: 0,
+      answeredAttempts: 0,
+      correctAnswers: 0,
+      accuracyPercent: 0,
+      avgResponseSeconds: 0,
+      totalItems: 0,
+      completedItems: 0,
+      pendingItems: 0,
+      completionRate: 0,
+      trend: 'stable',
+      trendDelta: 0,
+      recentAttempts: [],
+      dailySeries: []
+    };
   }
 
   private resolvePatientNames(items: MemoryItem[]): void {
@@ -393,9 +726,11 @@ export class CaregiverMemoryItemsComponent implements OnInit {
         next: (profile) => {
           const name = `${profile.firstName} ${profile.lastName}`.trim();
           this.patientNames[id] = name || id;
+          this.recomputeAnalytics();
         },
         error: () => {
           this.patientNames[id] = `Patient ${id.slice(0, 8)}…`;
+          this.recomputeAnalytics();
         }
       });
     });

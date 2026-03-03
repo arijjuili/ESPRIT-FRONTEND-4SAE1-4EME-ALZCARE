@@ -21,33 +21,33 @@
   </section>
 
   <div class="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm mb-6">
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
-      <div class="lg:col-span-2">
-        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Patient Name</label>
-        <input
-          [(ngModel)]="patientNameFilter"
-          type="text"
-          placeholder="Search by patient name"
-          class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
-      </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div>
         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Category</label>
         <select
           [(ngModel)]="categoryFilter"
+          (ngModelChange)="onCategoryFilterChange()"
           class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
           <option value="ALL">All Categories</option>
           <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
         </select>
       </div>
+      <div>
+        <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Analytics Patient</label>
+        <select
+          [(ngModel)]="selectedAnalyticsPatientId"
+          (ngModelChange)="onAnalyticsPatientChange()"
+          class="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40">
+          <option value="">All Patients</option>
+          <option *ngFor="let patient of patients" [value]="patient.userId">
+            {{ patient.firstName }} {{ patient.lastName }}
+          </option>
+        </select>
+      </div>
       <div class="flex items-end gap-3">
         <button
-          (click)="loadMemoryItems()"
-          class="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-          Refresh
-        </button>
-        <button
           (click)="openCreateModal()"
-          class="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition">
+          class="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition">
           + New
         </button>
       </div>
@@ -62,79 +62,160 @@
     {{ success }}
   </div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-    <!-- Memory Items List -->
-    <div class="xl:col-span-2">
-      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6">
+  <section class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm mb-6">
+    <div class="flex items-center justify-between gap-3 mb-6">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">📚 Memory Items</h2>
+        <p class="text-sm text-slate-500">Manage memory cards for {{ selectedAnalyticsPatientId ? getPatientName(selectedAnalyticsPatientId) : 'all assigned patients' }}.</p>
+      </div>
+      <span class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{{ filteredMemoryItems.length }} items</span>
+    </div>
+
+    <div *ngIf="loading" class="text-center text-gray-500 py-8">Loading memory items...</div>
+    <div *ngIf="!loading && filteredMemoryItems.length === 0" class="text-center text-gray-500 py-8">No memory items found</div>
+
+    <div *ngIf="!loading && filteredMemoryItems.length > 0" class="overflow-x-auto pb-4 -mx-2 px-2">
+      <div class="flex gap-4" style="min-width: max-content;">
+        <article
+          *ngFor="let item of filteredMemoryItems; trackBy: trackById"
+          class="w-[340px] sm:w-[360px] flex-shrink-0 rounded-2xl border border-slate-200 p-5 bg-white hover:border-indigo-300 hover:shadow-lg hover:scale-[1.01] transition-all duration-300">
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="min-w-0">
+              <h3 class="text-base font-bold text-slate-900 truncate">{{ item.title }}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">{{ getPatientName(item.patientId) }}</p>
+            </div>
+            <span class="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-semibold text-indigo-700">{{ item.memoryCategory }}</span>
+          </div>
+
+          <div class="flex gap-3 mb-3">
+            <img
+              *ngIf="item.imageUrl"
+              [src]="item.imageUrl"
+              alt="Memory item image"
+              class="h-16 w-16 rounded-xl object-cover border border-slate-200">
+            <div class="text-xs text-slate-600 space-y-1">
+              <p>{{ item.description || 'No description' }}</p>
+              <p *ngIf="item.location">📍 {{ item.location }}</p>
+              <p>🗓️ {{ item.createdAt | date: 'MMM d, yyyy' }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 mb-4 text-center">
+            <div class="rounded-lg bg-slate-50 border border-slate-200 p-2">
+              <p class="text-[11px] text-slate-500">Persons</p>
+              <p class="font-bold text-slate-900 text-sm">{{ (item.persons || []).length }}</p>
+            </div>
+            <div class="rounded-lg bg-slate-50 border border-slate-200 p-2">
+              <p class="text-[11px] text-slate-500">Questions</p>
+              <p class="font-bold text-slate-900 text-sm">{{ (item.questions || []).length || 1 }}</p>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              (click)="startEdit(item)"
+              class="flex-1 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 transition">
+              Edit
+            </button>
+            <button
+              (click)="requestDelete(item)"
+              class="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition">
+              Delete
+            </button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 via-indigo-50 to-cyan-50 p-6 sm:p-8">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-500 text-white flex items-center justify-center text-xl shadow-lg">📊</div>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Memory Quiz Analytics</h2>
+          <p class="text-sm text-slate-600">Patient answer insights based on quiz attempts.</p>
+        </div>
+      </div>
+      <div class="rounded-xl bg-white/80 border border-white px-4 py-2 text-sm font-semibold text-slate-700">
+        {{ selectedAnalyticsPatientId ? getPatientName(selectedAnalyticsPatientId) : 'All Patients' }}
+      </div>
+    </div>
+
+    <div *ngIf="analyticsLoading" class="text-sm text-slate-500 mb-4">Loading analytics...</div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-2xl p-4 shadow border border-violet-100">
+        <p class="text-xs text-slate-500 uppercase tracking-wide">Attempts</p>
+        <p class="text-2xl font-bold text-violet-700">{{ analytics.totalAttempts }}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow border border-indigo-100">
+        <p class="text-xs text-slate-500 uppercase tracking-wide">Accuracy</p>
+        <p class="text-2xl font-bold text-indigo-700">{{ analytics.accuracyPercent }}%</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow border border-cyan-100">
+        <p class="text-xs text-slate-500 uppercase tracking-wide">Avg Response</p>
+        <p class="text-2xl font-bold text-cyan-700">{{ analytics.avgResponseSeconds || 0 }}s</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow border border-emerald-100">
+        <p class="text-xs text-slate-500 uppercase tracking-wide">Completion</p>
+        <p class="text-2xl font-bold text-emerald-700">{{ analytics.completionRate }}%</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl p-5 shadow border border-violet-100">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg sm:text-xl font-bold text-gray-900">📚 Memory Items</h2>
-          <span class="text-xs font-semibold text-gray-500">{{ filteredMemoryItems.length }} items</span>
+          <h3 class="text-lg font-bold text-slate-900">Progress Trend</h3>
+          <span class="text-sm font-semibold" [ngClass]="getTrendClass()">{{ getTrendLabel() }}</span>
         </div>
-
-        <div *ngIf="loading" class="text-center text-gray-500 py-8">
-          Loading memory items...
+        <div class="space-y-3">
+          <div *ngFor="let point of analytics.dailySeries" class="grid grid-cols-[40px_1fr_50px] items-center gap-3">
+            <span class="text-xs text-slate-500">{{ point.label }}</span>
+            <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500" [style.width.%]="point.accuracy"></div>
+            </div>
+            <span class="text-xs font-semibold text-slate-700 text-right">{{ point.accuracy }}%</span>
+          </div>
         </div>
-
-        <div *ngIf="!loading && filteredMemoryItems.length === 0" class="text-center text-gray-500 py-8">
-          No memory items found
+        <div class="grid grid-cols-3 gap-2 mt-5 text-center">
+          <div class="rounded-lg bg-slate-50 p-2 border border-slate-200">
+            <p class="text-[11px] text-slate-500">Items</p>
+            <p class="font-bold text-slate-900">{{ analytics.totalItems }}</p>
+          </div>
+          <div class="rounded-lg bg-emerald-50 p-2 border border-emerald-200">
+            <p class="text-[11px] text-emerald-600">Completed</p>
+            <p class="font-bold text-emerald-700">{{ analytics.completedItems }}</p>
+          </div>
+          <div class="rounded-lg bg-amber-50 p-2 border border-amber-200">
+            <p class="text-[11px] text-amber-600">Pending</p>
+            <p class="font-bold text-amber-700">{{ analytics.pendingItems }}</p>
+          </div>
         </div>
+      </div>
 
-        <div *ngIf="!loading && filteredMemoryItems.length > 0" class="space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow border border-violet-100">
+        <h3 class="text-lg font-bold text-slate-900 mb-4">Recent Quiz Attempts</h3>
+        <div *ngIf="analytics.recentAttempts.length === 0" class="text-sm text-slate-500 py-6 text-center">
+          No quiz attempts for this patient yet.
+        </div>
+        <div *ngIf="analytics.recentAttempts.length > 0" class="space-y-3 max-h-72 overflow-y-auto">
           <div
-            *ngFor="let item of filteredMemoryItems; trackBy: trackById"
-            class="border border-slate-200 rounded-2xl p-4 sm:p-5 hover:border-indigo-300 hover:shadow-md transition">
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0">
-                <h3 class="text-base sm:text-lg font-bold text-gray-900 truncate">{{ item.title }}</h3>
-                <p class="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{{ item.description || 'No description' }}</p>
-                <p class="text-xs text-gray-500 mt-2">👤 {{ getPatientName(item.patientId) }}</p>
-                <div class="flex flex-wrap gap-2 mt-3 text-xs">
-                  <span class="bg-primary-50 text-primary-700 px-2 py-1 rounded-full font-semibold">
-                    {{ item.memoryCategory }}
-                  </span>
-                  <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    {{ item.createdAt | date: 'MMM d, yyyy' }}
-                  </span>
-                  <span *ngIf="item.location" class="bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    📍 {{ item.location }}
-                  </span>
-                </div>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  (click)="startEdit(item)"
-                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-info bg-opacity-10 text-info hover:bg-opacity-20 transition">
-                  Edit
-                </button>
-                <button
-                  (click)="requestDelete(item)"
-                  class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-danger bg-opacity-10 text-danger hover:bg-opacity-20 transition">
-                  Delete
-                </button>
-              </div>
+            *ngFor="let attempt of analytics.recentAttempts; trackBy: trackByAttemptId"
+            class="rounded-xl border border-slate-200 p-3 bg-slate-50">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs text-slate-500">{{ formatAttemptDate(attempt.attemptDate) }}</p>
+              <span class="rounded-full px-2 py-1 text-[11px] font-semibold" [ngClass]="getAttemptStatusClass(attempt)">
+                {{ getAttemptStatus(attempt) }}
+              </span>
             </div>
-
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-600">
-              <div>
-                <p class="font-semibold text-gray-700 mb-1">👥 Persons</p>
-                <p>{{ (item.persons || []).join(', ') || '—' }}</p>
-              </div>
-              <div>
-                <p class="font-semibold text-gray-700 mb-1">❓ Questions</p>
-                <p>{{ (item.questions || []).join(', ') || '—' }}</p>
-              </div>
-              <div>
-                <p class="font-semibold text-gray-700 mb-1">✅ Correct Answers</p>
-                <p>{{ (item.correctAnswers || []).join(', ') || '—' }}</p>
-              </div>
-            </div>
+            <p class="text-sm font-medium text-slate-900 mt-1">{{ attempt.questionAsked }}</p>
+            <p class="text-xs text-slate-600 mt-1">Answer: {{ attempt.patientAnswer || '—' }}</p>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="hidden xl:block"></div>
-  </div>
+  </section>
 </div>
 
 <!-- Create Modal -->
@@ -198,12 +279,23 @@
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"></textarea>
       </div>
       <div>
-        <label class="text-xs font-semibold text-gray-600">Image URL</label>
+        <label class="text-xs font-semibold text-gray-600">Image</label>
         <input
-          [(ngModel)]="createForm.imageUrl"
-          name="createImageUrl"
-          type="text"
-          class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          name="createImageFile"
+          type="file"
+          accept="image/*"
+          (change)="onCreateImageSelected($event)"
+          class="mt-2 block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100">
+        <p *ngIf="createImageFileName" class="text-xs text-gray-500 mt-1">{{ createImageFileName }}</p>
+        <div *ngIf="createForm.imageUrl" class="mt-2 flex items-center gap-2">
+          <img [src]="createForm.imageUrl" alt="Preview" class="h-14 w-14 rounded-lg object-cover border border-gray-200">
+          <button
+            type="button"
+            (click)="clearImage('create')"
+            class="px-2 py-1 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+            Remove
+          </button>
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-600">Location</label>
@@ -336,12 +428,23 @@
           class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"></textarea>
       </div>
       <div>
-        <label class="text-xs font-semibold text-gray-600">Image URL</label>
+        <label class="text-xs font-semibold text-gray-600">Image</label>
         <input
-          [(ngModel)]="editForm.imageUrl"
-          name="editImageUrl"
-          type="text"
-          class="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+          name="editImageFile"
+          type="file"
+          accept="image/*"
+          (change)="onEditImageSelected($event)"
+          class="mt-2 block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100">
+        <p *ngIf="editImageFileName" class="text-xs text-gray-500 mt-1">{{ editImageFileName }}</p>
+        <div *ngIf="editForm.imageUrl" class="mt-2 flex items-center gap-2">
+          <img [src]="editForm.imageUrl" alt="Preview" class="h-14 w-14 rounded-lg object-cover border border-gray-200">
+          <button
+            type="button"
+            (click)="clearImage('edit')"
+            class="px-2 py-1 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50">
+            Remove
+          </button>
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-600">Location</label>
