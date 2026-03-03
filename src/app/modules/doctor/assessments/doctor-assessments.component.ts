@@ -176,21 +176,53 @@ export class DoctorAssessmentsComponent implements OnInit {
     }
 
     const now = new Date();
-    let startDate = new Date();
-    if (this.selectedTimeRange === 'week') {
-      startDate.setDate(now.getDate() - 7);
-    } else if (this.selectedTimeRange === 'month') {
-      startDate.setMonth(now.getMonth() - 1);
-    } else if (this.selectedTimeRange === 'year') {
-      startDate.setFullYear(now.getFullYear() - 1);
-    }
+    const startDate = this.getRangeStartDate(now);
 
     records = records.filter(r => {
-      const recordDate = new Date(r.completedAt || r.date);
-      return recordDate >= startDate;
+      const recordDate = this.parseRecordDate(r.completedAt || r.date);
+      return recordDate >= startDate && recordDate <= now;
     });
 
-    return records.sort((a, b) => new Date(a.completedAt || a.date).getTime() - new Date(b.completedAt || b.date).getTime());
+    return records.sort((a, b) =>
+      this.parseRecordDate(a.completedAt || a.date).getTime() -
+      this.parseRecordDate(b.completedAt || b.date).getTime()
+    );
+  }
+
+  private getRangeStartDate(now: Date): Date {
+    const startDate = new Date(now);
+    startDate.setHours(0, 0, 0, 0);
+
+    if (this.selectedTimeRange === 'today') {
+      return startDate;
+    }
+
+    if (this.selectedTimeRange === 'week') {
+      // US locale week starts on Sunday (0)
+      const day = startDate.getDay();
+      startDate.setDate(startDate.getDate() - day);
+      return startDate;
+    }
+
+    if (this.selectedTimeRange === 'month') {
+      startDate.setDate(1);
+      return startDate;
+    }
+
+    if (this.selectedTimeRange === 'year') {
+      startDate.setMonth(0, 1);
+      return startDate;
+    }
+
+    return startDate;
+  }
+
+  private parseRecordDate(value: string): Date {
+    // Interpret date-only values as local date to avoid timezone shifts.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(`${value}T00:00:00`);
+    }
+    return new Date(value);
   }
 
   get isAssessmentMode(): boolean {

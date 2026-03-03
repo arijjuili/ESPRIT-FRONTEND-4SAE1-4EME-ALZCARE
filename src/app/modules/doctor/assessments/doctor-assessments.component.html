@@ -306,18 +306,7 @@
       </div>
 
       <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-3 mb-6">
-        <div class="flex gap-2">
-          <button 
-            *ngFor="let range of ['week', 'month', 'year']"
-            (click)="selectTimeRange(range)"
-            class="px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm"
-            [ngClass]="selectedTimeRange === range 
-              ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' 
-              : 'bg-white text-slate-600 hover:bg-violet-50'">
-            {{ range === 'week' ? 'This Week' : range === 'month' ? 'This Month' : 'This Year' }}
-          </button>
-        </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div class="flex gap-2">
           <button 
             *ngFor="let type of ['ASSESSMENT', 'DAILY_CHECKIN']"
@@ -327,6 +316,17 @@
               ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
               : 'bg-white text-slate-600 hover:bg-purple-50'">
             {{ getRecordTypeLabel(type) }}
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button 
+            *ngFor="let range of ['today', 'week', 'month', 'year']"
+            (click)="selectTimeRange(range)"
+            class="px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm"
+            [ngClass]="selectedTimeRange === range 
+              ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/30' 
+              : 'bg-white text-slate-600 hover:bg-violet-50'">
+            {{ range === 'today' ? 'Today' : range === 'week' ? 'This Week' : range === 'month' ? 'This Month' : 'This Year' }}
           </button>
         </div>
       </div>
