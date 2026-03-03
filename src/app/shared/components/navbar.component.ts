@@ -176,12 +176,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
-      label: 'Assessments',
-      path: '/caregiver/assessments',
-      icon: '🧠',
-      roles: ['caregiver']
-    },
-    {
       label: 'Game Analytics',
       path: '/caregiver/cognitive-analytics',
       icon: '📈',

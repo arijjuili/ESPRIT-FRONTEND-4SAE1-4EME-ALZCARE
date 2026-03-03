@@ -108,14 +108,6 @@ export const routes: Routes = [
 
       },
       {
-        path: 'assessments',
-        loadComponent: () => import('./modules/caregiver/assessments/caregiver-assessments.component').then(m => m.CaregiverAssessmentsComponent)
-      },
-      {
-        path: 'assessments/:id',
-        loadComponent: () => import('./modules/caregiver/assessments/caregiver-assessment-result.component').then(m => m.CaregiverAssessmentResultComponent)
-      },
-      {
         path: 'cognitive-analytics',
         loadComponent: () => import('./modules/caregiver/game-analytics/caregiver-game-analytics.component').then(m => m.CaregiverGameAnalyticsComponent)
       },
