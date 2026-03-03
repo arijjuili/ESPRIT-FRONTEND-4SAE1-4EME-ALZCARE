@@ -1,10 +1,10 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { GameActivityCreateRequest } from '../../../../core/models/api.model';
+import { DifficultyLevel, GameActivityCreateRequest } from '../../../../core/models/api.model';
 import { SpeechCommandService } from '../../../../core/services/speech-command.service';
 import { LucideIconComponent } from '../../../../shared/components/lucide-icon/lucide-icon.component';
 import { GameSplashComponent } from '../../../../shared/components/game-splash/game-splash.component';
@@ -17,7 +17,7 @@ import { GameGuidelinesComponent, GuidelineStep } from '../../../../shared/compo
   templateUrl: './word-recall.component.html',
   styleUrls: ['./word-recall.component.scss']
 })
-export class WordRecallComponent implements OnDestroy {
+export class WordRecallComponent implements OnDestroy, OnInit {
   showSplash = true;
   showGuidelines = false;
 
@@ -49,6 +49,14 @@ export class WordRecallComponent implements OnDestroy {
 
   private suppressVoiceToggleClick = false;
   private holdStartedAt = 0;
+  currentDifficulty: DifficultyLevel = 'EASY';
+  assistedMode = false;
+  hintLevel = 0;
+  timeMultiplier = 1;
+  cueMode = 'none';
+  breakSuggestion = false;
+  adaptationReason = '';
+  private audioContext: AudioContext | null = null;
 
   constructor(
     private speechCommandService: SpeechCommandService,
@@ -56,6 +64,10 @@ export class WordRecallComponent implements OnDestroy {
     private authService: AuthService
   ) {
     this.voiceSupported = this.speechCommandService.isSupported();
+  }
+
+  ngOnInit(): void {
+    this.loadAdaptationProfile();
   }
 
   onSplashComplete(): void {
@@ -76,14 +88,16 @@ export class WordRecallComponent implements OnDestroy {
     this.resultMessage = '';
     this.guesses = [];
     this.showAnswers = false;
-    this.roundWords = this.pickWords(6);
+    const wordsToShow = this.currentDifficulty === 'HARD' ? 8 : this.currentDifficulty === 'MEDIUM' ? 6 : 4;
+    this.roundWords = this.pickWords(wordsToShow);
     this.visibleWords = [...this.roundWords];
     this.showWords = true;
 
     setTimeout(() => {
       this.showWords = false;
       this.visibleWords = [];
-    }, 6000);
+      this.playCueIfEnabled();
+    }, Math.round(6000 * Math.max(1, this.timeMultiplier)));
   }
 
   addGuess(): void {
@@ -108,6 +122,19 @@ export class WordRecallComponent implements OnDestroy {
   removeGuess(index: number): void {
     if (this.showAnswers) return;
     this.guesses.splice(index, 1);
+  }
+
+  getRecallHints(): string[] {
+    if (this.hintLevel <= 0 || this.roundWords.length === 0) return [];
+    const hintCount = this.hintLevel >= 3 ? 3 : this.hintLevel === 2 ? 2 : 1;
+    return this.roundWords.slice(0, hintCount).map((word, idx) => {
+      const first = (word[0] || '').toUpperCase();
+      if (this.hintLevel >= 3) {
+        const mask = '_'.repeat(Math.max(2, word.length - 1));
+        return `${idx + 1}. ${first}${mask}`;
+      }
+      return `${idx + 1}. ${first}...`;
+    });
   }
 
   toggleVoiceEnabled(): void {
@@ -428,7 +455,7 @@ export class WordRecallComponent implements OnDestroy {
     const payload: GameActivityCreateRequest = {
       patientId: userId,
       gameType: 'WORD_RECALL',
-      difficulty: 'EASY',
+      difficulty: this.currentDifficulty,
       targetDomain: 'memory',
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
@@ -438,13 +465,14 @@ export class WordRecallComponent implements OnDestroy {
       voiceUsed: false,
       mistakesMade: this.guesses.length - correct.length,
       pointsEarned: score,
-      adaptiveMode: false,
+      adaptiveMode: this.assistedMode,
       difficultyAdjustments: 0,
       voiceCommandCount: 0,
+      hintsUsed: this.hintLevel,
       accuracyPercent: score
     };
     this.apiService.createGameActivity(payload).subscribe({
-      next: () => {},
+      next: () => this.loadAdaptationProfile(),
       error: () => {}
     });
   }
@@ -489,6 +517,50 @@ export class WordRecallComponent implements OnDestroy {
         icon: '🎯'
       }));
       this.newBadge = { title: 'Daily Focus', description: 'Completed 2 games today.', icon: '🎯' };
+    }
+  }
+
+  private loadAdaptationProfile(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    this.apiService.getGameAdaptation(userId, 'WORD_RECALL').subscribe({
+      next: (profile) => {
+        this.currentDifficulty = profile.recommendedDifficulty || 'EASY';
+        this.assistedMode = !!profile.assistedMode;
+        this.hintLevel = profile.hintLevel || 0;
+        this.timeMultiplier = Math.max(1, profile.timeMultiplier || 1);
+        this.cueMode = profile.cueMode || 'none';
+        this.breakSuggestion = !!profile.breakSuggestion;
+        this.adaptationReason = profile.reason || '';
+      },
+      error: () => {}
+    });
+  }
+
+  private playCueIfEnabled(): void {
+    if (this.cueMode !== 'visual_audio' && this.cueMode !== 'audio') return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!this.audioContext) {
+        this.audioContext = new AudioCtx();
+      }
+      const ctx = this.audioContext;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'triangle';
+      oscillator.frequency.value = 740;
+      gain.gain.value = 0.03;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+      oscillator.start(now);
+      oscillator.stop(now + 0.12);
+    } catch {
+      // Non-blocking cue fallback.
     }
   }
 }

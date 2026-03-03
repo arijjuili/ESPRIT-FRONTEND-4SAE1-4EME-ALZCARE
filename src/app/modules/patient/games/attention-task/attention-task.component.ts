@@ -38,6 +38,11 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
   falseStarts = 0;
   difficultyAdjustments = 0;
   voiceCommandCount = 0;
+  hintLevel = 0;
+  timeMultiplier = 1;
+  cueMode = 'none';
+  breakSuggestion = false;
+  adaptationReason = '';
   showVoiceDebug = false;
   showVoiceDebugToggle = false;
   voiceDebugLogs: string[] = [];
@@ -49,6 +54,7 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
   private goStartEpochMs = 0;
   private pendingVoiceReactionMs: number | null = null;
   private reactionHistory: number[] = [];
+  private audioContext: AudioContext | null = null;
 
   guidelineSteps: GuidelineStep[] = [
     { title: 'Wait for Green', description: 'Wait for the screen to turn green. Do not click before!', icon: '⏳' },
@@ -73,6 +79,7 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
       this.currentDifficulty = requested;
       this.adaptiveFeedback = `Starting at ${requested} based on recent performance.`;
     }
+    this.loadAdaptationProfile();
   }
 
   onSplashComplete(): void {
@@ -95,6 +102,7 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
       this.startTime = performance.now();
       this.goStartEpochMs = Date.now();
       this.pendingVoiceReactionMs = null;
+      this.playCueIfEnabled();
     }, delay);
   }
 
@@ -171,7 +179,10 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
       accuracyPercent: this.getAccuracyPercent()
     };
     this.apiService.createGameActivity(payload).subscribe({
-      next: () => this.loadBestFromDb(),
+      next: () => {
+        this.loadBestFromDb();
+        this.loadAdaptationProfile();
+      },
       error: () => {}
     });
   }
@@ -222,15 +233,73 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
   }
 
   private getDelayRange(difficulty: DifficultyLevel): { min: number; max: number } {
-    if (difficulty === 'HARD') return { min: 700, max: 1500 };
-    if (difficulty === 'MEDIUM') return { min: 900, max: 1800 };
-    return { min: 1200, max: 2800 };
+    const multiplier = Math.max(1, this.timeMultiplier);
+    if (difficulty === 'HARD') return { min: Math.round(700 * multiplier), max: Math.round(1500 * multiplier) };
+    if (difficulty === 'MEDIUM') return { min: Math.round(900 * multiplier), max: Math.round(1800 * multiplier) };
+    return { min: Math.round(1200 * multiplier), max: Math.round(2800 * multiplier) };
   }
 
   private raiseDifficulty(current: DifficultyLevel): DifficultyLevel {
     if (current === 'EASY') return 'MEDIUM';
     if (current === 'MEDIUM') return 'HARD';
     return 'HARD';
+  }
+
+  private loadAdaptationProfile(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    this.apiService.getGameAdaptation(userId, 'ATTENTION_TASK').subscribe({
+      next: (profile) => {
+        this.currentDifficulty = profile.recommendedDifficulty || this.currentDifficulty;
+        this.adaptiveMode = !!profile.assistedMode;
+        this.hintLevel = profile.hintLevel || 0;
+        this.timeMultiplier = Math.max(1, profile.timeMultiplier || 1);
+        this.cueMode = profile.cueMode || 'none';
+        this.breakSuggestion = !!profile.breakSuggestion;
+        if (this.breakSuggestion) {
+          this.voiceFeedback = 'You may take a short break before the next round.';
+        }
+        this.adaptationReason = profile.reason || '';
+        this.adaptiveFeedback = profile.reason
+          ? `Adaptive profile: ${profile.reason}`
+          : this.adaptiveFeedback;
+      },
+      error: () => {}
+    });
+  }
+
+  getCueModeLabel(): string {
+    if (this.cueMode === 'visual_audio') return 'Visual + Audio Cues';
+    if (this.cueMode === 'visual') return 'Visual Cues';
+    if (this.cueMode === 'audio') return 'Audio Cues';
+    return 'No Extra Cues';
+  }
+
+  private playCueIfEnabled(): void {
+    if (this.cueMode !== 'visual_audio' && this.cueMode !== 'audio') return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!this.audioContext) {
+        this.audioContext = new AudioCtx();
+      }
+      const ctx = this.audioContext;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.03;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      const now = ctx.currentTime;
+      oscillator.start(now);
+      oscillator.stop(now + 0.12);
+    } catch {
+      // Non-blocking cue fallback.
+    }
   }
 
   private lowerDifficulty(current: DifficultyLevel): DifficultyLevel {

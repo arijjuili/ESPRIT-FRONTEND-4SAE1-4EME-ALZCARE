@@ -387,6 +387,18 @@ export interface GameActivityCreateRequest {
   accuracyPercent?: number;
 }
 
+export interface GameAdaptationProfile {
+  patientId: string;
+  gameType: GameType;
+  recommendedDifficulty: DifficultyLevel;
+  assistedMode: boolean;
+  hintLevel: number;
+  timeMultiplier: number;
+  cueMode: string;
+  breakSuggestion: boolean;
+  reason: string;
+}
+
 // Keycloak Token Response
 export interface TokenResponse {
   access_token: string;

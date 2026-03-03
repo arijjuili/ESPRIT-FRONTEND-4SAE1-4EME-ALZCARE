@@ -19,7 +19,9 @@ import {
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
   GameCatalogItem,
+  GameType,
   GameActivity,
+  GameAdaptationProfile,
   GameActivityCreateRequest,
   QuizAttempt,
   QuizAttemptCreateRequest,
@@ -278,6 +280,16 @@ export class ApiService {
    */
   createGameActivity(request: GameActivityCreateRequest): Observable<GameActivity> {
     return this.http.post<GameActivity>(`${this.cognitiveBaseUrl}/game-activities`, request);
+  }
+
+  /**
+   * Get adaptive profile for a patient and game
+   */
+  getGameAdaptation(patientId: string, gameType: GameType): Observable<GameAdaptationProfile> {
+    const params = new HttpParams()
+      .set('patientId', patientId)
+      .set('gameType', gameType);
+    return this.http.get<GameAdaptationProfile>(`${this.cognitiveBaseUrl}/game-activities/adaptation`, { params });
   }
 
   /**

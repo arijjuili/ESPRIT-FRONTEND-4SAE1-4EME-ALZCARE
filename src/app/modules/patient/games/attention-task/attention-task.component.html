@@ -71,10 +71,15 @@
         </button>
       </div>
 
+      <div class="relative z-10 mt-3">
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <p class="text-xs text-slate-500">Cue mode</p>
+          <p class="text-sm font-bold text-slate-900">{{ getCueModeLabel() }}</p>
+        </div>
+      </div>
+
       <div class="relative z-10 mt-4 text-center">
-        <p class="text-xs text-slate-600">{{ adaptiveFeedback }}</p>
         <p class="mt-1 text-xs text-emerald-700 font-semibold" *ngIf="voiceEnabled">Hold to speak</p>
-        <p class="mt-1 text-xs text-slate-600" *ngIf="voiceFeedback">{{ voiceFeedback }}</p>
       </div>
 
       <div class="relative z-10 mt-4 flex items-center gap-2" *ngIf="showVoiceDebugToggle">
@@ -105,15 +110,20 @@
         [ngClass]="{
           'bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700': status === 'idle',
           'bg-gradient-to-br from-slate-100 to-gray-100 text-slate-500': status === 'waiting',
-          'bg-gradient-to-r from-emerald-400 to-green-500 text-white animate-pulse shadow-lg shadow-emerald-300': status === 'go',
+          'bg-gradient-to-r from-emerald-400 to-green-500 text-white animate-pulse shadow-lg shadow-emerald-300 ring-4 ring-amber-300': status === 'go' && cueMode === 'visual_audio',
+          'bg-gradient-to-r from-emerald-400 to-green-500 text-white animate-pulse shadow-lg shadow-emerald-300': status === 'go' && cueMode !== 'visual_audio',
           'bg-gradient-to-br from-emerald-100 to-green-100 text-emerald-700': status === 'done',
           'bg-gradient-to-br from-rose-100 to-red-100 text-rose-700': status === 'false-start'
         }"
         (click)="clickTarget()"
       >
         <span *ngIf="status === 'idle'" class="transform hover:scale-110 transition duration-300">🎯 Tap start to begin</span>
-        <span *ngIf="status === 'waiting'" class="animate-pulse">⏳ Wait for green…</span>
-        <span *ngIf="status === 'go'" class="text-3xl font-black">{{ voiceEnabled ? 'Say: PUSH!' : 'TAP NOW!' }}</span>
+        <span *ngIf="status === 'waiting'" [ngClass]="cueMode === 'visual_audio' ? 'animate-pulse text-amber-800 text-3xl sm:text-4xl font-black' : 'animate-pulse'">
+          {{ cueMode === 'visual_audio' ? '⏳ Wait to hear the beep.' : '⏳ Wait for green…' }}
+        </span>
+        <span *ngIf="status === 'go'" [ngClass]="cueMode === 'visual_audio' ? 'text-4xl sm:text-5xl font-black tracking-wide' : 'text-3xl font-black'">
+          {{ voiceEnabled ? 'Say: PUSH!' : 'TAP NOW!' }}
+        </span>
         <span *ngIf="status === 'done'" class="transform hover:scale-110 transition duration-300">⚡ Great reaction!</span>
         <span *ngIf="status === 'false-start'" class="animate-bounce">🚫 Too soon! Try again.</span>
       </div>

@@ -1,9 +1,9 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { GameActivityCreateRequest } from '../../../../core/models/api.model';
+import { DifficultyLevel, GameActivityCreateRequest } from '../../../../core/models/api.model';
 import { GameSplashComponent } from '../../../../shared/components/game-splash/game-splash.component';
 import { GameGuidelinesComponent, GuidelineStep } from '../../../../shared/components/game-guidelines/game-guidelines.component';
 
@@ -19,7 +19,7 @@ interface PatternColor {
   templateUrl: './pattern-recognition.component.html',
   styleUrls: ['./pattern-recognition.component.scss']
 })
-export class PatternRecognitionComponent implements OnDestroy {
+export class PatternRecognitionComponent implements OnDestroy, OnInit {
   showSplash = true;
   showGuidelines = false;
   
@@ -40,6 +40,15 @@ export class PatternRecognitionComponent implements OnDestroy {
   lastRoundReached = 0;
   finishRound = 5;
   private timeouts: number[] = [];
+  currentDifficulty: DifficultyLevel = 'EASY';
+  assistedMode = false;
+  hintLevel = 0;
+  timeMultiplier = 1;
+  cueMode = 'none';
+  breakSuggestion = false;
+  adaptationReason = '';
+  hintIndices: number[] = [];
+  private revealLeadCount = 0;
 
   guidelineSteps: GuidelineStep[] = [
     { title: 'Watch the Pattern', description: 'Pay attention to the color sequence shown.', icon: '👀' },
@@ -51,6 +60,10 @@ export class PatternRecognitionComponent implements OnDestroy {
     private apiService: ApiService,
     private authService: AuthService
   ) {}
+
+  ngOnInit(): void {
+    this.loadAdaptationProfile();
+  }
 
   onSplashComplete(): void {
     this.showSplash = false;
@@ -66,7 +79,9 @@ export class PatternRecognitionComponent implements OnDestroy {
     this.round = 1;
     this.sequence = [];
     this.lastRoundReached = 0;
+    this.finishRound = this.currentDifficulty === 'HARD' ? 6 : this.currentDifficulty === 'MEDIUM' ? 5 : 4;
     this.message = 'Press Start to see the pattern.';
+    this.hintIndices = [];
     this.nextRound();
   }
 
@@ -80,17 +95,22 @@ export class PatternRecognitionComponent implements OnDestroy {
     this.clearTimers();
     this.showing = true;
     this.message = 'Watch the pattern.';
+    this.hintIndices = [];
+    this.revealLeadCount = this.resolveRevealLeadCount();
     this.sequence.forEach((index, i) => {
       const timeoutId = window.setTimeout(() => {
         this.activeIndex = index;
-        window.setTimeout(() => (this.activeIndex = null), 400);
+        window.setTimeout(() => (this.activeIndex = null), Math.round(400 * this.timeMultiplier));
         if (i === this.sequence.length - 1) {
           window.setTimeout(() => {
             this.showing = false;
-            this.message = 'Your turn! Repeat the pattern.';
-          }, 600);
+            this.activateHintGuidance();
+            this.message = this.effectiveHintLevel > 0
+              ? `Your turn! Repeat the pattern. ${this.getHintPrompt()}`
+              : 'Your turn! Repeat the pattern.';
+          }, Math.round(600 * this.timeMultiplier));
         }
-      }, 700 * (i + 1));
+      }, Math.round(700 * this.timeMultiplier) * (i + 1));
       this.timeouts.push(timeoutId);
     });
   }
@@ -98,6 +118,7 @@ export class PatternRecognitionComponent implements OnDestroy {
   pickColor(index: number): void {
     if (this.showing) return;
     this.playerInput.push(index);
+    this.hintIndices = [];
     const currentIndex = this.playerInput.length - 1;
     if (this.playerInput[currentIndex] !== this.sequence[currentIndex]) {
       const encouragements = [
@@ -108,7 +129,7 @@ export class PatternRecognitionComponent implements OnDestroy {
       const picked = encouragements[Math.floor(Math.random() * encouragements.length)];
       const achieved = Math.max(1, this.round - 1);
       this.lastRoundReached = achieved;
-      this.message = `${picked} You reached round ${achieved}.`;
+      this.message = `${picked} You reached round ${achieved}.${this.effectiveHintLevel >= 2 ? ` ${this.getRecoveryHint(currentIndex)}` : ''}`;
       this.started = false;
       this.playerInput = [];
       this.recordToDb();
@@ -119,6 +140,7 @@ export class PatternRecognitionComponent implements OnDestroy {
       this.round += 1;
       if (this.round > this.finishRound) {
         this.started = false;
+        this.lastRoundReached = this.finishRound;
         this.recordCompletion();
         this.awardBadge();
         this.message = 'You completed the rhythm challenge!';
@@ -154,11 +176,13 @@ export class PatternRecognitionComponent implements OnDestroy {
   private recordToDb(): void {
     const userId = this.authService.getCurrentUser()?.id;
     if (!userId) return;
-    const roundScore = Math.round((this.lastRoundReached / this.finishRound) * 100);
+    const reached = Math.max(1, this.lastRoundReached);
+    const roundScore = Math.round((reached / this.finishRound) * 100);
+    const mistakes = reached >= this.finishRound ? 0 : 1;
     const payload: GameActivityCreateRequest = {
       patientId: userId,
       gameType: 'PATTERN_RECOGNITION',
-      difficulty: 'EASY',
+      difficulty: this.currentDifficulty,
       targetDomain: 'cognitive',
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
@@ -166,15 +190,16 @@ export class PatternRecognitionComponent implements OnDestroy {
       score: roundScore,
       maxScore: 100,
       voiceUsed: false,
-      mistakesMade: 1,
+      mistakesMade: mistakes,
       pointsEarned: roundScore,
-      adaptiveMode: false,
+      adaptiveMode: this.assistedMode,
       difficultyAdjustments: 0,
       voiceCommandCount: 0,
+      hintsUsed: this.effectiveHintLevel,
       accuracyPercent: roundScore
     };
     this.apiService.createGameActivity(payload).subscribe({
-      next: () => {},
+      next: () => this.loadAdaptationProfile(),
       error: () => {}
     });
   }
@@ -220,5 +245,61 @@ export class PatternRecognitionComponent implements OnDestroy {
       }));
       this.newBadge = { title: 'Daily Focus', description: 'Completed 2 games today.', icon: '🎯' };
     }
+  }
+
+  private loadAdaptationProfile(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    this.apiService.getGameAdaptation(userId, 'PATTERN_RECOGNITION').subscribe({
+      next: (profile) => {
+        this.currentDifficulty = profile.recommendedDifficulty || 'EASY';
+        this.assistedMode = !!profile.assistedMode;
+        this.hintLevel = profile.hintLevel || 0;
+        this.timeMultiplier = Math.max(1, profile.timeMultiplier || 1);
+        this.cueMode = profile.cueMode || 'none';
+        this.breakSuggestion = !!profile.breakSuggestion;
+        this.adaptationReason = profile.reason || '';
+        this.finishRound = this.currentDifficulty === 'HARD' ? 6 : this.currentDifficulty === 'MEDIUM' ? 5 : 4;
+      },
+      error: () => {}
+    });
+  }
+
+  isHintIndex(index: number): boolean {
+    return this.hintIndices.includes(index);
+  }
+
+  get effectiveHintLevel(): number {
+    const baseline = this.currentDifficulty === 'EASY' ? 3 : this.currentDifficulty === 'MEDIUM' ? 1 : 0;
+    return Math.max(this.hintLevel, baseline);
+  }
+
+  private resolveRevealLeadCount(): number {
+    if (this.effectiveHintLevel >= 3) return Math.min(3, this.sequence.length);
+    if (this.effectiveHintLevel >= 2) return Math.min(2, this.sequence.length);
+    if (this.effectiveHintLevel >= 1) return 1;
+    return 0;
+  }
+
+  private activateHintGuidance(): void {
+    if (this.revealLeadCount <= 0) return;
+    this.hintIndices = this.sequence.slice(0, this.revealLeadCount);
+    const timeoutId = window.setTimeout(() => {
+      this.hintIndices = [];
+    }, Math.round(1500 * Math.max(1, this.timeMultiplier)));
+    this.timeouts.push(timeoutId);
+  }
+
+  private getHintPrompt(): string {
+    if (this.effectiveHintLevel >= 3) return 'Hint: focus on the first 3 colors.';
+    if (this.effectiveHintLevel >= 2) return 'Hint: focus on the first 2 colors.';
+    return 'Hint: remember the first color.';
+  }
+
+  private getRecoveryHint(position: number): string {
+    const safeIndex = Math.max(0, Math.min(position, this.sequence.length - 1));
+    const correctIndex = this.sequence[safeIndex];
+    const label = this.colors[correctIndex]?.label || 'color';
+    return `Tip: color ${safeIndex + 1} should be ${label}.`;
   }
 }

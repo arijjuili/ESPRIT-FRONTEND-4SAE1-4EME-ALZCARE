@@ -36,6 +36,23 @@
       </div>
     </div>
 
+    <div class="mb-6 rounded-2xl border border-rose-100 bg-white/90 p-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+        <div>
+          <p class="text-slate-500">Difficulty</p>
+          <p class="font-bold text-slate-900">{{ currentDifficulty }}</p>
+        </div>
+        <div>
+          <p class="text-slate-500">Assisted</p>
+          <p class="font-bold" [ngClass]="assistedMode ? 'text-emerald-700' : 'text-slate-900'">{{ assistedMode ? 'ON' : 'OFF' }}</p>
+        </div>
+        <div>
+          <p class="text-slate-500">Cue Mode</p>
+          <p class="font-bold text-slate-900">{{ cueMode }}</p>
+        </div>
+      </div>
+    </div>
+
     <div class="bg-white rounded-3xl shadow-xl p-6 sm:p-8 border border-rose-100 relative overflow-hidden">
       <div class="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-rose-200/40 blur-2xl animate-pulse"></div>
       <div class="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-orange-200/40 blur-xl animate-pulse" style="animation-delay: 1s;"></div>
@@ -54,7 +71,7 @@
           *ngFor="let color of colors; let i = index"
           (click)="pickColor(i)"
           class="h-24 rounded-2xl shadow-md transition-all duration-300 transform hover:-translate-y-2 hover:scale-105 hover:shadow-xl"
-          [ngClass]="[color.className, activeIndex === i ? 'ring-4 ring-white scale-110 shadow-2xl' : '']">
+          [ngClass]="[color.className, activeIndex === i ? 'ring-4 ring-white scale-110 shadow-2xl' : '', isHintIndex(i) ? 'hint-tile ring-4 ring-amber-200' : '']">
         </button>
       </div>
 

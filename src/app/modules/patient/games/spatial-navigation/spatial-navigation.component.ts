@@ -1,9 +1,9 @@
-import { Component, HostListener, OnDestroy } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { GameActivityCreateRequest } from '../../../../core/models/api.model';
+import { DifficultyLevel, GameActivityCreateRequest } from '../../../../core/models/api.model';
 import { SpeechCommandService } from '../../../../core/services/speech-command.service';
 import { LucideIconComponent } from '../../../../shared/components/lucide-icon/lucide-icon.component';
 import { GameSplashComponent } from '../../../../shared/components/game-splash/game-splash.component';
@@ -22,16 +22,21 @@ interface GridCell {
   templateUrl: './spatial-navigation.component.html',
   styleUrls: ['./spatial-navigation.component.scss']
 })
-export class SpatialNavigationComponent implements OnDestroy {
+export class SpatialNavigationComponent implements OnDestroy, OnInit {
   showSplash = true;
   showGuidelines = false;
 
-  size = 5;
+  private readonly gridSize = 5;
+  size = this.gridSize;
   player = { x: 0, y: 0 };
   target = { x: 4, y: 4 };
   blocks: { x: number; y: number }[] = [];
+  blockCount = 4;
   status = 'Navigate the explorer to the glowing star.';
   success = false;
+  blockedMoves = 0;
+  edgeHits = 0;
+  stepCount = 0;
   voiceSupported = false;
   voiceEnabled = false;
   voiceListening = false;
@@ -46,6 +51,15 @@ export class SpatialNavigationComponent implements OnDestroy {
 
   private suppressVoiceToggleClick = false;
   private holdStartedAt = 0;
+  currentDifficulty: DifficultyLevel = 'EASY';
+  assistedMode = false;
+  hintLevel = 0;
+  timeMultiplier = 1;
+  cueMode = 'none';
+  breakSuggestion = false;
+  adaptationReason = '';
+  hintDirection = '';
+  hintCell: { x: number; y: number } | null = null;
 
   constructor(
     private speechCommandService: SpeechCommandService,
@@ -54,6 +68,10 @@ export class SpatialNavigationComponent implements OnDestroy {
   ) {
     this.voiceSupported = this.speechCommandService.isSupported();
     this.resetBoard();
+  }
+
+  ngOnInit(): void {
+    this.loadAdaptationProfile();
   }
 
   onSplashComplete(): void {
@@ -70,24 +88,52 @@ export class SpatialNavigationComponent implements OnDestroy {
   }
 
   resetBoard(): void {
+    this.size = this.gridSize;
+    this.blockCount = this.currentDifficulty === 'HARD' ? 7 : this.currentDifficulty === 'MEDIUM' ? 5 : 3;
     this.player = { x: 0, y: 0 };
-    this.target = { x: 4, y: 4 };
+    this.target = { x: this.size - 1, y: this.size - 1 };
     this.blocks = this.generateSolvableBlocks();
     this.status = 'Navigate the explorer to the glowing star.';
     this.success = false;
+    this.blockedMoves = 0;
+    this.edgeHits = 0;
+    this.stepCount = 0;
+    this.updateGuidedHint();
   }
 
   move(dx: number, dy: number): void {
     const next = { x: this.player.x + dx, y: this.player.y + dy };
-    if (next.x < 0 || next.y < 0 || next.x >= this.size || next.y >= this.size) return;
-    if (this.blocks.some(block => block.x === next.x && block.y === next.y)) return;
+    if (next.x < 0 || next.y < 0 || next.x >= this.size || next.y >= this.size) {
+      this.edgeHits += 1;
+      if (!this.success) {
+        this.status = 'Edge of map reached. Try another direction.';
+      }
+      this.updateGuidedHint();
+      return;
+    }
+    if (this.blocks.some(block => block.x === next.x && block.y === next.y)) {
+      this.blockedMoves += 1;
+      if (!this.success) {
+        this.status = 'Obstacle ahead. Pick another direction.';
+      }
+      this.updateGuidedHint();
+      return;
+    }
     this.player = next;
+    this.stepCount += 1;
+    if (!this.success) {
+      this.status = 'Navigate the explorer to the glowing star.';
+    }
     if (this.player.x === this.target.x && this.player.y === this.target.y) {
       this.status = 'You made it! Great navigation. Tap “New Map” to play again!';
       this.success = true;
+      this.hintDirection = '';
+      this.hintCell = null;
       this.recordCompletion();
       this.awardBadge();
+      return;
     }
+    this.updateGuidedHint();
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -289,9 +335,9 @@ export class SpatialNavigationComponent implements OnDestroy {
 
   private generateBlocks(): { x: number; y: number }[] {
     const blocks: { x: number; y: number }[] = [];
-    while (blocks.length < 4) {
+    while (blocks.length < this.blockCount) {
       const candidate = { x: Math.floor(Math.random() * this.size), y: Math.floor(Math.random() * this.size) };
-      if ((candidate.x === 0 && candidate.y === 0) || (candidate.x === 4 && candidate.y === 4)) continue;
+      if ((candidate.x === 0 && candidate.y === 0) || (candidate.x === this.target.x && candidate.y === this.target.y)) continue;
       if (blocks.some(block => block.x === candidate.x && block.y === candidate.y)) continue;
       blocks.push(candidate);
     }
@@ -353,11 +399,15 @@ export class SpatialNavigationComponent implements OnDestroy {
   private recordToDb(): void {
     const userId = this.authService.getCurrentUser()?.id;
     if (!userId) return;
-    const score = this.success ? 100 : 0;
+    const minSteps = (this.size - 1) * 2;
+    const extraSteps = Math.max(0, this.stepCount - minSteps);
+    const totalMistakes = this.blockedMoves + this.edgeHits;
+    const baseScore = this.success ? 100 : 20;
+    const score = Math.max(0, Math.min(100, baseScore - (this.blockedMoves * 8) - (this.edgeHits * 5) - (extraSteps * 2)));
     const payload: GameActivityCreateRequest = {
       patientId: userId,
       gameType: 'SPATIAL_NAVIGATION',
-      difficulty: 'EASY',
+      difficulty: this.currentDifficulty,
       targetDomain: 'spatial',
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
@@ -365,15 +415,16 @@ export class SpatialNavigationComponent implements OnDestroy {
       score,
       maxScore: 100,
       voiceUsed: false,
-      mistakesMade: 0,
+      mistakesMade: totalMistakes,
       pointsEarned: score,
-      adaptiveMode: false,
+      adaptiveMode: this.assistedMode,
       difficultyAdjustments: 0,
       voiceCommandCount: 0,
+      hintsUsed: this.hintLevel,
       accuracyPercent: score
     };
     this.apiService.createGameActivity(payload).subscribe({
-      next: () => {},
+      next: () => this.loadAdaptationProfile(),
       error: () => {}
     });
   }
@@ -419,5 +470,92 @@ export class SpatialNavigationComponent implements OnDestroy {
       }));
       this.newBadge = { title: 'Daily Focus', description: 'Completed 2 games today.', icon: '🎯' };
     }
+  }
+
+  private loadAdaptationProfile(): void {
+    const userId = this.authService.getCurrentUser()?.id;
+    if (!userId) return;
+    this.apiService.getGameAdaptation(userId, 'SPATIAL_NAVIGATION').subscribe({
+      next: (profile) => {
+        this.currentDifficulty = profile.recommendedDifficulty || 'EASY';
+        this.assistedMode = !!profile.assistedMode;
+        this.hintLevel = profile.hintLevel || 0;
+        this.timeMultiplier = Math.max(1, profile.timeMultiplier || 1);
+        this.cueMode = profile.cueMode || 'none';
+        this.breakSuggestion = !!profile.breakSuggestion;
+        this.adaptationReason = profile.reason || '';
+        this.resetBoard();
+      },
+      error: () => {}
+    });
+  }
+
+  isHintCell(cell: GridCell): boolean {
+    return !!this.hintCell && this.hintCell.x === cell.x && this.hintCell.y === cell.y;
+  }
+
+  private updateGuidedHint(): void {
+    this.hintDirection = '';
+    this.hintCell = null;
+    if (this.success) return;
+    if (this.currentDifficulty === 'HARD') return;
+
+    const nextStep = this.findNextStepTowardTarget();
+    if (!nextStep) return;
+
+    const dx = nextStep.x - this.player.x;
+    const dy = nextStep.y - this.player.y;
+    if (dx === 1) this.hintDirection = 'RIGHT';
+    else if (dx === -1) this.hintDirection = 'LEFT';
+    else if (dy === 1) this.hintDirection = 'DOWN';
+    else if (dy === -1) this.hintDirection = 'UP';
+
+    if (this.currentDifficulty === 'EASY') {
+      this.hintCell = nextStep;
+    }
+  }
+
+  private findNextStepTowardTarget(): { x: number; y: number } | null {
+    const blocked = new Set(this.blocks.map(block => `${block.x},${block.y}`));
+    const startKey = `${this.player.x},${this.player.y}`;
+    const queue: { x: number; y: number }[] = [{ x: this.player.x, y: this.player.y }];
+    const visited = new Set<string>([startKey]);
+    const prev = new Map<string, string | null>();
+    prev.set(startKey, null);
+    const deltas = [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) break;
+      if (current.x === this.target.x && current.y === this.target.y) {
+        break;
+      }
+      for (const delta of deltas) {
+        const next = { x: current.x + delta.x, y: current.y + delta.y };
+        const key = `${next.x},${next.y}`;
+        if (next.x < 0 || next.y < 0 || next.x >= this.size || next.y >= this.size) continue;
+        if (blocked.has(key) || visited.has(key)) continue;
+        visited.add(key);
+        prev.set(key, `${current.x},${current.y}`);
+        queue.push(next);
+      }
+    }
+
+    const targetKey = `${this.target.x},${this.target.y}`;
+    if (!prev.has(targetKey)) return null;
+
+    let cursor = targetKey;
+    let parent = prev.get(cursor);
+    while (parent && parent !== startKey) {
+      cursor = parent;
+      parent = prev.get(cursor) ?? null;
+    }
+    const [x, y] = cursor.split(',').map(Number);
+    return { x, y };
   }
 }

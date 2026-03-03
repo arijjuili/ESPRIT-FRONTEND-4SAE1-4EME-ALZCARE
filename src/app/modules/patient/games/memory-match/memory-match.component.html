@@ -41,7 +41,7 @@
         </div>
         <div class="bg-white rounded-2xl shadow-md px-5 py-3 border border-indigo-100 hover:scale-105 transition duration-300">
           <p class="text-xs text-gray-500">Pairs</p>
-          <p class="text-2xl font-bold text-indigo-700">{{ matches }}/6</p>
+          <p class="text-2xl font-bold text-indigo-700">{{ matches }}/{{ icons.length }}</p>
         </div>
         <button (click)="resetGame()" 
                 class="px-5 py-3 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 text-white font-semibold hover:from-sky-700 hover:to-indigo-700 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-sky-200">
@@ -50,11 +50,30 @@
       </div>
     </div>
 
+    <div class="mb-6 rounded-2xl border border-sky-100 bg-white/90 p-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 text-xs">
+        <div>
+          <p class="text-slate-500">Difficulty</p>
+          <p class="font-bold text-slate-900">{{ currentDifficulty }}</p>
+        </div>
+        <div>
+          <p class="text-slate-500">Assisted</p>
+          <p class="font-bold" [ngClass]="assistedMode ? 'text-emerald-700' : 'text-slate-900'">{{ assistedMode ? 'ON' : 'OFF' }}</p>
+        </div>
+        <div>
+          <p class="text-slate-500">Cue Mode</p>
+          <p class="font-bold text-slate-900">{{ cueMode }}</p>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-4">
       <button
         *ngFor="let card of deck; let i = index"
         (click)="flipCard(card)"
         class="group relative h-24 sm:h-28 rounded-2xl border-2 border-white/80 shadow-lg bg-white/80 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-sky-200/50"
+        [class.hint-card]="isHintCard(card.id)"
+        [class.mismatch-card]="isMismatchCard(card.id)"
         [class.matched]="card.matched"
         [style.animation-delay]="i * 0.05 + 's'">
         <div
