@@ -19,6 +19,7 @@ interface MemoryItemForm {
   description: string;
   imageUrl: string;
   location: string;
+  yearTaken: number | null;
   persons: string[];
   questions: string[];
   correctAnswers: string[];
@@ -85,6 +86,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     description: '',
     imageUrl: '',
     location: '',
+    yearTaken: null,
     persons: [''],
     questions: [''],
     correctAnswers: ['']
@@ -97,6 +99,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     description: '',
     imageUrl: '',
     location: '',
+    yearTaken: null,
     persons: [''],
     questions: [''],
     correctAnswers: ['']
@@ -151,8 +154,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     this.error = '';
     this.success = '';
 
-    if (!this.createForm.patientId.trim() || !this.createForm.title.trim()) {
-      this.error = 'Patient and title are required';
+    if (!this.createForm.patientId.trim() || !this.createForm.title.trim() || !this.isValidYear(this.createForm.yearTaken)) {
+      this.error = 'Patient, title, and year taken are required';
       return;
     }
 
@@ -168,6 +171,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: this.createForm.description.trim() || undefined,
       imageUrl: this.createForm.imageUrl.trim() || undefined,
       location: this.createForm.location.trim() || undefined,
+      yearTaken: this.createForm.yearTaken as number,
       persons: this.cleanList(this.createForm.persons),
       questions: questionPayload.questions,
       correctAnswers: questionPayload.correctAnswers,
@@ -211,6 +215,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: item.description || '',
       imageUrl: item.imageUrl || '',
       location: item.location || '',
+      yearTaken: item.yearTaken ?? null,
       persons: item.persons && item.persons.length > 0 ? [...item.persons] : [''],
       questions,
       correctAnswers
@@ -233,6 +238,11 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     this.error = '';
     this.success = '';
 
+    if (!this.editForm.title.trim() || !this.isValidYear(this.editForm.yearTaken)) {
+      this.error = 'Title and year taken are required';
+      return;
+    }
+
     const questionPayload = this.buildQuestionAnswerPayload(this.editForm);
     if (!questionPayload) {
       return;
@@ -244,6 +254,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: this.editForm.description.trim() || undefined,
       imageUrl: this.editForm.imageUrl.trim() || undefined,
       location: this.editForm.location.trim() || undefined,
+      yearTaken: this.editForm.yearTaken as number,
       persons: this.cleanList(this.editForm.persons),
       questions: questionPayload.questions,
       correctAnswers: questionPayload.correctAnswers
@@ -305,6 +316,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       description: '',
       imageUrl: '',
       location: '',
+      yearTaken: null,
       persons: [''],
       questions: [''],
       correctAnswers: ['']
@@ -398,6 +410,10 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   private cleanList(values: string[]): string[] | undefined {
     const items = values.map(value => value.trim()).filter(value => value.length > 0);
     return items.length > 0 ? items : undefined;
+  }
+
+  isValidYear(value: number | null | undefined): boolean {
+    return typeof value === 'number' && Number.isInteger(value) && value >= 1900 && value <= 2100;
   }
 
   isQuestionPairInvalid(target: 'create' | 'edit', index: number): boolean {

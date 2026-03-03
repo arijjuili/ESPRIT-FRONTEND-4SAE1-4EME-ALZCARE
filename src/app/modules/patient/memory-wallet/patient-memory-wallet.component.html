@@ -36,6 +36,36 @@
       </div>
     </article>
   </div>
+
+  <section *ngIf="!loading && timelineItems.length > 0" class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+    <div class="flex items-center justify-between gap-3 mb-5">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">Memory Timeline</h2>
+        <p class="text-sm text-slate-500">Your moments organized by year.</p>
+      </div>
+      <span class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">{{ timelineItems.length }} memories</span>
+    </div>
+
+    <div class="space-y-6">
+      <div *ngFor="let group of timelineGroups" class="relative pl-6">
+        <div class="absolute left-2 top-0 bottom-0 w-px bg-slate-200"></div>
+        <div class="absolute left-0 top-2 h-4 w-4 rounded-full bg-cyan-500 ring-4 ring-cyan-100"></div>
+        <div class="mb-3">
+          <p class="text-sm font-bold text-slate-900">{{ group.year }}</p>
+        </div>
+        <div class="flex gap-3 overflow-x-auto pb-2">
+          <article *ngFor="let item of group.items" class="w-44 flex-shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+            <div class="h-24 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-100 via-sky-100 to-indigo-100">
+              <img *ngIf="item.imageUrl" [src]="item.imageUrl" [alt]="item.title" class="h-full w-full object-cover">
+              <div *ngIf="!item.imageUrl" class="h-full w-full flex items-center justify-center text-2xl">🖼️</div>
+            </div>
+            <p class="mt-2 text-xs font-semibold text-slate-900 truncate">{{ item.title }}</p>
+            <p class="text-[11px] text-slate-500">{{ item.yearTaken || group.year }}</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <div *ngIf="quizState" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">

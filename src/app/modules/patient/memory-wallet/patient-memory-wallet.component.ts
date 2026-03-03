@@ -1,5 +1,7 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SpeechCommandService } from '../../../core/services/speech-command.service';
@@ -18,6 +20,11 @@ interface QuizState {
   startedAtMs: number;
 }
 
+interface MemoryTimelineGroup {
+  year: number;
+  items: MemoryItem[];
+}
+
 @Component({
   selector: 'app-patient-memory-wallet',
   standalone: true,
@@ -30,6 +37,7 @@ export class PatientMemoryWalletComponent implements OnInit, OnDestroy {
 
   allMemoryItems: MemoryItem[] = [];
   memoryItems: MemoryItem[] = [];
+  timelineItems: MemoryItem[] = [];
   loading = false;
   error = '';
 
@@ -68,10 +76,16 @@ export class PatientMemoryWalletComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.error = '';
-    this.apiService.getAvailableMemoryItems(patientId).subscribe({
-      next: (items) => {
-        this.allMemoryItems = items;
-        this.memoryItems = items;
+    forkJoin({
+      available: this.apiService.getAvailableMemoryItems(patientId),
+      all: this.apiService.getMemoryItems(patientId).pipe(catchError(() => of([] as MemoryItem[])))
+    }).subscribe({
+      next: ({ available, all }) => {
+        this.allMemoryItems = available;
+        this.memoryItems = available;
+        this.timelineItems = (all.length > 0 ? all : available)
+          .slice()
+          .sort((a, b) => this.resolveItemYear(b) - this.resolveItemYear(a));
         this.loading = false;
       },
       error: (err) => {
@@ -470,5 +484,27 @@ export class PatientMemoryWalletComponent implements OnInit, OnDestroy {
 
   get emptyStateMessage(): string {
     return 'No memory items available right now. Completed quizzes reappear after 7 days.';
+  }
+
+  get timelineGroups(): MemoryTimelineGroup[] {
+    const byYear = new Map<number, MemoryItem[]>();
+    this.timelineItems.forEach(item => {
+      const year = this.resolveItemYear(item);
+      if (!byYear.has(year)) {
+        byYear.set(year, []);
+      }
+      byYear.get(year)!.push(item);
+    });
+    return Array.from(byYear.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([year, items]) => ({ year, items }));
+  }
+
+  private resolveItemYear(item: MemoryItem): number {
+    if (typeof item.yearTaken === 'number' && Number.isInteger(item.yearTaken)) {
+      return item.yearTaken;
+    }
+    const parsed = new Date(item.createdAt);
+    return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
   }
 }

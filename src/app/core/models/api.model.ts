@@ -251,6 +251,7 @@ export interface MemoryItem {
   description?: string;
   imageUrl?: string | null;
   location?: string;
+  yearTaken?: number;
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
@@ -265,6 +266,7 @@ export interface MemoryItemCreateRequest {
   description?: string;
   imageUrl?: string;
   location?: string;
+  yearTaken: number;
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
@@ -279,6 +281,7 @@ export interface MemoryItemUpdateRequest {
   description?: string;
   imageUrl?: string;
   location?: string;
+  yearTaken?: number;
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
