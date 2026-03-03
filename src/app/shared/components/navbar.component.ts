@@ -213,7 +213,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['doctor']
     },
     {
-      label: 'Assessments',
+      label: 'Health Records',
       path: '/doctor/assessments',
       icon: '🧠',
       roles: ['doctor']
