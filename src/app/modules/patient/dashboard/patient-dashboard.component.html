@@ -70,32 +70,39 @@
 
   <!-- Assessment Status -->
   <div class="mb-6 sm:mb-8">
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-primary-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h2 class="text-lg sm:text-xl font-bold text-gray-900">🧠 Cognitive Assessment</h2>
-        <p class="text-sm text-gray-600 mt-1" *ngIf="isLoadingAssessment">Loading assessment status...</p>
-        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDaysLeft === null">No assessment scheduled yet.</p>
-        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDaysLeft !== null && !assessmentDue">
-          Next assessment in {{ assessmentDaysLeft }} day{{ assessmentDaysLeft === 1 ? '' : 's' }}.
-        </p>
-        <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && assessmentDue">
-          Your assessment is due now.
-        </p>
-      </div>
-      <div class="flex items-center gap-3" *ngIf="assessmentRecordId">
-        <a
-          *ngIf="assessmentDue"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 transition"
-          [routerLink]="['/patient/assessment']"
-        >
-          Take Assessment
-        </a>
-        <span
-          *ngIf="!assessmentDue"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-50 text-primary-700 font-semibold border border-primary-200"
-        >
-          Not due yet
-        </span>
+    <p class="text-sm text-gray-600 mt-1" *ngIf="isLoadingAssessment">Loading assessment status...</p>
+    <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && !assessmentItems.length">No assessment scheduled yet.</p>
+
+    <div class="space-y-3" *ngIf="!isLoadingAssessment && assessmentItems.length">
+      <div
+        class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 border border-primary-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-gray-900">🧠 Cognitive Assessment</h2>
+          <p class="text-sm text-gray-600 mt-1" *ngIf="!assessmentItems[0].isDue">
+            Next assessment in {{ assessmentItems[0].daysLeft }} day{{ assessmentItems[0].daysLeft === 1 ? '' : 's' }}.
+          </p>
+          <p class="text-sm text-gray-600 mt-1" *ngIf="assessmentItems[0].isDue">
+            Your assessment is due now.
+          </p>
+          <p class="text-xs text-gray-500 mt-1">Next due date: {{ assessmentItems[0].dueDateLabel }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a
+            *ngIf="assessmentItems[0].isDue"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 transition"
+            [routerLink]="['/patient/assessment']"
+            [queryParams]="{ assessmentId: assessmentItems[0].id }"
+          >
+            Take Assessment
+          </a>
+          <span
+            *ngIf="!assessmentItems[0].isDue"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-50 text-primary-700 font-semibold border border-primary-200"
+          >
+            Not due yet
+          </span>
+        </div>
       </div>
     </div>
   </div>

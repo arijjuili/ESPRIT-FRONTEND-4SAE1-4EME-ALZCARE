@@ -205,6 +205,8 @@ export interface HealthRecord {
   languageScore?: number;
   neurospatialScore?: number;
   executiveScore?: number;
+  reviewedScore?: number;
+  reviewedAnswers?: Record<string, boolean>;
 }
 
 // Health Record Create Request

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { HealthRecord, RecordType } from '../../../core/models/api.model';
@@ -33,21 +33,25 @@ export class PatientAssessmentComponent implements OnInit {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
+    private route: ActivatedRoute,
     private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.loadAssessment();
+    this.route.queryParamMap.subscribe((params) => {
+      const assessmentId = params.get('assessmentId');
+      this.loadAssessment(assessmentId);
+    });
   }
 
-  loadAssessment(): void {
+  loadAssessment(assessmentId?: string | null): void {
     const patientId = this.authService.getCurrentUser()?.id;
     if (!patientId) return;
 
     this.isLoading = true;
     this.apiService.getHealthRecords(patientId, undefined, RecordType.ASSESSMENT).subscribe({
       next: (records) => {
-        this.assessmentRecord = this.pickScheduleRecord(records);
+        this.assessmentRecord = this.pickScheduleRecord(records, assessmentId || undefined);
         this.questions = this.mapQuestions(this.assessmentRecord?.assessmentQuestions);
         this.isLoading = false;
       },
@@ -112,9 +116,24 @@ export class PatientAssessmentComponent implements OnInit {
       })[0];
   }
 
-  private pickScheduleRecord(records: HealthRecord[]): HealthRecord | null {
-    const active = records.filter(record => record.isActive);
-    return this.pickLatestRecord(active.length ? active : records);
+  private pickScheduleRecord(records: HealthRecord[], preferredId?: string): HealthRecord | null {
+    const schedulable = records.filter(record =>
+      record.isActive === true || (!!record.nextDueDate && record.frequencyMonths !== null && record.frequencyMonths !== undefined)
+    );
+    if (preferredId) {
+      const preferred = records.find(record => record.id === preferredId);
+      if (preferred) return preferred;
+    }
+    if (schedulable.length) {
+      return schedulable
+        .slice()
+        .sort((a, b) => {
+          const aDue = a.nextDueDate || a.date;
+          const bDue = b.nextDueDate || b.date;
+          return new Date(aDue).getTime() - new Date(bDue).getTime();
+        })[0];
+    }
+    return this.pickLatestRecord(records);
   }
 
   private mapQuestions(questions?: string[]): MmseQuestion[] {

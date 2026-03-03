@@ -11,6 +11,14 @@ import { RoleTheme } from '../../../shared/components/navbar.component';
 import { HealthMetric } from '../../../core/models/user.model';
 import { HealthRecord, HealthRecordCreateRequest, RecordType } from '../../../core/models/api.model';
 
+interface AssessmentStatusItem {
+  id: string;
+  dueDate: Date;
+  dueDateLabel: string;
+  isDue: boolean;
+  daysLeft: number;
+}
+
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
@@ -51,9 +59,7 @@ export class PatientDashboardComponent implements OnInit {
     appetite: null
   };
 
-  assessmentDue = false;
-  assessmentDaysLeft: number | null = null;
-  assessmentRecordId: string | null = null;
+  assessmentItems: AssessmentStatusItem[] = [];
   isLoadingAssessment = false;
 
   assessmentSubmittedMessage = '';
@@ -230,24 +236,34 @@ export class PatientDashboardComponent implements OnInit {
     this.isLoadingAssessment = true;
     this.apiService.getHealthRecords(patientId, undefined, RecordType.ASSESSMENT).subscribe({
       next: (records) => {
-        const schedules = records.filter(record => record.isActive);
-        const latest = this.getLatestRecord(schedules.length ? schedules : records);
-        if (!latest) {
-          this.assessmentDue = false;
-          this.assessmentDaysLeft = null;
-          this.assessmentRecordId = null;
+        const schedules = records.filter(record =>
+          record.isActive === true || (!!record.nextDueDate && record.frequencyMonths !== null && record.frequencyMonths !== undefined)
+        );
+        if (!schedules.length) {
+          this.assessmentItems = [];
         } else {
           const todayStart = this.startOfDay(new Date());
-          const dueDate = this.parseDateOnly(latest.nextDueDate || latest.date);
-          const diffMs = dueDate.getTime() - todayStart.getTime();
-          const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-          this.assessmentDue = diffMs <= 0;
-          this.assessmentDaysLeft = this.assessmentDue ? 0 : daysLeft;
-          this.assessmentRecordId = latest.id;
+          const items = schedules
+            .map((record) => {
+              const dueDate = this.parseDateOnly(record.nextDueDate || record.date);
+              const diffMs = dueDate.getTime() - todayStart.getTime();
+              const daysLeft = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+              return {
+                id: record.id,
+                dueDate,
+                dueDateLabel: record.nextDueDate || record.date,
+                isDue: diffMs <= 0,
+                daysLeft
+              } as AssessmentStatusItem;
+            })
+            .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+          this.assessmentItems = items;
         }
         this.isLoadingAssessment = false;
       },
       error: () => {
+        this.assessmentItems = [];
         this.isLoadingAssessment = false;
       }
     });
