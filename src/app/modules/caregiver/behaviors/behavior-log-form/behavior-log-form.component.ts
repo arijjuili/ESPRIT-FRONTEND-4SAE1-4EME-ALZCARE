@@ -3,9 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SafetyAlertService } from '../../../../core/services/safety-alert.service';
 import { PatientService, PatientProfileResponse } from '../../../../core/services/patient.service';
+import { CareTeamService } from '../../../../core/services/care-team.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ImageUploadComponent } from '../../../../shared/components/image-upload/image-upload.component';
+import { BehaviorLogResponse, UpdateBehaviorLogRequest } from '../../../../core/models/safety-alert.model';
+import { AssignmentStatus } from '../../../../core/models/care-team.model';
+import { map, switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-behavior-log-form',
@@ -16,8 +21,11 @@ import { ImageUploadComponent } from '../../../../shared/components/image-upload
 })
 export class BehaviorLogFormComponent implements OnInit {
   @Input() patientId = '';
+  @Input() editMode = false;
+  @Input() logToEdit: BehaviorLogResponse | null = null;
   @Output() formSubmit = new EventEmitter<void>();
   @Output() cancel = new EventEmitter<void>();
+  @Output() editComplete = new EventEmitter<void>();
   
   behaviorForm: FormGroup;
   isSubmitting = false;
@@ -52,6 +60,7 @@ export class BehaviorLogFormComponent implements OnInit {
     private fb: FormBuilder, 
     private safetyService: SafetyAlertService,
     private patientService: PatientService,
+    private careTeamService: CareTeamService,
     private toastService: ToastService,
     private authService: AuthService
   ) {
@@ -69,30 +78,113 @@ export class BehaviorLogFormComponent implements OnInit {
   
   ngOnInit(): void {
     this.loadPatients();
-    // Set patientId if provided via input
-    if (this.patientId) {
+    
+    if (this.editMode && this.logToEdit) {
+      // Pre-fill form for editing
+      this.populateFormForEdit(this.logToEdit);
+    } else if (this.patientId) {
+      // Set patientId if provided via input (for new log)
       this.behaviorForm.patchValue({ patientId: this.patientId });
     }
   }
   
   /**
-   * Load patients from the identity-service
+   * Populate form with existing log data for editing
+   */
+  private populateFormForEdit(log: BehaviorLogResponse): void {
+    // Convert severity enum to number (ONE->1, TWO->2, etc.)
+    const severityMap: Record<string, number> = {
+      'ONE': 1, 'TWO': 2, 'THREE': 3, 'FOUR': 4, 'FIVE': 5
+    };
+    const severityNumber = severityMap[log.severity] || 3;
+    
+    this.behaviorForm.patchValue({
+      patientId: log.patientId,
+      type: log.type,
+      severity: severityNumber,
+      location: log.location || '',
+      description: log.description || '',
+      triggers: log.triggers || '',
+      witnesses: log.witnesses || '',
+      imageUrls: log.imageUrls || []
+    });
+    
+    // Set uploaded images for the image upload component
+    this.uploadedImageUrls = log.imageUrls || [];
+    
+    // Disable patient selection in edit mode (can't change patient)
+    this.behaviorForm.get('patientId')?.disable();
+  }
+
+  /**
+   * Get form title based on mode
+   */
+  getFormTitle(): string {
+    return this.editMode ? 'Edit Behavior Log' : 'Log Behavior Incident';
+  }
+
+  /**
+   * Get form subtitle based on mode
+   */
+  getFormSubtitle(): string {
+    return this.editMode 
+      ? 'Update the behavior log details' 
+      : 'Document patient behavior for safety tracking';
+  }
+
+  /**
+   * Get submit button text based on mode
+   */
+  getSubmitButtonText(): string {
+    if (this.isSubmitting) {
+      return this.editMode ? 'Updating...' : 'Submitting...';
+    }
+    return this.editMode ? 'Update Log' : 'Submit Log';
+  }
+  
+  /**
+   * Load assigned patients for the current caregiver
    */
   loadPatients(): void {
     this.isLoadingPatients = true;
     this.patientLoadError = null;
     
-    this.patientService.getPatients().subscribe({
-      next: (patients) => {
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      this.isLoadingPatients = false;
+      this.patientLoadError = 'User not authenticated';
+      return;
+    }
+    
+    // Get caregiver assignments first, then fetch assigned patients
+    this.careTeamService.getCaregiverAssignments(currentUser.id)
+      .pipe(
+        switchMap(assignments => {
+          // Filter only ACTIVE assignments
+          const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
+          
+          // Get unique patient IDs from assignments
+          const patientIds = [...new Set(activeAssignments.map(a => a.patientId))];
+          
+          if (patientIds.length === 0) {
+            return of([]);
+          }
+          
+          // Fetch all patients and filter by assigned patient IDs
+          return this.patientService.getPatients().pipe(
+            map(allPatients => allPatients.filter(p => patientIds.includes(p.userId || p.id)))
+          );
+        }),
+        catchError(error => {
+          console.error('Failed to load assigned patients:', error);
+          this.patientLoadError = 'Failed to load your assigned patients. Please try again.';
+          return of([]);
+        })
+      )
+      .subscribe(patients => {
         this.patients = patients;
         this.isLoadingPatients = false;
-      },
-      error: (err) => {
-        this.isLoadingPatients = false;
-        this.patientLoadError = 'Failed to load patients. Please try again.';
-        console.error('Error loading patients:', err);
-      }
-    });
+      });
   }
   
   /**
@@ -146,37 +238,72 @@ export class BehaviorLogFormComponent implements OnInit {
   onSubmit(): void {
     if (this.behaviorForm.valid) {
       this.isSubmitting = true;
-      const formValue = this.behaviorForm.value;
       
-      // Get current user ID for reportedBy
-      const currentUser = this.authService.getCurrentUser();
-      const reportedBy = currentUser?.id || '';
+      // Get raw value (includes disabled fields like patientId in edit mode)
+      const formValue = this.behaviorForm.getRawValue();
       
-      const request = {
-        ...formValue,
-        reportedBy,
-        imageUrls: this.uploadedImageUrls
-      };
-      
-      this.safetyService.createManualBehaviorLog(request).subscribe({
-        next: () => {
-          this.isSubmitting = false;
-          this.behaviorForm.reset({ severity: 3 });
-          this.toastService.success('Behavior log created successfully!');
-          this.formSubmit.emit();
-        },
-        error: (err) => {
-          this.isSubmitting = false;
-          const errorMessage = err.error?.detail || err.error?.message || 'Failed to save behavior log. Please try again.';
-          this.toastService.error(errorMessage);
-        }
-      });
+      if (this.editMode && this.logToEdit) {
+        // Update existing log
+        const request: UpdateBehaviorLogRequest = {
+          type: formValue.type,
+          severity: formValue.severity,
+          location: formValue.location,
+          description: formValue.description,
+          triggers: formValue.triggers,
+          witnesses: formValue.witnesses,
+          imageUrls: this.uploadedImageUrls
+        };
+        
+        this.safetyService.updateBehaviorLog(this.logToEdit.id, request).subscribe({
+          next: () => {
+            this.isSubmitting = false;
+            this.toastService.success('Behavior log updated successfully!');
+            this.editComplete.emit();
+          },
+          error: (err) => {
+            this.isSubmitting = false;
+            const errorMessage = err.error?.detail || err.error?.message || 'Failed to update behavior log. Please try again.';
+            this.toastService.error(errorMessage);
+          }
+        });
+      } else {
+        // Create new log (existing code)
+        const currentUser = this.authService.getCurrentUser();
+        const reportedBy = currentUser?.id || '';
+        
+        const request = {
+          ...formValue,
+          reportedBy,
+          imageUrls: this.uploadedImageUrls
+        };
+        
+        this.safetyService.createManualBehaviorLog(request).subscribe({
+          next: () => {
+            this.isSubmitting = false;
+            this.behaviorForm.reset({ severity: 3 });
+            this.uploadedImageUrls = [];
+            this.toastService.success('Behavior log created successfully!');
+            this.formSubmit.emit();
+          },
+          error: (err) => {
+            this.isSubmitting = false;
+            const errorMessage = err.error?.detail || err.error?.message || 'Failed to save behavior log. Please try again.';
+            this.toastService.error(errorMessage);
+          }
+        });
+      }
     }
   }
   
   onCancel(): void {
-    this.behaviorForm.reset({ severity: 3 });
-    this.uploadedImageUrls = [];
-    this.cancel.emit();
+    if (this.editMode) {
+      // In edit mode, just emit cancel without resetting
+      this.cancel.emit();
+    } else {
+      // In create mode, reset the form
+      this.behaviorForm.reset({ severity: 3 });
+      this.uploadedImageUrls = [];
+      this.cancel.emit();
+    }
   }
 }

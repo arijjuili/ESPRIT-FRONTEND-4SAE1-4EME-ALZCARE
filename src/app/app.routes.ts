@@ -46,6 +46,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/community/patient-community.component').then(m => m.PatientCommunityComponent)
       },
       {
+        path: 'community/post/:id',
+        loadComponent: () => import('./modules/patient/community/post-detail/post-detail.component').then(m => m.PostDetailComponent)
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./modules/patient/profile/patient-profile.component').then(m => m.PatientProfileComponent)
       }
@@ -72,6 +76,18 @@ export const routes: Routes = [
       {
         path: 'behaviors/:patientId',
         loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
+      },
+      {
+        path: 'tasks',
+        loadComponent: () => import('./modules/caregiver/tasks/caregiver-tasks.component').then(m => m.CaregiverTasksComponent)
+      },
+      {
+        path: 'handovers',
+        loadComponent: () => import('./modules/caregiver/handovers/caregiver-handover.component').then(m => m.CaregiverHandoverComponent)
+      },
+      {
+        path: 'patients',
+        loadComponent: () => import('./modules/caregiver/patients/caregiver-patients.component').then(m => m.CaregiverPatientsComponent)
       }
     ]
   },
@@ -88,6 +104,14 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/doctor/dashboard/doctor-dashboard.component').then(m => m.DoctorDashboardComponent)
+      },
+      {
+        path: 'patients/:patientId',
+        loadComponent: () => import('./modules/doctor/patient-detail/doctor-patient-detail.component').then(m => m.DoctorPatientDetailComponent)
+      },
+      {
+        path: 'checklist',
+        loadComponent: () => import('./modules/doctor/checklist/doctor-checklist.component').then(m => m.DoctorChecklistComponent)
       }
     ]
   },
@@ -126,6 +150,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/admin/users/admin-users.component').then(m => m.AdminUsersComponent)
       },
       {
+        path: 'care-teams',
+        loadComponent: () => import('./modules/admin/care-teams/admin-care-teams.component').then(m => m.AdminCareTeamsComponent)
+      },
+      {
         path: 'analytics',
         loadComponent: () => import('./modules/admin/analytics/admin-analytics.component').then(m => m.AdminAnalyticsComponent)
       },
@@ -144,8 +172,18 @@ export const routes: Routes = [
       {
         path: 'schedules/edit/:id',
         loadComponent: () => import('./modules/admin/schedules/schedule-form/schedule-form.component').then(m => m.ScheduleFormComponent)
+      },
+      {
+        path: 'medical/cameras',
+        loadComponent: () => import('./modules/admin/camera-devices/admin-camera-devices.component')
+          .then(m => m.AdminCameraDevicesComponent)
       }
     ]
+  },
+  {
+    path: 'dashboard',
+    canActivate: [AuthGuard],
+    loadComponent: () => import('./core/components/dashboard-redirect.component').then(m => m.DashboardRedirectComponent)
   },
   {
     path: 'notifications',

@@ -9,7 +9,7 @@ A comprehensive care management platform designed to support patients with Alzhe
 - **Medications**: Organized prescription management and schedules
 - **Daily Activities**: Task tracking and activity logs
 - **Brain Games**: Cognitive exercises for mental stimulation
-- **Community**: Connect with other patients for support
+- **Community Forum**: Discussion platform with post creation, comments, likes, and categories (Advice, Support, Resources, Success Stories, Questions)
 - **Profile**: Personal health information management
 
 ### Caregiver Dashboard
@@ -39,10 +39,12 @@ A comprehensive care management platform designed to support patients with Alzhe
 ### Shared Features
 - **Notification System**: Real-time notifications with polling
   - Notification bell in navbar
-  - Notification list page
+  - Notification list page (sorted latest → oldest)
   - Toast notifications
+  - "Return to Dashboard" button on notification page
 - **Safety Alerts**: Safety alert management system
 - **Landing Page**: Public landing page for the application
+- **Dashboard Redirect**: Unified `/dashboard` route that redirects to role-appropriate dashboard
 
 ## 🛠️ Tech Stack
 
@@ -61,6 +63,7 @@ A comprehensive care management platform designed to support patients with Alzhe
 | Identity Service | 8001 | ✅ Active |
 | Safety Alert Engine | 8003 | ✅ Active |
 | Notification Service | 8004 | ✅ Active |
+| Community Social | 8009 | ✅ Active |
 
 ## 📦 Project Structure
 
@@ -129,6 +132,21 @@ Authentication is handled via Keycloak OAuth2 with silent token refresh for seam
 
 ## 📝 Latest Updates
 
+### Session 27: 2026-03-02 (Community/Forum Integration)
+- ✅ **Complete Community/Forum System** - Full social platform for patient engagement
+  - Discussion threads with categories (Advice, Support, Resources, Success Stories, Questions)
+  - Post creation with rich text content
+  - Comment system with threaded replies
+  - Like/unlike functionality with real-time counts
+  - Post detail view with full comment thread
+  - Author badges ("You" indicator for own posts/comments)
+  - Category filtering and navigation
+  - Community guidelines and related categories sidebar
+  - Integration with community-social backend service (port 8009)
+  - Responsive design with loading states and error handling
+  - Form validation for posts and comments
+  - Pagination support for post lists
+
 ### Session 23: 2026-02-22
 - ✅ **Cloudinary Image Upload** - Direct image uploads for behavior logging
   - Drag & drop file upload
@@ -170,6 +188,7 @@ Authentication is handled via Keycloak OAuth2 with silent token refresh for seam
 - ✅ Fixed desktop layout issues (sidebar overlay)
 
 ### Recent Additions
+- ✅ Community/Forum system with full CRUD for posts and comments
 - ✅ Notification system with real-time polling
 - ✅ Safety alert management
 - ✅ Schedule management (Admin)

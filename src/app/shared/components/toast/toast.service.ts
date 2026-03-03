@@ -16,6 +16,9 @@ export interface Toast {
 export class ToastService {
   private toastsSubject = new BehaviorSubject<Toast[]>([]);
   toasts$ = this.toastsSubject.asObservable();
+  
+  // Track active timers to prevent duplicates
+  private activeTimers = new Map<string, any>();
 
   private generateId(): string {
     return `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -27,6 +30,15 @@ export class ToastService {
     title?: string,
     duration = 5000
   ): void {
+    // Prevent duplicate toasts with same message (within last 2 seconds)
+    const now = Date.now();
+    const recentDuplicate = this.toastsSubject.value.find(
+      t => t.message === message && t.type === type && (now - parseInt(t.id.split('-')[1])) < 2000
+    );
+    if (recentDuplicate) {
+      return; // Skip duplicate
+    }
+
     const toast: Toast = {
       id: this.generateId(),
       message,
@@ -37,7 +49,9 @@ export class ToastService {
     };
 
     const currentToasts = this.toastsSubject.value;
-    this.toastsSubject.next([...currentToasts, toast]);
+    // Limit to max 5 toasts, remove oldest if needed
+    const newToasts = [...currentToasts, toast].slice(-5);
+    this.toastsSubject.next(newToasts);
 
     // Emergency alerts don't auto-dismiss
     if (type !== 'emergency' && duration > 0) {
@@ -66,16 +80,29 @@ export class ToastService {
   }
 
   remove(id: string): void {
+    // Clear any active timer for this toast
+    if (this.activeTimers.has(id)) {
+      clearTimeout(this.activeTimers.get(id));
+      this.activeTimers.delete(id);
+    }
+    
     const currentToasts = this.toastsSubject.value;
     this.toastsSubject.next(currentToasts.filter((t) => t.id !== id));
   }
 
   private startProgressTimer(id: string, duration: number): void {
-    const startTime = Date.now();
-    const interval = 50; // Update every 50ms for smooth animation
+    // Clear any existing timer for this ID
+    if (this.activeTimers.has(id)) {
+      clearTimeout(this.activeTimers.get(id));
+    }
 
-    const timer = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+    // Use requestAnimationFrame for smooth progress updates
+    let startTime: number | null = null;
+    let animationFrameId: number;
+
+    const updateProgress = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
       const remaining = Math.max(0, duration - elapsed);
       const progress = (remaining / duration) * 100;
 
@@ -83,21 +110,39 @@ export class ToastService {
       const toastIndex = currentToasts.findIndex((t) => t.id === id);
 
       if (toastIndex === -1) {
-        clearInterval(timer);
+        // Toast was removed, cancel animation
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+        this.activeTimers.delete(id);
         return;
       }
 
       if (remaining <= 0) {
-        clearInterval(timer);
+        // Time's up, remove the toast
+        this.activeTimers.delete(id);
         this.remove(id);
       } else {
+        // Update progress
         const updatedToasts = [...currentToasts];
         updatedToasts[toastIndex] = {
           ...updatedToasts[toastIndex],
           progress,
         };
         this.toastsSubject.next(updatedToasts);
+        
+        // Schedule next update (throttle to ~30fps for performance)
+        const timer = setTimeout(() => {
+          animationFrameId = requestAnimationFrame(updateProgress);
+        }, 33);
+        this.activeTimers.set(id, timer);
       }
-    }, interval);
+    };
+
+    // Start the animation loop
+    const initialTimer = setTimeout(() => {
+      animationFrameId = requestAnimationFrame(updateProgress);
+    }, 33);
+    this.activeTimers.set(id, initialTimer);
   }
 }

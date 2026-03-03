@@ -1,5 +1,280 @@
 # Changelog - CareHub
 
+## Session 28 (2026-03-03) - Camera Management & Behavior Validation
+
+### Feature: Admin Camera Device Management
+**Purpose:** Allow administrators to pair ESP32 cameras to patients for automated behavior monitoring.
+
+**Features Implemented:**
+- ✅ **Camera Pairing** - Pair cameras to patients via MAC address
+- ✅ **Zone Configuration** - Assign zones (BEDROOM, HALLWAY, BATHROOM, FRONT_DOOR, KITCHEN, LIVING_ROOM)
+- ✅ **Status Management** - Toggle camera status (ACTIVE, PAUSED, OFFLINE)
+- ✅ **Camera List** - View all cameras for a patient with details
+- ✅ **Unpair Cameras** - Remove camera associations with confirmation
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `camera-device.model.ts` | CameraDevice and CameraDeviceRequest interfaces |
+| `camera-device.service.ts` | API service for camera CRUD operations |
+| `admin-camera-devices.component.ts` | Main component with patient selector |
+| `admin-camera-devices.component.html` | UI with camera cards and modals |
+
+**Route:** `/admin/medical/cameras`
+
+---
+
+### Feature: Caregiver Behavior Validation Workflow
+**Purpose:** Allow caregivers to validate or mark as false alarm the auto-detected behaviors from cameras.
+
+**Features Implemented:**
+- ✅ **Pending Validation Badge** - Yellow animated badge for auto-detected behaviors
+- ✅ **Validation Modal** - Modal dialog for entering validation notes
+- ✅ **Confirm Action** - Validate behavior as real incident with notes
+- ✅ **False Alarm Action** - Mark behavior as false positive with explanation
+- ✅ **Status Badges** - ✅ Confirmed / ❌ False Alarm badges after validation
+- ✅ **Quick Actions** - Validation buttons in both list and detail views
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `behaviors-page.component.ts` | Added `canValidate()`, `confirmBehavior()`, `markAsFalseAlarm()`, `submitValidation()` methods |
+| `behaviors-page.component.html` | Added validation modal, badges, action buttons |
+| `safety-alert.model.ts` | Updated `ValidateBehaviorRequest` interface |
+
+**API Integration:**
+- `PUT /api/behavior-logs/{id}/validate` - Submit validation with notes
+
+---
+
+## Session 27 (2026-02-28) - Caregiver Patient Access Control
+
+### Security Fix: Restrict Caregiver Access to Assigned Patients Only
+**Problem:** Caregivers could see all patients in the system and select any patient when logging behaviors. This was a security issue as caregivers should only access patients they are explicitly assigned to.
+
+**Solution:** Modified the caregiver dashboard and behavior log form to only show patients that the caregiver is assigned to via the Care Team Service.
+
+**Changes Made:**
+
+**1. PatientService (`patient.service.ts`)**
+- Added `getPatientsByIds()` helper method for filtering patients by IDs
+
+**2. Caregiver Dashboard (`caregiver-dashboard.component.ts`)**
+- Modified `loadRealPatients()` to fetch caregiver assignments first
+- Filters patient list to only include assigned patients (ACTIVE assignments only)
+- Updated `loadCaregiverAssignments()` to avoid duplicate API calls
+
+**3. Behavior Log Form (`behavior-log-form.component.ts`)**
+- Added `CareTeamService` dependency
+- Modified `loadPatients()` to only load assigned patients
+- Added authentication check and proper error handling
+
+**Security Benefits:**
+- **Before:** Caregivers could see all patients and select any patient in behavior forms
+- **After:** Caregivers only see and can select patients they are explicitly assigned to
+
+**API Flow:**
+1. Get caregiver assignments: `GET /api/v1/care-team/caregivers/{caregiverId}/assignments`
+2. Extract patient IDs from ACTIVE assignments
+3. Fetch all patients: `GET /api/v1/patients`
+4. Filter to only include assigned patients
+
+---
+
+## Session 26 (2026-02-28) - Timeline View for Behaviors
+
+### Feature: Timeline View for Behavior Tracking
+**Problem:** The behavior tracking page only had a table view, which made it difficult to visualize the chronological progression of incidents and understand patterns over time.
+
+**Solution:** Added a timeline view option alongside the existing table view, providing a visual, chronological display of behavior incidents grouped by date.
+
+**Features Implemented:**
+- ✅ **View Toggle** - Switch between Table and Timeline views with a toggle button
+- ✅ **Date Grouping** - Behaviors grouped by date with smart labels (Today, Yesterday, or full date)
+- ✅ **Visual Timeline** - Vertical timeline with color-coded severity dots and connector lines
+- ✅ **Chronological Order** - Behaviors sorted from newest to oldest within each day
+- ✅ **Rich Cards** - Each behavior shows: type icon, severity badge, patient name, location, source, validation status, description preview, and photo count
+- ✅ **Responsive Design** - Mobile-optimized layout with stacked elements
+- ✅ **Full Feature Parity** - Edit/delete actions, detail modal, and all filters work in both views
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `behaviors-page.component.ts` | Added `viewMode` state, `setViewMode()`, `getTimelineGroups()`, `getTimelineDotColor()`, `getTimelineConnectorColor()`, `formatTimelineTime()` methods |
+| `behaviors-page.component.html` | Added view toggle buttons, timeline container with date headers, timeline items with connectors, action buttons |
+
+**UI Components:**
+- **View Toggle** - Segmented button group with Table (📊) and Timeline (⏱️) options
+- **Date Headers** - Large date badges with incident count (e.g., "Today - 3 incidents")
+- **Timeline Items** - Cards showing behavior details with visual severity indicators
+- **Severity Dots** - Color-coded dots (green/yellow/orange/red) based on severity level
+
+**API Integration:**
+- Uses existing `filteredBehaviors` array - no additional backend calls needed
+- Respects all existing filters (patient, severity, type, date range, search)
+
+---
+
+## Session 25 (2026-02-28) - Modal Scroll & Pagination Improvements
+
+### Improvement: Modal Scrollbars & Pagination
+**Enhancements made to behaviors page and modals:**
+
+**1. Modal Scroll Improvements (`styles.css`)**
+- Added custom scrollbar styles (`.custom-scrollbar`) with thin 8px width
+- Added rounded track and thumb with hover effects
+- Added Firefox compatibility
+- Added modal animations (`animate-modal-in`, `animate-modal-backdrop-in`)
+
+**2. Modal Components (`behavior-detail-modal.component.ts`, `behaviors-page.component.html`)**
+- Fixed header and footer with scrollable content area using `flex-col` layout
+- Applied `custom-scrollbar` class for styled scrolling
+- Added animations for modal appearance
+- Improved header styling with emerald theme
+- Better rounded corners and image grid hover effects
+
+**3. Pagination Features (`behaviors-page.component.ts/.html`)**
+- **Pagination state**: `currentPage`, `pageSize` (default: 10), `pageSizeOptions` [5, 10, 25, 50, 100]
+- **Computed properties**: `paginatedBehaviors`, `totalPages`, `startIndex`, `endIndex`, `paginationInfo`
+- **Navigation methods**: `goToPage()`, `goToFirstPage()`, `goToLastPage()`, `goToPreviousPage()`, `goToNextPage()`
+- **Page size selector** in stats bar
+- **Smart page numbers** - Shows max 5 visible pages with ellipsis
+- Resets to page 1 when filters change
+
+---
+
+## Session 24 (2026-02-28) - Behavior Log Reporter Names
+
+### Feature: Display Reporter Names Instead of UUIDs
+**Problem:** Behavior logs showed `reportedBy` as raw UUIDs (e.g., `0c76bbbc-7a5b-4884-8e13-999387b3994f`) which is unreadable for caregivers viewing the logs.
+
+**Solution:** Implemented automatic name resolution for `reportedBy` and `validatedBy` fields by calling Identity Service APIs when viewing behavior details.
+
+**Architecture:**
+```
+┌─────────────────┐     Get Caregiver/Doctor     ┌─────────────────┐
+│  BehaviorsPage  │ ────────────────────────────> │  Identity       │
+│  or DetailModal │  GET /api/v1/caregivers/user  │  Service (8001) │
+│                 │  GET /api/v1/doctors/user     │                 │
+└─────────────────┘                             └─────────────────┘
+```
+
+**Implementation:**
+- Added `loadReporterName()` method to fetch names on-demand
+- Tries caregiver endpoint first, falls back to doctor endpoint
+- Caches result in component property for display
+- Shows "Loading..." while fetching, "Unknown" if not found
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | Added `reporterName` property, `loadReporterName()` method, API integration |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Updated "Reported By" to show `reporterName` instead of raw ID |
+| `shared/components/behavior-detail-modal.component.ts` | Added `reporterName`, `validatorName`, `ngOnChanges`, name loading logic |
+| `shared/components/behavior-detail-modal.component.html` | Updated "Reported By" and "Validated By" to show names |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Added `reporterNames` Map, `loadReporterNames()`, `getReporterName()` for list view |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Added "Reported By" column to desktop table and mobile cards |
+
+**Features Implemented:**
+- ✅ **Lazy Loading** - Names fetched only when modal opens (not on list load)
+- ✅ **Fallback Chain** - Caregiver → Doctor → "Unknown"
+- ✅ **Loading States** - Shows "Loading..." while fetching
+- ✅ **List View** - "Reported By" column in behavior history table
+- ✅ **Detail Modal** - Names shown in full behavior details
+- ✅ **Validator Names** - Also shows validator names (not just reporters)
+
+**API Integration:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/caregivers/user/{userId}` | GET | Fetch caregiver profile by Keycloak ID |
+| `/api/v1/doctors/user/{userId}` | GET | Fetch doctor profile by Keycloak ID |
+
+**Security:**
+- No admin token required - endpoints accessible to authenticated users
+- Uses existing JWT token from `localStorage`
+
+---
+
+## Session 24 (2026-02-28) - Behavior Log Edit/Delete Functionality
+
+### Feature: Edit and Delete Manual Behavior Logs
+**Problem:** Caregivers could not correct mistakes in behavior logs after submission. Typos in descriptions, wrong severity levels, or incorrect timestamps could not be fixed without database access.
+
+**Solution:** Implemented full edit and delete functionality for manual behavior logs with confirmation dialogs.
+
+**Architecture:**
+```
+┌─────────────────┐     Edit/Delete Request     ┌─────────────────┐
+│  BehaviorLog    │ ──────────────────────────> │  Safety Alert   │
+│  List/Form      │  PUT /api/behavior-logs/{id}│  Engine (8003)  │
+│  Components     │  DELETE /api/behavior-logs  │                 │
+└─────────────────┘                             └─────────────────┘
+```
+
+**New TypeScript Interface:**
+```typescript
+// UpdateBehaviorLogRequest - For editing existing logs
+interface UpdateBehaviorLogRequest {
+  type: BehaviorType;           // Required
+  severity: number;             // 1-5 (converted to enum for backend)
+  timestamp?: string;           // ISO datetime
+  location?: string;
+  description?: string;
+  triggers?: string;
+  witnesses?: string;
+  imageUrls?: string[];
+}
+```
+
+**Files Created:**
+None (all modifications to existing files)
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `core/models/safety-alert.model.ts` | Added `UpdateBehaviorLogRequest` interface |
+| `core/services/safety-alert.service.ts` | Added `updateBehaviorLog()` and `deleteBehaviorLog()` methods |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.ts` | Edit mode support, form pre-fill, severity enum conversion |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.html` | Dynamic titles, disabled patient selection in edit mode |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Edit/delete outputs, confirmation dialog state |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Action buttons, delete confirmation dialog |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | `canEdit()`, `canDelete()`, `openEditForm()`, `deleteBehavior()` handlers |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Actions column, edit/delete buttons, confirmation dialog |
+
+**Features Implemented:**
+- ✅ **Edit Mode** - Form pre-fills with existing log data
+- ✅ **Severity Conversion** - Enum (ONE-FIVE) ↔ Number (1-5) conversion for slider
+- ✅ **Patient Lock** - Patient cannot be changed when editing
+- ✅ **Role-Based Actions** - Only `MANUAL` source logs show edit/delete buttons
+- ✅ **Delete Confirmation** - Modal dialog showing log details before deletion
+- ✅ **Loading States** - "Deleting..." spinner during delete operation
+- ✅ **Toast Notifications** - Success/error feedback for all actions
+- ✅ **Auto-Refresh** - List refreshes after successful edit/delete
+- ✅ **Detail Modal Actions** - Edit/delete buttons in behavior detail modal
+- ✅ **Hidden Log ID** - Removed log ID from UI for cleaner appearance
+
+**API Integration:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/behavior-logs/{id}` | PUT | Update behavior log details |
+| `/api/behavior-logs/{id}` | DELETE | Permanently delete behavior log |
+
+**Security & Validation:**
+- Only logs with `source: MANUAL` can be edited or deleted
+- Auto-detected events (`source: AUTO`) are read-only
+- Backend validates edit/delete permissions
+- Confirmation dialog prevents accidental deletion
+- Form validation same as create mode
+
+**UX Considerations:**
+- Edit ✏️ and Delete 🗑️ buttons only appear on manual logs
+- Edit button opens form with pre-filled data
+- Delete shows confirmation with log type, date, and location
+- Cancel button returns to list without changes
+- Success toast confirms action completion
+
+---
+
 ## Session 23 (2026-02-22) - Cloudinary Image Upload Integration
 
 ### Feature: Direct Image Upload for Behavior Logging

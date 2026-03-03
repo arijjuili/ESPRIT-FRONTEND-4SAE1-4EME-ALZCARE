@@ -1,0 +1,64 @@
+// Caregiver Tasks Component Styles
+// Uses Tailwind CSS utility classes
+
+// Custom scrollbar for task lists
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+// Animation for task completion
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+// Loading spinner animation
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// Focus styles for accessibility
+select:focus,
+input:focus,
+button:focus {
+  outline: none;
+  ring: 2px;
+}
+
+// Smooth transitions for interactive elements
+button,
+select,
+input {
+  transition: all 0.2s ease-in-out;
+}

@@ -229,7 +229,11 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.notificationService.getUserNotifications(userId, { page: 0, size: 5 }).subscribe({
+    this.notificationService.getUserNotifications(userId, { 
+      page: 0, 
+      size: 10,
+      hours: 24
+    }).subscribe({
       next: (response) => {
         this.notifications = response.content;
         this.isLoading = false;

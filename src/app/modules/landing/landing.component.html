@@ -19,10 +19,20 @@
           <button (click)="scrollToSection('benefits')" class="text-gray-700 hover:text-primary-600 font-medium transition cursor-pointer bg-transparent border-none">Benefits</button>
         </div>
         
-        <!-- CTA Button -->
-        <a routerLink="/login" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg hover:bg-primary-700 transition font-semibold shadow-md hover:shadow-lg">
-          Login
-        </a>
+        <!-- CTA Buttons -->
+        <div *ngIf="currentUser; else loggedOut" class="flex items-center gap-3">
+          <a [routerLink]="dashboardLink" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg hover:bg-primary-700 transition font-semibold shadow-md hover:shadow-lg">
+            Dashboard
+          </a>
+          <button (click)="logout()" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-300 transition font-semibold">
+            Logout
+          </button>
+        </div>
+        <ng-template #loggedOut>
+          <a routerLink="/login" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg hover:bg-primary-700 transition font-semibold shadow-md hover:shadow-lg">
+            Login
+          </a>
+        </ng-template>
       </div>
     </div>
   </nav>
@@ -49,9 +59,14 @@
             A unified, intelligent platform connecting patients, caregivers, doctors, and administrators for compassionate, coordinated, and data-driven cognitive health outcomes.
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
-            <a routerLink="/login" class="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl text-center">
-              Get Started Free
+            <a *ngIf="currentUser; else heroLogin" [routerLink]="dashboardLink" class="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl text-center">
+              Go to Dashboard
             </a>
+            <ng-template #heroLogin>
+              <a routerLink="/login" class="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl text-center">
+                Get Started Free
+              </a>
+            </ng-template>
             <button (click)="scrollToSection('features')" class="border-2 border-white text-white px-8 py-3.5 rounded-lg font-bold hover:bg-white hover:text-primary-700 transition text-center cursor-pointer bg-transparent">
               Learn More
             </button>
@@ -370,9 +385,14 @@
         Join healthcare organizations across the region improving Alzheimer's care with CareHub.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a routerLink="/login" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl">
-          Get Started Free
+        <a *ngIf="currentUser; else ctaLogin" [routerLink]="dashboardLink" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl">
+          Go to Dashboard
         </a>
+        <ng-template #ctaLogin>
+          <a routerLink="/login" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl">
+            Get Started Free
+          </a>
+        </ng-template>
         <a href="#" class="border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white hover:text-primary-700 transition">
           Schedule Demo
         </a>

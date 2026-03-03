@@ -20,7 +20,7 @@
   pointer-events: auto;
   position: relative;
   overflow: hidden;
-  animation: slideIn 0.3s ease;
+  /* Animation handled by Angular */
 
   &.toast-success {
     background-color: #ecfdf5;
@@ -127,17 +127,6 @@
   background-color: currentColor;
   opacity: 0.3;
   transition: width 0.1s linear;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
 }
 
 @keyframes pulse {

@@ -56,7 +56,9 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         <div *ngFor="let module of medicalModules" 
-             class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300">
+             class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
+             [routerLink]="module.route"
+             [class.pointer-events-none]="!module.route">
           <div class="p-6 bg-gradient-to-r" [ngClass]="getModuleColor(module.id)">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
@@ -83,9 +85,12 @@
                   {{ module.status | titlecase }}
                 </span>
               </div>
-              <button class="text-violet-600 hover:text-violet-700 font-medium text-sm">
+              <span *ngIf="module.route" class="text-violet-600 hover:text-violet-700 font-medium text-sm">
                 Manage →
-              </button>
+              </span>
+              <span *ngIf="!module.route" class="text-gray-400 font-medium text-sm">
+                Coming Soon
+              </span>
             </div>
             <p class="text-xs text-gray-400 mt-4">Last updated: {{ module.lastUpdated }}</p>
           </div>

@@ -12,16 +12,25 @@ import { ImageUploadComponent } from './image-upload/image-upload.component';
   standalone: true,
   imports: [CommonModule, FormsModule, ImageUploadComponent],
   template: `
-    <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto" (click)="onBackdropClick($event)">
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg my-8 relative" (click)="$event.stopPropagation()" style="max-height: calc(100vh - 4rem); overflow-y: auto;">
-        <!-- Header -->
-        <div class="bg-emerald-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
-          <h2 class="text-xl font-bold text-white">📝 Log Patient Behavior</h2>
-          <button (click)="onClose()" class="text-white hover:text-emerald-100 text-2xl leading-none">&times;</button>
-        </div>
+    <!-- Modal Backdrop -->
+    <div class="fixed inset-0 z-[100] animate-modal-backdrop-in" (click)="onBackdropClick($event)">
+      <!-- Backdrop Layer -->
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+      
+      <!-- Modal Container -->
+      <div class="relative z-10 flex items-start justify-center min-h-screen p-4 sm:p-6">
+        <!-- Modal Content -->
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg my-auto animate-modal-in flex flex-col max-h-[calc(100vh-2rem)]" 
+             (click)="$event.stopPropagation()">
+          
+          <!-- Header - Fixed -->
+          <div class="bg-emerald-600 px-6 py-4 rounded-t-2xl flex justify-between items-center flex-shrink-0">
+            <h2 class="text-xl font-bold text-white">📝 Log Patient Behavior</h2>
+            <button (click)="onClose()" class="text-white/80 hover:text-white hover:bg-white/20 w-8 h-8 rounded-lg flex items-center justify-center transition text-2xl leading-none">&times;</button>
+          </div>
 
-        <!-- Form -->
-        <form (ngSubmit)="onSubmit()" class="p-6 space-y-4">
+          <!-- Form - Scrollable -->
+          <form (ngSubmit)="onSubmit()" class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1">
           <!-- Patient Selection -->
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Patient *</label>
@@ -31,7 +40,7 @@ import { ImageUploadComponent } from './image-upload/image-upload.component';
               required
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition">
               <option value="" disabled>Select a patient</option>
-              <option *ngFor="let patient of patients" [value]="patient.id">{{ patient.firstName }} {{ patient.lastName }}</option>
+              <option *ngFor="let patient of patients" [value]="patient.userId">{{ patient.firstName }} {{ patient.lastName }}</option>
             </select>
           </div>
 

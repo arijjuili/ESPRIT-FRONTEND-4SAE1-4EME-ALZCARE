@@ -117,7 +117,7 @@ src/app/
 | Cognitive Memory | 8005 | 🔴 Not Implemented |
 | Daily Care | 8006 | 🔴 Not Implemented |
 | Medical Management | 8007 | 🔴 Not Implemented |
-| Care Team | 8008 | 🔴 Not Implemented |
+| Care Team | 8008 | ✅ Implemented (Assignments, Checklists, Handovers) |
 | Community Social | 8009 | 🔴 Not Implemented |
 
 ### Key Endpoints
@@ -130,11 +130,41 @@ src/app/
 | `/api/safety/alerts/*` | ALL | Alert management |
 | `/api/v1/notifications/*` | ALL | Notifications |
 | `/api/v1/schedules/*` | ALL | Notification schedules (admin) |
+| `/api/v1/care-team/caregivers/*` | ALL | Caregiver assignments |
+| `/api/v1/care-team/doctors/*` | ALL | Doctor assignments |
+| `/api/v1/care-team/checklists/*` | ALL | Checklist management |
 | `/realms/alzcare/protocol/openid-connect/token` | POST | Login |
 
 ---
 
 ## ✅ Recently Implemented (See CHANGELOG.md for details)
+
+### Session 27 (2026-02-28) - Caregiver Patient Access Control
+- **Security Fix** - Caregivers can now only see patients they are assigned to
+- **Care Team Integration** - Uses `/api/v1/care-team/caregivers/{id}/assignments` to filter patients
+- **Dashboard Update** - Only assigned patients appear in caregiver dashboard
+- **Behavior Form Update** - Only assigned patients can be selected when logging behaviors
+
+### Session 26 (2026-02-28) - Timeline View for Behaviors
+- **Timeline View** - Visual chronological display of behavior incidents
+- **View Toggle** - Switch between Table and Timeline views
+- **Date Grouping** - Smart labels (Today, Yesterday, or date)
+- **Visual Design** - Color-coded severity dots, connector lines
+- **Responsive** - Mobile-optimized timeline cards
+
+### Session 25 (2026-02-28) - Behavior Log Reporter Names + Pagination + Modal Improvements
+- **Reporter Name Resolution** - UUIDs converted to readable names (Caregiver/Doctor)
+- **Identity Service Integration** - Calls `/api/v1/caregivers/user/{id}` and `/api/v1/doctors/user/{id}`
+- **Lazy Loading** - Names fetched on-demand when viewing details
+- **List & Detail Views** - Both behavior table and modal show names
+- **Pagination** - Page size selector, smart page numbers, navigation controls
+- **Modal Scroll** - Custom scrollbar styling, animations, fixed headers
+
+### Session 24 (2026-02-28) - Behavior Log Edit/Delete
+- **Edit Functionality** - Modify existing behavior logs with pre-filled form
+- **Delete with Confirmation** - Modal confirmation before permanent deletion
+- **Role-Based Actions** - Only MANUAL logs can be edited/deleted
+- **Auto-Refresh** - List updates after successful edit/delete
 
 ### Session 23 (2026-02-22) - Cloudinary Image Upload for Behavior Logging
 - **Image Upload Component** - Reusable drag-drop upload with camera/gallery support
@@ -212,5 +242,5 @@ src/app/
 
 ---
 
-*Last Updated: 2026-02-22 (Session 23: Cloudinary image upload, lightbox gallery, quick access behavior log fix)*
-*Document Version: 3.0*
+*Last Updated: 2026-02-28 (Session 26: Timeline view for behavior tracking)*
+*Document Version: 3.1*

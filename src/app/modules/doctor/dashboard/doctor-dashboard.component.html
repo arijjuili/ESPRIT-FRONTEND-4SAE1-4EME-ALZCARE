@@ -22,8 +22,8 @@
   <!-- Stats Grid -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <app-stat-card
-      label="Total Patients"
-      value="2"
+      label="My Patients"
+      [value]="patientCount.toString()"
       icon="👥"
       color="primary">
     </app-stat-card>
@@ -53,9 +53,90 @@
   <!-- Main Content Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Patient Roster -->
-    <div class="lg:col-span-2">
-      <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Your Patients</h2>
+    <div class="lg:col-span-2 space-y-8">
+      <!-- My Assigned Patients Section -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-gray-800">My Patients</h2>
+          <a 
+            routerLink="/doctor/checklist" 
+            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition font-semibold text-sm">
+            + Create Task
+          </a>
+        </div>
+        
+        <!-- Loading State -->
+        <div *ngIf="loadingPatients" class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <p class="text-gray-500 mt-2">Loading your patients...</p>
+        </div>
+        
+        <!-- Patients Table -->
+        <div *ngIf="!loadingPatients && doctorAssignments.length > 0" class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-3 px-4 font-semibold text-gray-700">Patient Name</th>
+                <th class="text-left py-3 px-4 font-semibold text-gray-700">Patient ID</th>
+                <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                <th class="text-left py-3 px-4 font-semibold text-gray-700">Assigned Date</th>
+                <th class="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                *ngFor="let assignment of doctorAssignments" 
+                class="border-b border-gray-100 hover:bg-blue-50 transition">
+                <td class="py-4 px-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                      {{ getPatientFullName(assignment).charAt(0) }}
+                    </div>
+                    <span class="font-medium text-gray-800">{{ getPatientFullName(assignment) }}</span>
+                  </div>
+                </td>
+                <td class="py-4 px-4 text-gray-600">#{{ assignment.patientId }}</td>
+                <td class="py-4 px-4">
+                  <span 
+                    class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="getStatusClass(assignment.status)">
+                    {{ assignment.status }}
+                  </span>
+                </td>
+                <td class="py-4 px-4 text-gray-600">
+                  {{ assignment.assignedAt | date: 'MMM d, y' }}
+                </td>
+                <td class="py-4 px-4">
+                  <div class="flex justify-end gap-2">
+                    <a 
+                      [routerLink]="['/doctor/patients', assignment.patientId]"
+                      class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium transition">
+                      View Details
+                    </a>
+                    <a 
+                      [routerLink]="['/doctor/checklist']"
+                      [queryParams]="{ patientId: assignment.patientId }"
+                      class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium transition">
+                      Create Task
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Empty State -->
+        <div *ngIf="!loadingPatients && doctorAssignments.length === 0" class="text-center py-12">
+          <div class="text-6xl mb-4">👨‍⚕️</div>
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">No Patients Assigned</h3>
+          <p class="text-gray-500">You don't have any patients assigned to you yet.</p>
+        </div>
+      </div>
+
+      <!-- Legacy Patient Details -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Patient Details</h2>
         
         <div *ngIf="patients.length > 0" class="space-y-4">
           <div *ngFor="let patient of patients" class="border rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
@@ -64,7 +145,7 @@
                 <p class="text-xl font-bold text-gray-800">{{ patient.name }}</p>
                 <p class="text-gray-600">Age: {{ getAge(patient.dateOfBirth) }} years old</p>
               </div>
-              <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-info bg-opacity-20 text-info">
+              <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
                 {{ patient.condition }}
               </span>
             </div>
@@ -95,7 +176,7 @@
             <div class="mb-4">
               <p class="font-semibold text-gray-700 mb-2">Current Medications:</p>
               <div class="space-y-2">
-                <div *ngFor="let med of patient.currentMedications" class="bg-primary-50 p-3 rounded text-sm">
+                <div *ngFor="let med of patient.currentMedications" class="bg-blue-50 p-3 rounded text-sm">
                   <p class="font-semibold text-gray-800">{{ med.name }}</p>
                   <p class="text-gray-600">{{ med.dosage }} - {{ med.frequency }}</p>
                 </div>
@@ -104,10 +185,10 @@
 
             <!-- Action Buttons -->
             <div class="flex gap-3 pt-4 border-t">
-              <button class="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition font-semibold">
+              <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition font-semibold">
                 View Full Record
               </button>
-              <button class="flex-1 bg-success text-white px-4 py-2 rounded hover:bg-opacity-90 transition font-semibold">
+              <button class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition font-semibold">
                 Add Prescription
               </button>
             </div>
@@ -115,7 +196,7 @@
         </div>
         
         <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8">
-          No patients assigned
+          No patients available
         </div>
       </div>
 
@@ -124,7 +205,7 @@
         <h2 class="text-2xl font-bold text-gray-800 mb-6">Scheduled Appointments</h2>
         
         <div *ngIf="appointments.length > 0" class="space-y-4">
-          <div *ngFor="let appt of appointments" class="border-l-4 border-primary-500 pl-4 py-3 hover:bg-primary-50 transition">
+          <div *ngFor="let appt of appointments" class="border-l-4 border-blue-500 pl-4 py-3 hover:bg-blue-50 transition">
             <div class="flex justify-between items-start">
               <div>
                 <p class="font-bold text-gray-800">{{ getPatientName(appt.patientId) }}</p>
@@ -132,7 +213,7 @@
                 <p class="text-gray-500 text-xs mt-1">📅 {{ appt.date | date: 'MMM d, y - h:mm a' }}</p>
               </div>
               <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                [ngClass]="appt.status === 'completed' ? 'bg-success bg-opacity-20 text-success' : 'bg-primary-100 text-primary-700'">
+                [ngClass]="appt.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'">
                 {{ appt.status | titlecase }}
               </span>
             </div>
@@ -147,21 +228,37 @@
 
     <!-- Sidebar -->
     <div>
+      <!-- Quick Actions -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div class="space-y-3">
+          <a 
+            routerLink="/doctor/checklist"
+            class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition cursor-pointer">
+            <span class="text-2xl">📝</span>
+            <div>
+              <p class="font-semibold text-gray-800">Create Task</p>
+              <p class="text-xs text-gray-600">Add checklist item for patient</p>
+            </div>
+          </a>
+        </div>
+      </div>
+
       <!-- Recent Actions -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Actions</h2>
         <div class="space-y-3">
-          <div class="border-l-4 border-success pl-3 py-2">
+          <div class="border-l-4 border-green-500 pl-3 py-2">
             <p class="text-sm font-semibold text-gray-800">Prescription Issued</p>
             <p class="text-xs text-gray-600">Donepezil - Margaret Johnson</p>
             <p class="text-xs text-gray-500">2 days ago</p>
           </div>
-          <div class="border-l-4 border-primary-500 pl-3 py-2">
+          <div class="border-l-4 border-blue-500 pl-3 py-2">
             <p class="text-sm font-semibold text-gray-800">Review Completed</p>
             <p class="text-xs text-gray-600">Robert Williams vitals</p>
             <p class="text-xs text-gray-500">1 week ago</p>
           </div>
-          <div class="border-l-4 border-warning pl-3 py-2">
+          <div class="border-l-4 border-yellow-500 pl-3 py-2">
             <p class="text-sm font-semibold text-gray-800">Notes Updated</p>
             <p class="text-xs text-gray-600">Margaret Johnson condition</p>
             <p class="text-xs text-gray-500">1 week ago</p>

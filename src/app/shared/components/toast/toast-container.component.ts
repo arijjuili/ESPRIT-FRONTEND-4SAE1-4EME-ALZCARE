@@ -52,4 +52,8 @@ export class ToastContainerComponent implements OnInit, OnDestroy {
       default: return 'ℹ';
     }
   }
+
+  trackByToastId(index: number, toast: Toast): string {
+    return toast.id;
+  }
 }

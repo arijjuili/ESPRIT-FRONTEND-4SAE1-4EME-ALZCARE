@@ -17,5 +17,17 @@ export const caregiverRoutes: Routes = [
   {
     path: 'behaviors/:patientId',
     loadComponent: () => import('./behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
+  },
+  {
+    path: 'patients',
+    loadComponent: () => import('./patients/caregiver-patients.component').then(m => m.CaregiverPatientsComponent)
+  },
+  {
+    path: 'tasks',
+    loadComponent: () => import('./tasks/caregiver-tasks.component').then(m => m.CaregiverTasksComponent)
+  },
+  {
+    path: 'handovers',
+    loadComponent: () => import('./handovers/caregiver-handover.component').then(m => m.CaregiverHandoverComponent)
   }
 ];

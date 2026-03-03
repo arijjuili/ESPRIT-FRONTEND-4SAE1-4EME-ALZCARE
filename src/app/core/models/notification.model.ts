@@ -99,6 +99,8 @@ export interface NotificationFilter {
   priority?: NotificationPriority;
   page?: number;
   size?: number;
+  days?: number;
+  hours?: number;
 }
 
 // ==================== UI HELPERS ====================

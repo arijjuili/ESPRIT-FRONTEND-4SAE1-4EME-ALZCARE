@@ -17,8 +17,10 @@
     </div>
 
     <!-- Actions -->
-    <div class="header-actions" *ngIf="showMarkAllRead && unreadCount > 0">
+    <div class="header-actions">
+      <!-- Mark all as read (conditional) -->
       <button 
+        *ngIf="showMarkAllRead && unreadCount > 0"
         class="mark-all-btn"
         (click)="markAllAsRead()"
         [disabled]="isLoading">
@@ -27,7 +29,25 @@
         </svg>
         <span>Mark all as read</span>
       </button>
+      
+      <!-- Return to Dashboard Button -->
+      <a routerLink="/dashboard" class="return-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span>Return to Dashboard</span>
+      </a>
     </div>
+  </div>
+
+  <!-- Days Filter Indicator -->
+  <div class="days-filter-indicator" *ngIf="!isLoading">
+    <span class="filter-label">{{ getDaysFilterLabel() }}</span>
+    <button 
+      class="toggle-filter-btn"
+      (click)="toggleDaysFilter()">
+      {{ showAllNotifications ? 'Show last 7 days' : 'Show all' }}
+    </button>
   </div>
 
   <!-- Search Bar -->

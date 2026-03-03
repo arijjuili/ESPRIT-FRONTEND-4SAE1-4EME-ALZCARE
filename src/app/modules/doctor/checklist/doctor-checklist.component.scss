@@ -1,0 +1,129 @@
+// Doctor Checklist Component Styles
+
+// Smooth transitions
+.transition {
+  transition: all 0.2s ease-in-out;
+}
+
+// Button hover effects
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+// Table row hover
+.hover\:bg-blue-50:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+// Status badge styles
+.bg-green-100 {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.bg-yellow-100 {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.bg-purple-100 {
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
+.bg-gray-100 {
+  background-color: rgba(107, 114, 128, 0.1);
+}
+
+// Priority colors
+.text-green-800 {
+  color: #065f46;
+}
+
+.text-blue-800 {
+  color: #1e40af;
+}
+
+.text-yellow-800 {
+  color: #92400e;
+}
+
+.text-red-800 {
+  color: #991b1b;
+}
+
+.text-purple-800 {
+  color: #6b21a8;
+}
+
+.text-gray-800 {
+  color: #1f2937;
+}
+
+// Form focus styles
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+// Loading spinner animation
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// Custom scrollbar
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+// Strikethrough for completed items
+.line-through {
+  text-decoration: line-through;
+}
+
+// Card hover effect
+.hover\:shadow-md:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+// Filter select styles
+select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+  appearance: none;
+}

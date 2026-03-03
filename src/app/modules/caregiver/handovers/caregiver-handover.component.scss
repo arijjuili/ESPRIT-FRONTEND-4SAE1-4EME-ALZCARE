@@ -1,0 +1,75 @@
+// Caregiver Handover Component Styles
+// Uses Tailwind CSS utility classes
+
+// Custom scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+// Animation for handover items
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.handover-item {
+  animation: fadeIn 0.3s ease-out;
+}
+
+// Loading spinner animation
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+// Tab transitions
+.tab-content {
+  transition: opacity 0.2s ease-in-out;
+}
+
+// Focus styles for accessibility
+select:focus,
+textarea:focus,
+button:focus {
+  outline: none;
+  ring: 2px;
+}
+
+// Smooth transitions for interactive elements
+button,
+select,
+textarea {
+  transition: all 0.2s ease-in-out;
+}
+
+// Textarea resize handle
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}

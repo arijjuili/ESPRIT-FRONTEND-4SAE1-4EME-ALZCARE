@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   CreateManualBehaviorLogRequest,
+  UpdateBehaviorLogRequest,
   ValidateBehaviorRequest,
   AcknowledgeAlertRequest,
   ResolveAlertRequest,
@@ -99,6 +100,29 @@ export class SafetyAlertService {
    */
   getBehaviorLogById(id: string): Observable<BehaviorLogResponse> {
     return this.http.get<BehaviorLogResponse>(`${this.baseUrl}/behavior-logs/${id}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Update a behavior log (for editing manual logs)
+   */
+  updateBehaviorLog(id: string, request: UpdateBehaviorLogRequest): Observable<BehaviorLogResponse> {
+    // Convert numeric severity to enum string for backend (similar to createManualBehaviorLog)
+    const backendRequest = {
+      ...request,
+      severity: this.numberToSeverityEnum(request.severity)
+    };
+    return this.http.put<BehaviorLogResponse>(`${this.baseUrl}/behavior-logs/${id}`, backendRequest, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
+   * Delete a behavior log permanently
+   */
+  deleteBehaviorLog(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/behavior-logs/${id}`, {
       headers: this.getAuthHeaders()
     });
   }

@@ -359,4 +359,20 @@ export class AuthService {
       }
     }
   }
+
+  /**
+   * Get the current user's UUID from the JWT token's 'sub' claim
+   * This is the Keycloak user ID (UUID format)
+   */
+  getCurrentUserId(): string | null {
+    const token = this.getAccessToken();
+    if (!token) return null;
+    
+    try {
+      const payload = this.decodeJwt(token);
+      return payload['sub'] || null;
+    } catch {
+      return null;
+    }
+  }
 }

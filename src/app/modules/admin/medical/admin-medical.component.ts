@@ -10,6 +10,7 @@ interface MedicalModule {
   count: number;
   status: 'active' | 'maintenance' | 'warning';
   lastUpdated: string;
+  route?: string;
 }
 
 interface MedicalStat {
@@ -47,7 +48,18 @@ export class AdminMedicalComponent implements OnInit {
       icon: '💊',
       count: 89,
       status: 'active',
-      lastUpdated: '2 hours ago'
+      lastUpdated: '2 hours ago',
+      route: '/admin/schedules'
+    },
+    {
+      id: 11,
+      name: 'Camera Devices',
+      description: 'Manage ESP32 cameras for patient monitoring',
+      icon: '📹',
+      count: 12,
+      status: 'active',
+      lastUpdated: 'Now',
+      route: '/admin/medical/cameras'
     },
     {
       id: 2,
@@ -124,7 +136,8 @@ export class AdminMedicalComponent implements OnInit {
       3: 'from-amber-500 to-orange-600',
       4: 'from-red-500 to-rose-600',
       6: 'from-cyan-500 to-blue-600',
-      10: 'from-violet-500 to-purple-600'
+      10: 'from-violet-500 to-purple-600',
+      11: 'from-fuchsia-500 to-purple-600'
     };
     return colors[id] || 'from-gray-500 to-gray-600';
   }

@@ -27,3 +27,6 @@ export * from './safety-alert.model';
 // Notification Models
 export * from './notification.model';
 export * from './notification-schedule.model';
+
+// Care Team Models
+export * from './care-team.model';

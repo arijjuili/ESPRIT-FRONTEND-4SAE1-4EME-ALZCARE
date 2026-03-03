@@ -757,6 +757,8 @@ Base path: `/api` (behavior-logs and alerts proxied to port 8082)
 | `/api/behavior-logs/pending` | GET | Get pending validations | ✅ CAREGIVER |
 | `/api/behavior-logs/{id}/validate` | PUT | Validate auto-detected event | ✅ CAREGIVER |
 | `/api/behavior-logs/{id}/evaluate` | POST | Evaluate behavior for risks | ✅ ADMIN |
+| `/api/behavior-logs/{id}` | PUT | Update behavior log (edit) | ✅ CAREGIVER |
+| `/api/behavior-logs/{id}` | DELETE | Delete behavior log | ✅ CAREGIVER |
 
 #### Create Auto-Detected Event
 ```http
@@ -832,6 +834,51 @@ Authorization: Bearer <token>
 
 **Response (200 OK)** - Triggers risk detection evaluation for the behavior log.
 
+#### Validate Auto-Detected Behavior
+```http
+PUT /api/safety/behavior-logs/{id}/validate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "validationStatus": "CONFIRMED",
+  "validatedBy": "550e8400-e29b-41d4-a716-446655440000",
+  "validationNotes": "Confirmed by caregiver - patient was indeed wandering in the hallway"
+}
+```
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `validationStatus` | string | Yes | `CONFIRMED` or `FALSE_ALARM` |
+| `validatedBy` | string | Yes | UUID of caregiver performing validation |
+| `validationNotes` | string | No | Notes about the validation decision |
+
+**Validation Status Values:**
+- `CONFIRMED` - Behavior was correctly detected
+- `FALSE_ALARM` - Behavior was incorrectly detected (false positive)
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440011",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "WANDERING",
+  "severity": "THREE",
+  "source": "AUTO",
+  "validationStatus": "CONFIRMED",
+  "validatedBy": "550e8400-e29b-41d4-a716-446655440000",
+  "validationNotes": "Confirmed by caregiver - patient was indeed wandering",
+  "validatedAt": "2026-02-17T15:00:00Z"
+}
+```
+
+**Notes:**
+- Only behaviors with `source: AUTO` and `validationStatus: PENDING` can be validated
+- Once validated, status cannot be changed (CONFIRMED or FALSE_ALARM is final)
+- Validation timestamp is automatically set by backend
+- Alerts are created for both confirmed and false alarm validations
+
 #### Create Manual Behavior Log
 ```http
 POST /api/safety/behavior-logs/manual
@@ -867,6 +914,59 @@ Content-Type: application/json
   "imageUrls": ["https://res.cloudinary.com/.../fall.jpg"]
 }
 ```
+
+#### Update Behavior Log
+```http
+PUT /api/safety/behavior-logs/{id}
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "type": "FALL",
+  "severity": 3,
+  "location": "Updated Location",
+  "description": "Updated description",
+  "triggers": "Updated triggers",
+  "witnesses": "Updated witnesses",
+  "imageUrls": ["https://..."]
+}
+```
+
+**Notes:**
+- Only manual behavior logs (`source: MANUAL`) can be updated
+- Auto-detected events cannot be edited (use validate endpoint instead)
+- All fields are optional - only provided fields will be updated
+- Patient cannot be changed when updating (use patientId from original log)
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440010",
+  "patientId": "550e8400-e29b-41d4-a716-446655440000",
+  "type": "FALL",
+  "severity": "THREE",
+  "timestamp": "2026-02-17T14:30:00Z",
+  "location": "Updated Location",
+  "source": "MANUAL",
+  "validationStatus": "CONFIRMED",
+  "description": "Updated description",
+  "imageUrls": ["https://..."]
+}
+```
+
+#### Delete Behavior Log
+```http
+DELETE /api/safety/behavior-logs/{id}
+Authorization: Bearer <token>
+```
+
+**Notes:**
+- Only manual behavior logs (`source: MANUAL`) can be deleted
+- Auto-detected events cannot be deleted
+- This action is permanent and cannot be undone
+- Confirmation dialog recommended in frontend
+
+**Response (204 No Content)**
 
 ### Alert APIs
 
@@ -1044,9 +1144,9 @@ export interface CreateManualBehaviorLogRequest {
 }
 
 export interface ValidateBehaviorRequest {
-  validationStatus: BehaviorValidationStatus;
-  validatedBy?: string;
-  validationNotes?: string;
+  validationStatus: BehaviorValidationStatus; // 'CONFIRMED' or 'FALSE_ALARM'
+  validatedBy: string; // Required: ID of caregiver validating the behavior
+  validationNotes?: string; // Optional: Notes about the validation decision
 }
 
 export interface AcknowledgeAlertRequest {
@@ -1112,6 +1212,194 @@ export interface AlertHistoryResponse {
   performedBy?: string;
   notes?: string;
   isSystemAction: boolean;
+}
+```
+
+---
+
+## Care Team Service APIs
+
+Base path: `/api/v1/care-team` (proxied to care-team-service port 8008)
+
+### Caregiver Assignment APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/caregivers/generate-invite` | POST | Generate invite token for caregiver | ✅ ADMIN |
+| `/invitations/{token}/validate` | GET | Validate invite token before accepting | ✅ Any role |
+| `/invitations/{token}/accept` | POST | Accept invite and link caregiver to patient | ✅ CAREGIVER |
+| `/patients/{patientId}/caregivers` | GET | List all caregivers assigned to a patient | ✅ Any role |
+| `/caregivers/{caregiverId}/assignments` | GET | Get all patient assignments for a caregiver | ✅ CAREGIVER |
+| `/caregivers/assignments/{id}/role` | PUT | Change caregiver's role in assignment | ✅ ADMIN |
+| `/caregivers/assignments/{id}` | DELETE | Revoke caregiver's access to patient | ✅ ADMIN |
+| `/caregivers/assignments/{id}/availability` | PUT | Mark caregiver temporarily unavailable | ✅ CAREGIVER |
+
+#### Get Caregiver's Assignments (My Patients)
+```http
+GET /api/v1/care-team/caregivers/{caregiverId}/assignments
+Authorization: Bearer <token>
+```
+
+**Response (200 OK):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "caregiverId": "caregiver-keycloak-id",
+    "patientId": "patient-keycloak-id",
+    "role": "PRIMARY",
+    "status": "ACTIVE",
+    "assignedAt": "2026-02-28T10:00:00Z",
+    "patientFirstName": "John",
+    "patientLastName": "Doe"
+  }
+]
+```
+
+**Note:** Caregivers should use this endpoint to get their assigned patients, then fetch patient details from Identity Service.
+
+#### Generate Caregiver Invite
+```http
+POST /api/v1/care-team/caregivers/generate-invite
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "patientId": "patient-keycloak-id",
+  "caregiverId": "caregiver-keycloak-id",
+  "role": "FAMILY"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "patientId": "patient-keycloak-id",
+  "role": "FAMILY",
+  "status": "PENDING",
+  "inviteToken": "abc123xyz",
+  "inviteExpiresAt": "2026-03-07T10:00:00Z"
+}
+```
+
+### Doctor Assignment APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/doctors/{doctorId}/patients/create` | POST | Assign doctor to patient | ✅ ADMIN/DOCTOR |
+| `/doctors/{doctorId}/patients` | GET | List all patients assigned to doctor | ✅ DOCTOR |
+| `/patients/{patientId}/doctor` | GET | Get active doctor for a patient | ✅ Any role |
+| `/doctor-assignments/{id}/deactivate` | PUT | Deactivate doctor-patient assignment | ✅ ADMIN |
+
+### Checklist Item APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/checklists/items` | POST | Create checklist item | ✅ DOCTOR |
+| `/checklists/items/{id}` | GET | Get checklist item by ID | ✅ Any role |
+| `/checklists/doctor/{doctorId}` | GET | Get all items created by doctor | ✅ DOCTOR |
+| `/checklists/patient/{patientId}/date/{date}` | GET | Get patient's checklist for date | ✅ Any role |
+| `/checklists/items/{id}/assign` | PUT | Assign item to caregiver | ✅ DOCTOR |
+| `/checklists/items/{id}/complete` | PUT | Mark item as completed | ✅ CAREGIVER |
+| `/checklists/items/{id}` | DELETE | Delete checklist item | ✅ DOCTOR |
+
+### Caregiver Handover APIs
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/caregivers/handover` | POST | Create handover note | ✅ CAREGIVER |
+| `/caregivers/handover/{id}/acknowledge` | PUT | Acknowledge handover note | ✅ CAREGIVER |
+| `/caregivers/patients/{patientId}/handovers` | GET | Get handover notes for patient | ✅ Any role |
+
+### TypeScript Interfaces (Care Team)
+
+```typescript
+// Enums
+export enum CaregiverRole {
+  PRIMARY = 'PRIMARY',
+  FAMILY = 'FAMILY',
+  EMERGENCY = 'EMERGENCY'
+}
+
+export enum AssignmentStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  REVOKED = 'REVOKED'
+}
+
+export enum DoctorAssignmentStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE'
+}
+
+export enum ChecklistPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH'
+}
+
+export enum ChecklistStatus {
+  PENDING = 'PENDING',
+  ASSIGNED = 'ASSIGNED',
+  COMPLETED = 'COMPLETED'
+}
+
+// Request DTOs
+export interface GenerateCaregiverInviteRequest {
+  patientId: string;
+  caregiverId: string;
+  role: CaregiverRole;
+}
+
+export interface AcceptCaregiverInviteRequest {
+  token: string;
+}
+
+export interface ChangeCaregiverRoleRequest {
+  role: CaregiverRole;
+}
+
+export interface CreateChecklistItemRequest {
+  doctorId: string;
+  patientId: string;
+  date: string; // YYYY-MM-DD
+  description: string;
+  priority: ChecklistPriority;
+  category: 'MEDICATION' | 'INCIDENT' | 'COGNITIVE_TEST' | 'GENERAL';
+}
+
+// Response DTOs
+export interface CaregiverAssignment {
+  id: string;
+  caregiverId: string;
+  patientId: string;
+  role: CaregiverRole;
+  status: AssignmentStatus;
+  assignedAt: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+}
+
+export interface DoctorAssignment {
+  id: string;
+  doctorId: string;
+  patientId: string;
+  status: DoctorAssignmentStatus;
+  assignedAt: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  doctorId: string;
+  patientId: string;
+  date: string;
+  description: string;
+  priority: ChecklistPriority;
+  status: ChecklistStatus;
+  assignedCaregiverId?: string;
+  completedBy?: string;
+  completedAt?: string;
 }
 ```
 
@@ -2000,19 +2288,61 @@ export interface PagedScheduleResponse {
 
 ---
 
-## Coming Soon (Other Services)
+## Event Ingestion APIs
 
-| Service | Port | Base Path | Status |
-|---------|------|-----------|--------|
-| Event Ingestion | 8002 | `/api/v1/events` | 🔴 Not Implemented |
-| Safety Alert Engine | 8003 | `/api/v1/safety` | ✅ Implemented |
-| Notification Service | 8004 | `/api/v1/notifications` | ✅ Frontend Ready |
-| Cognitive Memory | 8005 | `/api/v1/cognitive` | 🔴 Not Implemented |
-| Daily Care | 8006 | `/api/v1/daily-care` | 🔴 Not Implemented |
-| Medical Management | 8007 | `/api/v1/medical` | 🔴 Not Implemented |
-| Care Team | 8008 | `/api/v1/care-team` | 🔴 Not Implemented |
-| Community Social | 8009 | `/api/v1/community` | 🔴 Not Implemented |
+Base path: `/api` (proxied to event-ingestion service on port 8002)
+
+### Camera Device Management
+
+| Endpoint | Method | Description | Access |
+|----------|--------|-------------|--------|
+| `/api/cameras` | POST | Pair new camera to patient | ✅ DOCTOR, ADMIN |
+| `/api/cameras/patient/{patientId}` | GET | Get cameras for patient | ✅ Any role |
+| `/api/cameras/{id}` | GET | Get camera details | ✅ Any role |
+| `/api/cameras/{id}/status` | PUT | Update camera status | ✅ DOCTOR, ADMIN |
+| `/api/cameras/{id}` | DELETE | Unpair camera | ✅ DOCTOR, ADMIN |
+
+**Camera Request Body:**
+```json
+{
+  "patientId": "2f61732e-00bd-4980-8558-d790bc003e7a",
+  "macAddress": "AA:BB:CC:DD:EE:01",
+  "zone": "BEDROOM",
+  "pairedBy": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Camera Response:**
+```json
+{
+  "id": "25b73551-78a6-47b2-8e07-2f22a7ba96d3",
+  "patientId": "2f61732e-00bd-4980-8558-d790bc003e7a",
+  "macAddress": "AA:BB:CC:DD:EE:01",
+  "zone": "BEDROOM",
+  "status": "ACTIVE",
+  "pairedAt": "2026-03-03T02:54:28.876878Z"
+}
+```
+
+**Camera Zones:** `BEDROOM`, `HALLWAY`, `BATHROOM`, `FRONT_DOOR`, `KITCHEN`, `LIVING_ROOM`
+
+**Camera Status:** `ACTIVE`, `PAUSED`, `OFFLINE`
 
 ---
 
-*AlzCare Platform | API Reference | Last Updated: 2026-02-21 (Added missing endpoints: User Admin APIs, Notification Schedules, complete Behavior Log and Alert APIs)*
+## Service Status
+
+| Service | Port | Base Path | Status |
+|---------|------|-----------|--------|
+| Event Ingestion | 8002 | `/api` | ✅ Implemented (Cameras, Events, Patterns) |
+| Safety Alert Engine | 8003 | `/api` | ✅ Implemented |
+| Notification Service | 8004 | `/api/v1/notifications` | ✅ Frontend Ready |
+| Community Social | 8009 | `/api/v1/community` | ✅ Implemented |
+| Care Team | 8008 | `/api/v1/care-team` | ✅ Implemented |
+| Cognitive Memory | 8005 | `/api/v1/cognitive` | 🔴 Planned |
+| Daily Care | 8006 | `/api/v1/daily-care` | 🔴 Planned |
+| Medical Management | 8007 | `/api/v1/medical` | 🔴 Planned |
+
+---
+
+*AlzCare Platform | API Reference | Last Updated: 2026-03-03 (Added Camera APIs, updated service status)*

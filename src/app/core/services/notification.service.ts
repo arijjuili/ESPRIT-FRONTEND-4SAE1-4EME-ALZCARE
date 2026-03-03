@@ -47,6 +47,8 @@ export class NotificationService {
       if (filters.priority) params = params.set('priority', filters.priority);
       if (filters.page !== undefined) params = params.set('page', filters.page.toString());
       if (filters.size !== undefined) params = params.set('size', filters.size.toString());
+      if (filters.days !== undefined) params = params.set('days', filters.days.toString());
+      if (filters.hours !== undefined) params = params.set('hours', filters.hours.toString());
     }
 
     return this.http.get<PagedNotificationResponse>(`${this.apiUrl}/user/${userId}`, {
