@@ -7,9 +7,6 @@
         <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 mt-2">Memory Wallet</h1>
         <p class="text-sm sm:text-base text-slate-600 mt-2 max-w-2xl">Revisit special moments and answer quick recognition prompts.</p>
       </div>
-      <button (click)="loadMemoryItems()" class="rounded-xl border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 transition w-full md:w-auto">
-        Refresh Memories
-      </button>
     </div>
   </section>
 
@@ -36,17 +33,6 @@
         </div>
         <h3 class="mt-3 text-lg font-bold text-slate-900">{{ item.title }}</h3>
         <p class="mt-1 text-sm text-slate-600">{{ item.description || 'No description' }}</p>
-
-        <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
-          <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-            <p class="font-semibold text-slate-700">Persons</p>
-            <p class="text-slate-600 mt-1">{{ (item.persons || []).join(', ') || '—' }}</p>
-          </div>
-          <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-            <p class="font-semibold text-slate-700">Location</p>
-            <p class="text-slate-600 mt-1">{{ item.location || '—' }}</p>
-          </div>
-        </div>
       </div>
     </article>
   </div>
