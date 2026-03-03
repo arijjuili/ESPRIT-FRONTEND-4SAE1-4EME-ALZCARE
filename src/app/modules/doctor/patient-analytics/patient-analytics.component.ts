@@ -65,11 +65,29 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
   lineChartOptions: ChartConfiguration<'line'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
-    scales: {
-      x: { grid: { display: false }, ticks: { color: '#9ca3af' } },
-      y: { beginAtZero: true, max: 100, grid: { color: '#e5e7eb' }, ticks: { color: '#9ca3af' } }
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleFont: { size: 14 },
+        bodyFont: { size: 13 },
+        padding: 12,
+        cornerRadius: 8
+      }
     },
-    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af' } },
+      y: { beginAtZero: true, max: 100, grid: { color: '#e5e7eb' }, ticks: { font: { size: 11 }, color: '#9ca3af' } }
+    },
+    interaction: { intersect: false, mode: 'index' },
     elements: { line: { tension: 0.4 }, point: { radius: 4, hoverRadius: 6 } }
   };
 
@@ -156,11 +174,11 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     });
 
     this.gameDetails = Array.from(gameMap.entries()).map(([gameType, gameActivities]) => {
-      const scores = gameActivities.map(a => a.score || 0).filter(s => s > 0);
+      const scores = gameActivities.map(a => this.getScorePercent(a)).filter(s => s > 0);
       const recentScores = gameActivities
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 10)
-        .map(a => a.score || 0);
+        .map(a => this.getScorePercent(a));
 
       let trend: 'improving' | 'stable' | 'declining' = 'stable';
       if (recentScores.length >= 5) {
@@ -186,7 +204,7 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     });
 
     const totalGames = activities.length;
-    const allScores = activities.map(a => a.score || 0).filter(s => s > 0);
+    const allScores = activities.map(a => this.getScorePercent(a)).filter(s => s > 0);
     const avgScore = allScores.length ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
     const totalTime = activities.reduce((sum, a) => sum + (a.durationSeconds || 0), 0);
 
@@ -198,8 +216,8 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
       const sorted = activities.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const recent = sorted.slice(0, Math.floor(sorted.length / 2));
       const older = sorted.slice(Math.floor(sorted.length / 2));
-      const recentAvg = recent.reduce((sum, a) => sum + (a.score || 0), 0) / recent.length;
-      const olderAvg = older.reduce((sum, a) => sum + (a.score || 0), 0) / older.length;
+      const recentAvg = recent.reduce((sum, a) => sum + this.getScorePercent(a), 0) / recent.length;
+      const olderAvg = older.reduce((sum, a) => sum + this.getScorePercent(a), 0) / older.length;
       if (recentAvg > olderAvg + 10) overallTrend = 'improving';
       else if (olderAvg > recentAvg + 10) overallTrend = 'declining';
     }
@@ -221,7 +239,7 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
       const domainActivities = activities.filter(a => 
         (a.targetDomain || '').toLowerCase() === domain.toLowerCase()
       );
-      const scores = domainActivities.map(a => a.score || 0).filter(s => s > 0);
+      const scores = domainActivities.map(a => this.getScorePercent(a)).filter(s => s > 0);
       return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
     });
 
@@ -240,21 +258,42 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     };
 
     const days = this.getLast14Days();
-    const datasets = this.gameDetails.slice(0, 3).map((game, idx) => {
-      const colors = ['#8b5cf6', '#ec4899', '#14b8a6'];
+    const gameColors: Record<string, string> = {
+      'MEMORY_MATCH': '#8b5cf6',
+      'PATTERN_RECOGNITION': '#ec4899',
+      'WORD_RECALL': '#14b8a6',
+      'SPATIAL_NAVIGATION': '#f59e0b',
+      'ATTENTION_TASK': '#3b82f6'
+    };
+    const gameNames: Record<string, string> = {
+      'MEMORY_MATCH': 'Memory Match',
+      'PATTERN_RECOGNITION': 'Pattern Recognition',
+      'WORD_RECALL': 'Word Recall',
+      'SPATIAL_NAVIGATION': 'Spatial Navigation',
+      'ATTENTION_TASK': 'Attention Task'
+    };
+    const allGameTypes = ['MEMORY_MATCH', 'PATTERN_RECOGNITION', 'WORD_RECALL', 'SPATIAL_NAVIGATION', 'ATTENTION_TASK'];
+
+    const datasets = allGameTypes.map((gameType) => {
+      const color = gameColors[gameType] || '#6b7280';
       return {
-        label: game.gameName,
+        label: gameNames[gameType] || gameType,
         data: days.map(day => {
           const dayActivities = activities.filter(a =>
-            a.gameType === game.gameType &&
+            a.gameType === gameType &&
             this.isSameDay(new Date(a.createdAt), day)
           );
-          const scores = dayActivities.map(a => a.score || 0).filter(s => s > 0);
+          const scores = dayActivities.map(a => this.getScorePercent(a)).filter(s => s > 0);
           return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
         }),
-        borderColor: colors[idx],
-        backgroundColor: colors[idx] + '20',
-        fill: true
+        borderColor: color,
+        backgroundColor: color + '20',
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: color,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4
       };
     });
 
@@ -278,6 +317,15 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     return date1.getFullYear() === date2.getFullYear() &&
            date1.getMonth() === date2.getMonth() &&
            date1.getDate() === date2.getDate();
+  }
+
+  private getScorePercent(activity: GameActivity): number {
+    const score = activity.score ?? 0;
+    const maxScore = activity.maxScore ?? 100;
+    if (maxScore > 0) {
+      return Math.round((score / maxScore) * 100);
+    }
+    return Math.max(0, Math.min(100, Math.round(score)));
   }
 
   getTrendClass(trend: string): string {
