@@ -34,6 +34,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/activities/patient-activities.component').then(m => m.PatientActivitiesComponent)
       },
       {
+        path: 'routines',
+        loadComponent: () => import('./modules/patient/routines/patient-routines.component').then(m => m.PatientRoutinesComponent)
+      },
+      {
         path: 'medications',
         loadComponent: () => import('./modules/patient/medications/patient-medications.component').then(m => m.PatientMedicationsComponent)
       },
@@ -152,6 +156,10 @@ export const routes: Routes = [
       {
         path: 'care-teams',
         loadComponent: () => import('./modules/admin/care-teams/admin-care-teams.component').then(m => m.AdminCareTeamsComponent)
+      },
+      {
+        path: 'routines',
+        loadComponent: () => import('./modules/admin/routines/admin-routines.component').then(m => m.AdminRoutinesComponent)
       },
       {
         path: 'analytics',

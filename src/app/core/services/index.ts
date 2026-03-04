@@ -14,3 +14,4 @@ export * from './safety-alert.service';
 export * from './token-refresh.service';
 export * from './notification-schedule.service';
 export * from './user-management.service';
+export * from './daily-care.service';

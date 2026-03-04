@@ -7,8 +7,12 @@
     <div class="lg:col-span-2">
       <div class="bg-white rounded-2xl shadow-md p-8">
         <h2 class="text-2xl font-bold text-gray-900 mb-6">Today's Activities</h2>
-        
-        <div *ngIf="todayTasks.length > 0" class="space-y-4">
+
+        <div *ngIf="loading" class="py-10 text-center text-gray-500">
+          Loading daily care tasks...
+        </div>
+
+        <div *ngIf="!loading && todayTasks.length > 0" class="space-y-4">
           <div *ngFor="let task of todayTasks" class="flex items-start gap-4 p-6 bg-gray-50 rounded-xl hover:bg-primary-50 transition border-l-4" [ngClass]="task.completed ? 'border-success' : 'border-primary-500'">
             <input 
               type="checkbox" 
@@ -31,6 +35,10 @@
               {{ task.priority | titlecase }}
             </span>
           </div>
+        </div>
+
+        <div *ngIf="!loading && todayTasks.length === 0" class="py-10 text-center text-gray-500">
+          No tasks scheduled for today.
         </div>
       </div>
 

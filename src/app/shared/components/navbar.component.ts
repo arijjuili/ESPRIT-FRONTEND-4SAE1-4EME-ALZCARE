@@ -109,6 +109,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['patient']
     },
     {
+      label: 'Routines',
+      path: '/patient/routines',
+      icon: 'R',
+      roles: ['patient']
+    },
+    {
       label: 'Medications',
       path: '/patient/medications',
       icon: '💊',
@@ -199,6 +205,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Caregivers',
       path: '/admin/caregivers',
       icon: '🤝',
+      roles: ['admin']
+    },
+    {
+      label: 'Routines',
+      path: '/admin/routines',
+      icon: 'R',
       roles: ['admin']
     },
     {
@@ -336,3 +348,4 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 }
+
