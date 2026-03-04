@@ -153,6 +153,8 @@ export class MemoryMatchComponent implements OnInit, OnDestroy {
     if (!userId) return;
     const totalPairs = this.icons.length || 1;
     const score = Math.round((this.matches / totalPairs) * 100);
+    const moveEfficiency = Math.round((totalPairs / Math.max(this.moves, totalPairs)) * 100);
+    const mistakes = Math.max(this.moves - this.matches, 0);
     const payload: GameActivityCreateRequest = {
       patientId: userId,
       gameType: 'MEMORY_MATCH',
@@ -164,13 +166,13 @@ export class MemoryMatchComponent implements OnInit, OnDestroy {
       score,
       maxScore: 100,
       voiceUsed: false,
-      mistakesMade: this.moves - this.matches,
+      mistakesMade: mistakes,
       pointsEarned: score,
       adaptiveMode: this.assistedMode,
       difficultyAdjustments: 0,
       voiceCommandCount: 0,
       hintsUsed: this.effectiveHintLevel,
-      accuracyPercent: score
+      accuracyPercent: moveEfficiency
     };
     this.apiService.createGameActivity(payload).subscribe({
       next: () => this.loadAdaptationProfile(),

@@ -74,11 +74,10 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.voiceSupported = this.speechCommandService.isSupported();
-    const requested = (this.route.snapshot.queryParamMap.get('difficulty') || '').toUpperCase();
-    if (requested === 'EASY' || requested === 'MEDIUM' || requested === 'HARD') {
-      this.currentDifficulty = requested;
-      this.adaptiveFeedback = `Starting at ${requested} based on recent performance.`;
-    }
+    // Always start this game at EASY and let live rounds drive level changes.
+    this.currentDifficulty = 'EASY';
+    this.adaptiveFeedback = 'Starting at EASY. Difficulty will adapt as you play.';
+    this.syncCueModeWithDifficulty();
     this.loadAdaptationProfile();
   }
 
@@ -107,6 +106,10 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
   }
 
   clickTarget(reactionOverrideMs?: number): void {
+    if (this.status === 'idle') {
+      this.start();
+      return;
+    }
     if (this.status === 'waiting') {
       this.status = 'false-start';
       this.totalRounds++;
@@ -211,16 +214,26 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
     if (!this.adaptiveMode || this.totalRounds < 2) return;
 
     const previous = this.currentDifficulty;
-    const averageReaction = this.reactionHistory.length
-      ? this.reactionHistory.reduce((sum, value) => sum + value, 0) / this.reactionHistory.length
+    const recentReactions = this.reactionHistory.slice(-4);
+    const recentAverageReaction = recentReactions.length
+      ? recentReactions.reduce((sum, value) => sum + value, 0) / recentReactions.length
       : null;
     const falseStartRate = this.totalRounds > 0 ? this.falseStarts / this.totalRounds : 0;
-    const recentFast = this.reactionHistory.slice(-3).every(value => value <= 500);
-    const recentSlow = this.reactionHistory.slice(-3).every(value => value >= 900);
+    const recentFast = this.reactionHistory.slice(-3).length >= 3
+      && this.reactionHistory.slice(-3).every(value => value <= 500);
+    const recentSlow = this.reactionHistory.slice(-3).length >= 3
+      && this.reactionHistory.slice(-3).every(value => value >= 900);
+    const recentVerySlowCount = recentReactions.filter(value => value >= 1000).length;
+    const shouldDemote = falseStartRate >= 0.35
+      || recentSlow
+      || recentVerySlowCount >= 2
+      || (recentAverageReaction !== null && recentAverageReaction >= 850);
+    const shouldPromote = recentFast
+      || (recentAverageReaction !== null && recentAverageReaction <= 540 && falseStartRate < 0.2);
 
-    if (falseStartRate >= 0.35 || recentSlow || (averageReaction !== null && averageReaction >= 850)) {
+    if (shouldDemote) {
       this.currentDifficulty = this.lowerDifficulty(this.currentDifficulty);
-    } else if (recentFast || (averageReaction !== null && averageReaction <= 540 && falseStartRate < 0.2)) {
+    } else if (shouldPromote) {
       this.currentDifficulty = this.raiseDifficulty(this.currentDifficulty);
     }
 
@@ -230,6 +243,7 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
     } else {
       this.adaptiveFeedback = `Difficulty remains ${this.currentDifficulty}. Keep going.`;
     }
+    this.syncCueModeWithDifficulty();
   }
 
   private getDelayRange(difficulty: DifficultyLevel): { min: number; max: number } {
@@ -250,11 +264,11 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
     if (!userId) return;
     this.apiService.getGameAdaptation(userId, 'ATTENTION_TASK').subscribe({
       next: (profile) => {
-        this.currentDifficulty = profile.recommendedDifficulty || this.currentDifficulty;
-        this.adaptiveMode = !!profile.assistedMode;
+        // Do not override live difficulty from backend profile to avoid
+        // sudden jumps (e.g., MEDIUM -> HARD) without a played round.
         this.hintLevel = profile.hintLevel || 0;
         this.timeMultiplier = Math.max(1, profile.timeMultiplier || 1);
-        this.cueMode = profile.cueMode || 'none';
+        this.cueMode = profile.cueMode || this.cueMode || 'none';
         this.breakSuggestion = !!profile.breakSuggestion;
         if (this.breakSuggestion) {
           this.voiceFeedback = 'You may take a short break before the next round.';
@@ -263,6 +277,7 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
         this.adaptiveFeedback = profile.reason
           ? `Adaptive profile: ${profile.reason}`
           : this.adaptiveFeedback;
+        this.syncCueModeWithDifficulty();
       },
       error: () => {}
     });
@@ -310,9 +325,26 @@ export class AttentionTaskComponent implements OnInit, OnDestroy {
 
   toggleAdaptiveMode(): void {
     this.adaptiveMode = !this.adaptiveMode;
+    this.syncCueModeWithDifficulty();
     this.adaptiveFeedback = this.adaptiveMode
       ? 'Adaptive mode enabled.'
       : 'Adaptive mode disabled. Difficulty will stay fixed.';
+  }
+
+  private syncCueModeWithDifficulty(): void {
+    if (!this.adaptiveMode) {
+      this.cueMode = 'none';
+      return;
+    }
+    if (this.currentDifficulty === 'EASY') {
+      this.cueMode = 'visual_audio';
+      return;
+    }
+    if (this.currentDifficulty === 'MEDIUM') {
+      this.cueMode = 'visual';
+      return;
+    }
+    this.cueMode = 'none';
   }
 
   toggleVoiceCommands(): void {

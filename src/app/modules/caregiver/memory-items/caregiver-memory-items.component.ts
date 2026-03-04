@@ -3,14 +3,25 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { CareTeamService } from '../../../core/services/care-team.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { AssignmentStatus, CaregiverAssignment } from '../../../core/models/care-team.model';
+import { catchError, map } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
 import {
   MemoryCategory,
   MemoryItem,
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
-  PatientProfile,
   QuizAttempt
 } from '../../../core/models/api.model';
+
+interface CaregiverPatientOption {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+}
 
 interface MemoryItemForm {
   patientId: string;
@@ -58,7 +69,7 @@ interface MemoryWalletAnalyticsSummary {
 export class CaregiverMemoryItemsComponent implements OnInit {
   memoryItems: MemoryItem[] = [];
   quizAttempts: QuizAttempt[] = [];
-  patients: PatientProfile[] = [];
+  patients: CaregiverPatientOption[] = [];
   loading = false;
   analyticsLoading = false;
   error = '';
@@ -107,7 +118,12 @@ export class CaregiverMemoryItemsComponent implements OnInit {
 
   editingItem: MemoryItem | null = null;
 
-  constructor(private apiService: ApiService, private authService: AuthService) {}
+  constructor(
+    private apiService: ApiService,
+    private authService: AuthService,
+    private careTeamService: CareTeamService,
+    private patientService: PatientService
+  ) {}
 
   ngOnInit(): void {
     this.loadPatients();
@@ -496,22 +512,56 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     const caregiverId = this.authService.getCurrentUser()?.id;
     if (!caregiverId) {
       this.patients = [];
+      this.patientNames = {};
+      this.recomputeAnalytics();
       return;
     }
 
-    this.apiService.getCaregiverPatients(caregiverId, true).subscribe({
-      next: (patients) => {
-        this.patients = patients;
-        patients.forEach(patient => {
-          const name = `${patient.firstName} ${patient.lastName}`.trim();
-          this.patientNames[patient.userId] = name || patient.userId;
+    this.careTeamService.getCaregiverAssignments(caregiverId)
+      .pipe(catchError(() => of([] as CaregiverAssignment[])))
+      .subscribe(assignments => {
+        const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
+        if (activeAssignments.length === 0) {
+          this.patients = [];
+          this.patientNames = {};
+          this.recomputeAnalytics();
+          return;
+        }
+
+        const patientRequests = activeAssignments.map(assignment =>
+          this.patientService.getPatientById(assignment.patientId).pipe(
+            map(patient => ({
+              id: patient.id,
+              userId: patient.userId || assignment.patientId,
+              firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
+              lastName: patient.lastName || assignment.patientLastName || 'Patient'
+            })),
+            catchError(() => of({
+              id: assignment.patientId,
+              userId: assignment.patientId,
+              firstName: assignment.patientFirstName || 'Unknown',
+              lastName: assignment.patientLastName || 'Patient'
+            }))
+          )
+        );
+
+        forkJoin(patientRequests).subscribe({
+          next: (patients) => {
+            this.patients = patients;
+            this.patientNames = {};
+            this.patients.forEach(patient => {
+              const name = `${patient.firstName} ${patient.lastName}`.trim();
+              this.patientNames[patient.userId] = name || patient.userId;
+            });
+            this.recomputeAnalytics();
+          },
+          error: () => {
+            this.patients = [];
+            this.patientNames = {};
+            this.recomputeAnalytics();
+          }
         });
-        this.recomputeAnalytics();
-      },
-      error: () => {
-        // fallback: keep dropdown empty; names will be resolved per memory item if possible
-      }
-    });
+      });
   }
 
   private loadQuizAttempts(): void {

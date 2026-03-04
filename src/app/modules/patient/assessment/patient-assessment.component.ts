@@ -90,10 +90,21 @@ export class PatientAssessmentComponent implements OnInit {
   }
 
   calculateScore(): number {
-    return this.questions.reduce((total, q) => {
-      const answer = this.responses[q.id];
-      return answer && answer.trim().length ? total + 1 : total;
-    }, 0);
+    if (!this.questions.length) return 0;
+
+    let earned = 0;
+    let maxPossible = 0;
+    this.questions.forEach((question, index) => {
+      const weight = this.questionWeight(index);
+      maxPossible += weight;
+      const answer = (this.responses[question.id] || '').trim();
+      if (answer.length > 0) {
+        earned += weight;
+      }
+    });
+
+    if (maxPossible === 0) return 0;
+    return Math.round(((earned / maxPossible) * 10) * 10) / 10;
   }
 
   isDue(): boolean {
@@ -118,10 +129,10 @@ export class PatientAssessmentComponent implements OnInit {
 
   private pickScheduleRecord(records: HealthRecord[], preferredId?: string): HealthRecord | null {
     const schedulable = records.filter(record =>
-      record.isActive === true || (!!record.nextDueDate && record.frequencyMonths !== null && record.frequencyMonths !== undefined)
+      record.isActive === true && !record.completedAt
     );
     if (preferredId) {
-      const preferred = records.find(record => record.id === preferredId);
+      const preferred = schedulable.find(record => record.id === preferredId);
       if (preferred) return preferred;
     }
     if (schedulable.length) {
@@ -155,5 +166,9 @@ export class PatientAssessmentComponent implements OnInit {
       prompt,
       placeholder: 'Type your answer'
     }));
+  }
+
+  private questionWeight(index: number): number {
+    return index === 0 ? 2 : 1;
   }
 }

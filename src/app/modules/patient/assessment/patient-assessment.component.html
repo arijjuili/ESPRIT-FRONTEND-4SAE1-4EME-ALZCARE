@@ -21,9 +21,9 @@
       </div>
       <div class="rounded-2xl border border-white/70 bg-white/80 px-5 py-3 min-w-[140px] hover:scale-105 transition duration-300 shadow-lg">
         <p class="text-xs text-slate-500">Current score</p>
-        <p class="text-2xl font-bold text-violet-700">{{ calculateScore() }}/{{ questions.length }}</p>
+        <p class="text-2xl font-bold text-violet-700">{{ calculateScore() }}/10</p>
         <div class="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-500" [style.width.%]="(calculateScore()/questions.length)*100"></div>
+          <div class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-500" [style.width.%]="(calculateScore()/10)*100"></div>
         </div>
       </div>
     </div>
@@ -71,7 +71,7 @@
       <p class="text-sm text-emerald-600 px-4 py-2 bg-emerald-50 rounded-xl" *ngIf="success">Assessment submitted successfully.</p>
 
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 px-5 py-4 hover:shadow-md transition duration-300">
-        <p class="text-sm text-slate-600">Score preview: <span class="font-bold text-slate-900">{{ calculateScore() }} / {{ questions.length }}</span></p>
+        <p class="text-sm text-slate-600">Score preview: <span class="font-bold text-slate-900">{{ calculateScore() }} / 10</span></p>
         <button
           (click)="submitAssessment()"
           [disabled]="!isDue() || isSubmitting || submitted"

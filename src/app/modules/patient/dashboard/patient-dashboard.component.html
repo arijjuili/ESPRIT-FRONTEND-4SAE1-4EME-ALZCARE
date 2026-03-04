@@ -70,8 +70,6 @@
 
   <!-- Assessment Status -->
   <div class="mb-6 sm:mb-8">
-    <p class="text-sm text-gray-600 mt-1" *ngIf="isLoadingAssessment">Loading assessment status...</p>
-    <p class="text-sm text-gray-600 mt-1" *ngIf="!isLoadingAssessment && !assessmentItems.length">No assessment scheduled yet.</p>
 
     <div class="space-y-3" *ngIf="!isLoadingAssessment && assessmentItems.length">
       <div

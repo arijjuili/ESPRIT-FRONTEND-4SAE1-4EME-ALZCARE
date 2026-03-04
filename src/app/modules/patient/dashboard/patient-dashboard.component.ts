@@ -237,7 +237,7 @@ export class PatientDashboardComponent implements OnInit {
     this.apiService.getHealthRecords(patientId, undefined, RecordType.ASSESSMENT).subscribe({
       next: (records) => {
         const schedules = records.filter(record =>
-          record.isActive === true || (!!record.nextDueDate && record.frequencyMonths !== null && record.frequencyMonths !== undefined)
+          record.isActive === true && !record.completedAt
         );
         if (!schedules.length) {
           this.assessmentItems = [];

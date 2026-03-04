@@ -7,9 +7,11 @@ import { Chart, registerables } from 'chart.js';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { CareTeamService } from '../../../core/services/care-team.service';
 import { GameActivity } from '../../../core/models/api.model';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { AssignmentStatus, CaregiverAssignment } from '../../../core/models/care-team.model';
+import { forkJoin, of, Observable } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 
 Chart.register(...registerables);
 
@@ -111,6 +113,7 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     private authService: AuthService,
     private patientService: PatientService,
+    private careTeamService: CareTeamService,
     private router: Router
   ) {}
 
@@ -144,10 +147,10 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.patientService.getPatients().pipe(
+    this.loadAssignedPatients(user.id).pipe(
       catchError(err => {
         console.error('Error fetching patients:', err);
-        return of([]);
+        return of([] as PatientProfileResponse[]);
       })
     ).subscribe(patients => {
       this.allPatients = patients || [];
@@ -178,6 +181,31 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+  }
+
+  private loadAssignedPatients(caregiverId: string): Observable<PatientProfileResponse[]> {
+    return this.careTeamService.getCaregiverAssignments(caregiverId).pipe(
+      map((assignments: CaregiverAssignment[]) =>
+        assignments.filter(a => a.status === AssignmentStatus.ACTIVE)
+      ),
+      switchMap((activeAssignments) => {
+        if (activeAssignments.length === 0) {
+          return of([] as PatientProfileResponse[]);
+        }
+
+        const requests = activeAssignments.map(assignment =>
+          this.patientService.getPatientById(assignment.patientId).pipe(
+            catchError(() => of({
+              id: assignment.patientId,
+              userId: assignment.patientId,
+              firstName: assignment.patientFirstName || 'Unknown',
+              lastName: assignment.patientLastName || 'Patient'
+            } as PatientProfileResponse))
+          )
+        );
+        return forkJoin(requests);
+      })
+    );
   }
 
   private loadFallbackData(): void {

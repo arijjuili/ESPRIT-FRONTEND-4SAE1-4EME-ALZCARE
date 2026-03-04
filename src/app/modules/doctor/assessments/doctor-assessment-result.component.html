@@ -29,7 +29,7 @@
                   'text-rose-700': getScoreTone() === 'low',
                   'text-slate-700': getScoreTone() === 'na'
                 }">{{ getScoreValue() ?? 'N/A' }}</p>
-                <p class="text-sm text-slate-500 pb-1">/ {{ getTotalQuestions() }}</p>
+                <p class="text-sm text-slate-500 pb-1">/ 10</p>
               </div>
               <p class="mt-1 text-sm font-semibold" [ngClass]="{
                 'text-emerald-700': getScoreTone() === 'high',
@@ -107,7 +107,7 @@
                 {{ review.correct ? '✓' : (i + 1) }}
               </span>
               <div class="flex-1">
-                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">{{ formatResponseKey(review.key) }}</p>
+                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">{{ review.prompt }}</p>
                 <p class="mt-1 text-sm text-slate-800" [ngClass]="{'line-through opacity-50': review.correct}">{{ review.value || '(No answer)' }}</p>
               </div>
             </div>

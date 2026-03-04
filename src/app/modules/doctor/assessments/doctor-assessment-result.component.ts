@@ -7,6 +7,7 @@ import { HealthRecord } from '../../../core/models/api.model';
 
 interface AnswerReview {
   key: string;
+  prompt: string;
   value: string;
   correct: boolean;
 }
@@ -55,16 +56,37 @@ export class DoctorAssessmentResultComponent implements OnInit {
   }
 
   initializeAnswerReviews(): void {
-    if (!this.assessment?.responses) {
+    if (!this.assessment) {
       this.answerReviews = [];
       return;
     }
 
-    this.answerReviews = Object.entries(this.assessment.responses).map(([key, value]) => ({
-      key,
-      value: String(value || ''),
-      correct: false
-    }));
+    const responseMap = (this.assessment.responses || {}) as Record<string, unknown>;
+    const questions = this.getAssessmentQuestions();
+
+    if (!questions.length && !Object.keys(responseMap).length) {
+      this.answerReviews = [];
+      return;
+    }
+
+    if (questions.length) {
+      this.answerReviews = questions.map((prompt, index) => {
+        const key = `q_${index + 1}`;
+        return {
+          key,
+          prompt,
+          value: String(responseMap[key] || ''),
+          correct: false
+        };
+      });
+    } else {
+      this.answerReviews = Object.entries(responseMap).map(([key, value]) => ({
+        key,
+        prompt: this.formatResponseKey(key),
+        value: String(value || ''),
+        correct: false
+      }));
+    }
 
     if (this.assessment.reviewedAnswers) {
       const reviewedMap = this.assessment.reviewedAnswers as Record<string, boolean>;
@@ -75,7 +97,10 @@ export class DoctorAssessmentResultComponent implements OnInit {
       });
       this.reviewedScore = this.assessment?.reviewedScore ?? null;
       this.isReviewed = this.assessment?.reviewedScore != null;
+      return;
     }
+
+    this.calculateReviewedScore();
   }
 
   toggleAnswerCorrect(index: number): void {
@@ -84,8 +109,7 @@ export class DoctorAssessmentResultComponent implements OnInit {
   }
 
   calculateReviewedScore(): void {
-    const correctCount = this.answerReviews.filter(ar => ar.correct).length;
-    this.reviewedScore = correctCount;
+    this.reviewedScore = this.calculateWeightedFromReviews();
     this.isReviewed = true;
   }
 
@@ -148,18 +172,15 @@ export class DoctorAssessmentResultComponent implements OnInit {
 
   getScorePercent(): number {
     const value = this.getScoreValue();
-    const total = this.getTotalQuestions();
-    if (value === null || total === 0) return 0;
-    return Math.max(0, Math.min(100, Math.round((value / total) * 100)));
+    if (value === null) return 0;
+    return Math.max(0, Math.min(100, Math.round((value / 10) * 100)));
   }
 
   getScoreTone(): 'high' | 'medium' | 'low' | 'na' {
     const value = this.getScoreValue();
-    const total = this.getTotalQuestions();
-    if (value === null || total === 0) return 'na';
-    const percent = (value / total) * 100;
-    if (percent >= 80) return 'high';
-    if (percent >= 60) return 'medium';
+    if (value === null) return 'na';
+    if (value >= 8) return 'high';
+    if (value >= 6) return 'medium';
     return 'low';
   }
 
@@ -186,5 +207,44 @@ export class DoctorAssessmentResultComponent implements OnInit {
 
   getTotalQuestions(): number {
     return this.answerReviews.length;
+  }
+
+  private getAssessmentQuestions(): string[] {
+    if (this.assessment?.assessmentQuestions?.length) {
+      return this.assessment.assessmentQuestions;
+    }
+    return [
+      'What is today\'s date?',
+      'Where are you right now?',
+      'Repeat these three words: Apple, Table, Penny',
+      'Count backward by 7s from 100',
+      'Recall the three words from earlier',
+      'Name two common objects you can see',
+      'Repeat: "No ifs, ands, or buts."',
+      'Follow a 3-step command (describe what you did)',
+      'Read and obey a simple written command',
+      'Write a complete sentence'
+    ];
+  }
+
+  private calculateWeightedFromReviews(): number {
+    if (!this.answerReviews.length) return 0;
+
+    let earned = 0;
+    let maxPossible = 0;
+    this.answerReviews.forEach((review, index) => {
+      const weight = this.questionWeight(index);
+      maxPossible += weight;
+      if (review.correct) {
+        earned += weight;
+      }
+    });
+
+    if (maxPossible === 0) return 0;
+    return Math.round(((earned / maxPossible) * 10) * 10) / 10;
+  }
+
+  private questionWeight(index: number): number {
+    return index === 0 ? 2 : 1;
   }
 }

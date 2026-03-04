@@ -4,8 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { HealthRecord, RecordType, PatientProfile } from '../../../core/models/api.model';
+import { HealthRecord, RecordType } from '../../../core/models/api.model';
+import { CareTeamService } from '../../../core/services/care-team.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { DoctorAssignment, DoctorAssignmentStatus } from '../../../core/models/care-team.model';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { catchError, map } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
+
+interface DoctorPatientOption {
+  id: string;
+  userId: string;
+  firstName: string;
+  lastName: string;
+}
 
 @Component({
   selector: 'app-doctor-assessments',
@@ -29,7 +41,7 @@ export class DoctorAssessmentsComponent implements OnInit {
   ];
   
   doctorUserId = '';
-  patients: PatientProfile[] = [];
+  patients: DoctorPatientOption[] = [];
   assessments: HealthRecord[] = [];
   latestResults: Record<string, HealthRecord> = {};
   allRecords: HealthRecord[] = [];
@@ -63,7 +75,9 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   constructor(
     private apiService: ApiService,
-    private authService: AuthService
+    private authService: AuthService,
+    private careTeamService: CareTeamService,
+    private patientService: PatientService
   ) {}
 
   ngOnInit(): void {
@@ -76,20 +90,55 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   loadPatients(): void {
     if (!this.doctorUserId) return;
-    this.apiService.getDoctorPatients(this.doctorUserId).subscribe({
-      next: (patients) => {
-        this.patients = patients;
-        if (!this.selectedPatientId && patients.length) {
-          this.selectedPatientId = patients[0].userId;
+    this.careTeamService.getDoctorPatients(this.doctorUserId)
+      .pipe(
+        map((assignments: DoctorAssignment[]) =>
+          assignments.filter(a => a.status === DoctorAssignmentStatus.ACTIVE)
+        ),
+        catchError(() => {
+          this.error = 'Failed to load patients.';
+          return of([] as DoctorAssignment[]);
+        })
+      )
+      .subscribe((activeAssignments) => {
+        if (!activeAssignments.length) {
+          this.patients = [];
+          return;
         }
-        if (!this.selectedAnalysisPatientId && patients.length) {
-          this.selectedAnalysisPatientId = patients[0].userId;
-        }
-      },
-      error: () => {
-        this.error = 'Failed to load patients.';
-      }
-    });
+
+        const requests = activeAssignments.map(assignment =>
+          this.patientService.getPatientById(assignment.patientId).pipe(
+            map(patient => ({
+              id: patient.id,
+              userId: patient.userId || assignment.patientId,
+              firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
+              lastName: patient.lastName || assignment.patientLastName || 'Patient'
+            })),
+            catchError(() => of({
+              id: assignment.patientId,
+              userId: assignment.patientId,
+              firstName: assignment.patientFirstName || 'Unknown',
+              lastName: assignment.patientLastName || 'Patient'
+            }))
+          )
+        );
+
+        forkJoin(requests).subscribe({
+          next: (patients) => {
+            this.patients = patients;
+            if (!this.selectedPatientId && patients.length) {
+              this.selectedPatientId = patients[0].userId;
+            }
+            if (!this.selectedAnalysisPatientId && patients.length) {
+              this.selectedAnalysisPatientId = patients[0].userId;
+            }
+          },
+          error: () => {
+            this.error = 'Failed to load patients.';
+            this.patients = [];
+          }
+        });
+      });
   }
 
   loadAllRecords(): void {
@@ -389,8 +438,8 @@ export class DoctorAssessmentsComponent implements OnInit {
     records.forEach(r => {
       const score = r.unifiedScore;
       if (typeof score === 'number' && !isNaN(score)) {
-        if (score >= 24) breakdown.normal++;
-        else if (score >= 18) breakdown.mild++;
+        if (score >= 8) breakdown.normal++;
+        else if (score >= 6) breakdown.mild++;
         else breakdown.impaired++;
       }
     });
@@ -547,8 +596,8 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   getScoreTone(score: number | null): 'high' | 'medium' | 'low' | 'na' {
     if (score === null) return 'na';
-    if (score >= 24) return 'high';
-    if (score >= 18) return 'medium';
+    if (score >= 8) return 'high';
+    if (score >= 6) return 'medium';
     return 'low';
   }
 
@@ -672,12 +721,12 @@ export class DoctorAssessmentsComponent implements OnInit {
   viewAssessment(record: HealthRecord): void {
     this.selectedAssessmentForView = record;
     this.reviewAnswers = {};
-    
-    if (record.responses) {
-      Object.keys(record.responses).forEach(key => {
-        const answer = record.responses ? String(record.responses[key] || '') : '';
-        this.reviewAnswers[key] = { correct: false, answer };
-      });
+
+    const questionCount = record.assessmentQuestions?.length || 10;
+    for (let i = 0; i < questionCount; i++) {
+      const key = `q_${i + 1}`;
+      const answer = record.responses ? String(record.responses[key] || '') : '';
+      this.reviewAnswers[key] = { correct: false, answer };
     }
     
     this.showAssessmentModal = true;
@@ -698,11 +747,23 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   recalculateScore(): void {
     if (!this.selectedAssessmentForView) return;
-    
-    const correctCount = Object.values(this.reviewAnswers).filter(a => a.correct).length;
+
+    const entries = Object.entries(this.reviewAnswers);
+    let earned = 0;
+    let maxPossible = 0;
+    entries.forEach(([key, value]) => {
+      const index = Number(key.replace('q_', '')) - 1;
+      const weight = index === 0 ? 2 : 1;
+      maxPossible += weight;
+      if (value.correct) {
+        earned += weight;
+      }
+    });
+    const normalizedScore = maxPossible > 0 ? Math.round(((earned / maxPossible) * 10) * 10) / 10 : 0;
+
     this.selectedAssessmentForView = {
       ...this.selectedAssessmentForView,
-      unifiedScore: correctCount
+      unifiedScore: normalizedScore
     };
   }
 

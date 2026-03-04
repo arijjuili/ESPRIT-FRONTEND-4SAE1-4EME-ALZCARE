@@ -1,12 +1,8 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { Subject, forkJoin } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
 import { CommonModule, SlicePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, of, forkJoin } from 'rxjs';
 import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
@@ -148,20 +144,20 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
           return of([]);
         })
       )
-      .subscribe(patients => {
-        this.patients = patients;
-        // Load behaviors after patients are loaded
-        this.loadRecentBehaviors();
-        this.loadGameAnalytics();
-      },
-      error: (err) => {
-        console.error('Failed to load patients:', err);
-        // Fallback to empty array if API fails
-        this.patients = [];
-        this.loadRecentBehaviors();
-        this.loadGameAnalytics();
-      }
-    });
+      .subscribe({
+        next: (patients) => {
+          this.patients = patients;
+          // Load behaviors after patients are loaded
+          this.loadRecentBehaviors();
+          this.loadGameAnalytics();
+        },
+        error: (err) => {
+          console.error('Failed to load patients:', err);
+          // Fallback to empty array if API fails
+          this.patients = [];
+          this.loadRecentBehaviors();
+          this.loadGameAnalytics();
+        }
       });
   }
   
