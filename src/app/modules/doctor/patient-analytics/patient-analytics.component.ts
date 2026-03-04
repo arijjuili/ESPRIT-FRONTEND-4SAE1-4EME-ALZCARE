@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { Chart, registerables } from 'chart.js';
@@ -44,6 +44,7 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
   };
   isLoading = true;
   error = '';
+  backToAnalyticsRoute = '/doctor/cognitive-analytics';
 
   radarChartData: ChartData<'radar'> = { datasets: [] };
   radarChartOptions: ChartConfiguration<'radar'>['options'] = {
@@ -95,12 +96,14 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private apiService: ApiService,
     private authService: AuthService,
     private patientService: PatientService
   ) {}
 
   ngOnInit(): void {
+    this.backToAnalyticsRoute = this.resolveBackAnalyticsRoute();
     const patientId = this.route.snapshot.paramMap.get('id');
     if (!patientId) {
       this.error = 'Patient ID not found';
@@ -112,6 +115,14 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroy$.forEach(d => d);
+  }
+
+  private resolveBackAnalyticsRoute(): string {
+    const currentUrl = this.router.url || '';
+    if (currentUrl.startsWith('/caregiver/')) {
+      return '/caregiver/cognitive-analytics';
+    }
+    return '/doctor/cognitive-analytics';
   }
 
   private loadPatientData(userId: string): void {

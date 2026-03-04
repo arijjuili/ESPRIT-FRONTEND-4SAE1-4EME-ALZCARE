@@ -5,7 +5,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PatientService } from '../../../core/services/patient.service';
 import { SpeechCommandService } from '../../../core/services/speech-command.service';
-import { DifficultyLevel, GameActivity, GameCatalogItem, GameType } from '../../../core/models/api.model';
+import { DifficultyLevel, GameActivity, GameCatalogItem, GamificationBadgeEvent, GameType } from '../../../core/models/api.model';
 
 interface GameCardView extends GameCatalogItem {
   route: string;
@@ -29,10 +29,13 @@ export class PatientGamesComponent implements OnInit, OnDestroy {
   dailyTarget = 2;
   todaySessions = 0;
   latestBadge: { title: string; description: string; icon: string } | null = null;
+  showBadgePopup = false;
+  latestEarnedBadge: GamificationBadgeEvent | null = null;
   voiceSupported = false;
   voiceListening = false;
   voiceStatus = '';
   recommendedByType: Partial<Record<GameType, DifficultyLevel>> = {};
+  private badgeRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -45,10 +48,15 @@ export class PatientGamesComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.voiceSupported = this.speechCommandService.isSupported();
     this.loadCatalog();
+    this.startBadgeAutoRefresh();
   }
 
   ngOnDestroy(): void {
     this.speechCommandService.stopListening();
+    if (this.badgeRefreshTimer) {
+      clearInterval(this.badgeRefreshTimer);
+      this.badgeRefreshTimer = null;
+    }
   }
 
   loadCatalog(): void {
@@ -76,6 +84,33 @@ export class PatientGamesComponent implements OnInit, OnDestroy {
 
   get dailyProgressPercent(): number {
     return Math.min(100, Math.round((this.todaySessions / this.dailyTarget) * 100));
+  }
+
+  closeBadgePopup(): void {
+    this.showBadgePopup = false;
+  }
+
+  isBadgeImageUrl(iconUrl?: string): boolean {
+    if (!iconUrl) return false;
+    return /^https?:\/\//i.test(iconUrl);
+  }
+
+  getBadgeIconText(iconUrl?: string): string {
+    if (!iconUrl) return '🏅';
+    return this.isBadgeImageUrl(iconUrl) ? '🏅' : iconUrl;
+  }
+
+  getVerifiableBadgeUrl(badge?: GamificationBadgeEvent | null): string | null {
+    if (!badge) return null;
+    const description = badge.badgeDescription || '';
+    const match = description.match(/Verifiable:\s*(https?:\/\/[^\s|]+)/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+    if (badge.badgeIconUrl && this.isBadgeImageUrl(badge.badgeIconUrl)) {
+      return badge.badgeIconUrl;
+    }
+    return null;
   }
 
   private loadStats(): void {
@@ -284,5 +319,48 @@ export class PatientGamesComponent implements OnInit, OnDestroy {
     } catch {
       return null;
     }
+  }
+
+  private startBadgeAutoRefresh(): void {
+    const patientId = this.authService.getCurrentUser()?.id;
+    if (!patientId) return;
+
+    this.refreshRecentBadges(patientId);
+    if (this.badgeRefreshTimer) {
+      clearInterval(this.badgeRefreshTimer);
+    }
+    this.badgeRefreshTimer = setInterval(() => {
+      this.refreshRecentBadges(patientId);
+    }, 15000);
+  }
+
+  private refreshRecentBadges(patientId: string): void {
+    this.apiService.getRecentBadges(patientId, 1).subscribe({
+      next: (badges) => {
+        this.tryShowNewBadgePopup(badges || []);
+      },
+      error: () => {}
+    });
+  }
+
+  private tryShowNewBadgePopup(badges: GamificationBadgeEvent[]): void {
+    const newest = badges?.[0];
+    if (!newest?.earnedAt) return;
+
+    const key = 'alzcare_seen_backend_badge_event';
+    const eventKey = `${newest.badgeEarned || 'BADGE'}:${newest.earnedAt}`;
+    const seenEventKey = localStorage.getItem(key);
+
+    if (!seenEventKey) {
+      localStorage.setItem(key, eventKey);
+      return;
+    }
+    if (seenEventKey === eventKey) {
+      return;
+    }
+
+    this.latestEarnedBadge = newest;
+    this.showBadgePopup = true;
+    localStorage.setItem(key, eventKey);
   }
 }

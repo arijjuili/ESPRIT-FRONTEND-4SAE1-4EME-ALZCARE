@@ -1,5 +1,6 @@
 import { Component, OnInit, HostBinding, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData } from 'chart.js';
@@ -8,7 +9,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
-import { GameActivity } from '../../../core/models/api.model';
+import { GameActivity, GamificationBadgeEvent, GameType } from '../../../core/models/api.model';
 import { AssignmentStatus, CaregiverAssignment } from '../../../core/models/care-team.model';
 import { forkJoin, of, Observable } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
@@ -37,7 +38,7 @@ interface PatientProgress {
 @Component({
   selector: 'app-caregiver-game-analytics',
   standalone: true,
-  imports: [CommonModule, RouterModule, BaseChartDirective],
+  imports: [CommonModule, FormsModule, RouterModule, BaseChartDirective],
   templateUrl: './caregiver-game-analytics.component.html',
   styleUrls: ['./caregiver-game-analytics.component.scss']
 })
@@ -50,6 +51,9 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
   animatedCards: number[] = [];
   error: string | null = null;
   hasData = false;
+  badgeTimelineLoading = false;
+  badgeTimeline: GamificationBadgeEvent[] = [];
+  selectedTimelinePatientId = '';
 
   gameStats: GameStats[] = [];
   patients: PatientProgress[] = [];
@@ -168,6 +172,7 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
               this.hasData = true;
             }
             this.processData();
+            this.loadBadgeTimeline();
             this.isLoading = false;
           },
           error: (err) => {
@@ -178,6 +183,7 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
         });
       } else {
         this.loadFallbackData();
+        this.badgeTimeline = [];
         this.isLoading = false;
       }
     });
@@ -629,6 +635,37 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
   selectGame(game: string): void {
     this.selectedGame = game;
     this.processData();
+    this.loadBadgeTimeline();
+  }
+
+  onTimelinePatientChange(patientId: string): void {
+    this.selectedTimelinePatientId = patientId;
+    this.loadBadgeTimeline();
+  }
+
+  private loadBadgeTimeline(): void {
+    const caregiverId = this.authService.getCurrentUser()?.id;
+    if (!caregiverId) {
+      this.badgeTimeline = [];
+      return;
+    }
+    this.badgeTimelineLoading = true;
+    const selectedPatient = this.selectedTimelinePatientId || undefined;
+    const gameType = this.selectedGame === 'all'
+      ? undefined
+      : this.GAME_TYPE_MAP[this.selectedGame] as GameType | undefined;
+    const days = this.selectedTimeRange === 'week' ? 7 : this.selectedTimeRange === 'month' ? 30 : 365;
+
+    this.apiService.getBadgeTimeline(caregiverId, selectedPatient, gameType, days, 200).subscribe({
+      next: (events) => {
+        this.badgeTimeline = events;
+        this.badgeTimelineLoading = false;
+      },
+      error: () => {
+        this.badgeTimeline = [];
+        this.badgeTimelineLoading = false;
+      }
+    });
   }
 
   getTotalPlays(): number {

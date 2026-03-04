@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -9,7 +9,15 @@ import { AlertCardComponent } from '../../../shared/components/alert-card.compon
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { HealthMetric } from '../../../core/models/user.model';
-import { HealthRecord, HealthRecordCreateRequest, RecordType } from '../../../core/models/api.model';
+import {
+  GamificationBadgeEvent,
+  GamificationDailyChallenge,
+  GamificationLeaderboardEntry,
+  GamificationSummary,
+  HealthRecord,
+  HealthRecordCreateRequest,
+  RecordType
+} from '../../../core/models/api.model';
 
 interface AssessmentStatusItem {
   id: string;
@@ -26,7 +34,9 @@ interface AssessmentStatusItem {
   templateUrl: './patient-dashboard.component.html',
   styleUrls: ['./patient-dashboard.component.scss']
 })
-export class PatientDashboardComponent implements OnInit {
+export class PatientDashboardComponent implements OnInit, OnDestroy {
+  @ViewChild('gamificationArena') gamificationArena?: ElementRef<HTMLElement>;
+
   patientName = '';
   
   // Role theme for notification bell (teal for patient)
@@ -64,6 +74,14 @@ export class PatientDashboardComponent implements OnInit {
 
   assessmentSubmittedMessage = '';
   assessmentSubmittedDueDate = '';
+  gamificationLoading = false;
+  gamificationSummary: GamificationSummary | null = null;
+  recentBadges: GamificationBadgeEvent[] = [];
+  leaderboard: GamificationLeaderboardEntry[] = [];
+  dailyChallenge: GamificationDailyChallenge | null = null;
+  latestEarnedBadge: GamificationBadgeEvent | null = null;
+  showBadgePopup = false;
+  private gamificationRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private authService: AuthService,
@@ -94,6 +112,8 @@ export class PatientDashboardComponent implements OnInit {
 
     this.loadCheckInStatus();
     this.loadAssessmentStatus();
+    this.loadGamificationData();
+    this.startGamificationAutoRefresh();
 
     const navState = history.state as { assessmentSubmitted?: boolean; nextDueDate?: string };
     if (navState?.assessmentSubmitted) {
@@ -111,6 +131,13 @@ export class PatientDashboardComponent implements OnInit {
     }
   }
 
+  ngOnDestroy(): void {
+    if (this.gamificationRefreshTimer) {
+      clearInterval(this.gamificationRefreshTimer);
+      this.gamificationRefreshTimer = null;
+    }
+  }
+
   getProgressPercentage(): number {
     if (this.todayTasks.length === 0) return 0;
     return (this.completedTasksCount / this.todayTasks.length) * 100;
@@ -125,6 +152,101 @@ export class PatientDashboardComponent implements OnInit {
     if (hour < 12) return 'Good morning! 🌅 Hope you had a good sleep.';
     if (hour < 17) return 'Good afternoon! ☀️ Keep taking care of yourself.';
     return 'Good evening! 🌙 Relax and enjoy your evening.';
+  }
+
+  closeBadgePopup(): void {
+    this.showBadgePopup = false;
+  }
+
+  scrollToGamificationArena(): void {
+    this.gamificationArena?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  isBadgeImageUrl(iconUrl?: string): boolean {
+    if (!iconUrl) return false;
+    return /^https?:\/\//i.test(iconUrl);
+  }
+
+  getBadgeIconText(iconUrl?: string): string {
+    if (!iconUrl) return '🏅';
+    return this.isBadgeImageUrl(iconUrl) ? '🏅' : iconUrl;
+  }
+
+  getVerifiableBadgeUrl(badge?: GamificationBadgeEvent | null): string | null {
+    if (!badge) return null;
+    const description = badge.badgeDescription || '';
+    const match = description.match(/Verifiable:\s*(https?:\/\/[^\s|]+)/i);
+    if (match?.[1]) {
+      return match[1];
+    }
+    if (badge.badgeIconUrl && this.isBadgeImageUrl(badge.badgeIconUrl)) {
+      return badge.badgeIconUrl;
+    }
+    return null;
+  }
+
+  getDailyChallengeGameLabel(): string {
+    if (!this.dailyChallenge?.gameType) return 'Challenge';
+    return this.dailyChallenge.gameType
+      .toLowerCase()
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  getDailyChallengeDifficultyLabel(): string {
+    if (!this.dailyChallenge?.difficulty) return 'Easy';
+    const value = this.dailyChallenge.difficulty.toLowerCase();
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
+  getBadgeTimelineDayLabel(earnedAt?: string): string {
+    if (!earnedAt) return 'Unknown';
+    const badgeDate = new Date(earnedAt);
+    const now = new Date();
+    const badgeStart = new Date(badgeDate);
+    badgeStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((todayStart.getTime() - badgeStart.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return badgeDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  getGamificationProgressCurrent(): number {
+    if (!this.gamificationSummary) return 0;
+    const level = Math.max(this.gamificationSummary.level, 1);
+    const lowerBound = this.getLevelLowerBoundPoints(level);
+    return Math.max(0, this.gamificationSummary.totalPoints - lowerBound);
+  }
+
+  getGamificationProgressTarget(): number {
+    if (!this.gamificationSummary) return 100;
+    const level = Math.max(this.gamificationSummary.level, 1);
+    const lowerBound = this.getLevelLowerBoundPoints(level);
+    const upperBound = this.getLevelUpperBoundPoints(level);
+    return Math.max(1, upperBound - lowerBound);
+  }
+
+  getGamificationProgressPercent(): number {
+    const target = this.getGamificationProgressTarget();
+    if (target <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((this.getGamificationProgressCurrent() / target) * 100)));
+  }
+
+  getGamificationProgressPercentLabel(): string {
+    return `${this.getGamificationProgressPercent()}%`;
+  }
+
+  private getLevelLowerBoundPoints(level: number): number {
+    const previousLevel = Math.max(level - 1, 1);
+    return previousLevel * previousLevel * 100;
+  }
+
+  private getLevelUpperBoundPoints(level: number): number {
+    const currentLevel = Math.max(level, 1);
+    return currentLevel * currentLevel * 100;
   }
 
   // ==================== Daily Check-In ==================== 
@@ -291,5 +413,100 @@ export class PatientDashboardComponent implements OnInit {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
     return start;
+  }
+
+  private loadGamificationData(): void {
+    const patientId = this.authService.getCurrentUser()?.id;
+    if (!patientId) return;
+
+    this.gamificationLoading = true;
+    this.apiService.getGamificationSummary(patientId).subscribe({
+      next: (summary) => {
+        this.gamificationSummary = summary;
+        this.gamificationLoading = false;
+      },
+      error: () => {
+        this.gamificationSummary = null;
+        this.gamificationLoading = false;
+      }
+    });
+
+    this.refreshRecentBadges(patientId);
+
+    this.apiService.getGamificationLeaderboard('global', undefined, 10).subscribe({
+      next: (entries) => {
+        this.leaderboard = entries;
+      },
+      error: () => {
+        this.leaderboard = [];
+      }
+    });
+
+    this.apiService.getDailyChallenge(patientId).subscribe({
+      next: (challenge) => {
+        this.dailyChallenge = challenge;
+      },
+      error: () => {
+        this.dailyChallenge = null;
+      }
+    });
+  }
+
+  private startGamificationAutoRefresh(): void {
+    const patientId = this.authService.getCurrentUser()?.id;
+    if (!patientId) return;
+
+    if (this.gamificationRefreshTimer) {
+      clearInterval(this.gamificationRefreshTimer);
+    }
+    this.gamificationRefreshTimer = setInterval(() => {
+      this.apiService.getDailyChallenge(patientId).subscribe({
+        next: (challenge) => {
+          this.dailyChallenge = challenge;
+        },
+        error: () => {}
+      });
+      this.apiService.getGamificationSummary(patientId).subscribe({
+        next: (summary) => {
+          this.gamificationSummary = summary;
+        },
+        error: () => {}
+      });
+      this.refreshRecentBadges(patientId);
+    }, 15000);
+  }
+
+  private refreshRecentBadges(patientId: string): void {
+    this.apiService.getRecentBadges(patientId, 6).subscribe({
+      next: (badges) => {
+        this.recentBadges = badges;
+        this.tryShowNewBadgePopup(badges);
+      },
+      error: () => {
+        this.recentBadges = [];
+      }
+    });
+  }
+
+  private tryShowNewBadgePopup(badges: GamificationBadgeEvent[]): void {
+    const newest = badges?.[0];
+    if (!newest?.earnedAt) return;
+
+    const key = 'alzcare_seen_backend_badge_event';
+    const eventKey = `${newest.badgeEarned || 'BADGE'}:${newest.earnedAt}`;
+    const seenEventKey = localStorage.getItem(key);
+
+    // First load should not replay old badge popups.
+    if (!seenEventKey) {
+      localStorage.setItem(key, eventKey);
+      return;
+    }
+    if (seenEventKey === eventKey) {
+      return;
+    }
+
+    this.latestEarnedBadge = newest;
+    this.showBadgePopup = true;
+    localStorage.setItem(key, eventKey);
   }
 }

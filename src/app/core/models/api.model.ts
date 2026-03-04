@@ -402,6 +402,47 @@ export interface GameAdaptationProfile {
   reason: string;
 }
 
+export interface GamificationSummary {
+  patientId: string;
+  totalPoints: number;
+  level: number;
+  streak: number;
+  badgesEarned: number;
+  dailyChallengesCompleted: number;
+  lastActivityAt?: string;
+}
+
+export interface GamificationBadgeEvent {
+  patientId: string;
+  patientName: string;
+  gameType: GameType;
+  badgeEarned: string;
+  badgeDescription?: string;
+  badgeIconUrl?: string;
+  earnedAt: string;
+}
+
+export interface GamificationLeaderboardEntry {
+  patientId: string;
+  patientName: string;
+  totalPoints: number;
+  level: number;
+  badgesCount: number;
+  streak: number;
+  rankPosition: number;
+  percentile: number;
+}
+
+export interface GamificationDailyChallenge {
+  patientId: string;
+  date: string;
+  gameType: GameType;
+  difficulty: DifficultyLevel;
+  targetScore: number;
+  completed: boolean;
+  description: string;
+}
+
 // Keycloak Token Response
 export interface TokenResponse {
   access_token: string;

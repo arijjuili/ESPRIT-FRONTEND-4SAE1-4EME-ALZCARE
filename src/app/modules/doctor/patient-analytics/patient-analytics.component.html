@@ -2,7 +2,7 @@
   <!-- Header -->
   <div class="mb-8">
     <div class="flex items-center gap-4 mb-2">
-      <a routerLink="/doctor/cognitive-analytics" class="p-2 rounded-lg bg-white shadow hover:shadow-md transition">
+      <a [routerLink]="backToAnalyticsRoute" class="p-2 rounded-lg bg-white shadow hover:shadow-md transition">
         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
@@ -22,7 +22,7 @@
   <!-- Error -->
   <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
     <p class="text-red-600">{{ error }}</p>
-    <a routerLink="/doctor/cognitive-analytics" class="text-blue-600 hover:underline mt-2 inline-block">
+    <a [routerLink]="backToAnalyticsRoute" class="text-blue-600 hover:underline mt-2 inline-block">
       Back to Game Analytics
     </a>
   </div>

@@ -262,6 +262,13 @@ export class SpatialNavigationComponent implements OnDestroy, OnInit {
     this.voiceFeedback = 'I could not catch that clearly. Please repeat.';
   }
 
+  getEffectiveCueMode(): string {
+    if (this.cueMode === 'none' && !!this.hintDirection) {
+      return 'visual';
+    }
+    return this.cueMode;
+  }
+
   private stepTowardTarget(): void {
     const dx = this.target.x - this.player.x;
     const dy = this.target.y - this.player.y;

@@ -1,4 +1,23 @@
 <div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+  <div *ngIf="showBadgePopup && latestEarnedBadge" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" (click)="closeBadgePopup()">
+    <div class="w-full max-w-sm rounded-3xl border border-amber-200 bg-white p-6 shadow-2xl text-center" (click)="$event.stopPropagation()">
+      <div class="mx-auto mb-3 h-14 w-14 rounded-full bg-amber-100 flex items-center justify-center text-2xl overflow-hidden">
+        <img *ngIf="isBadgeImageUrl(latestEarnedBadge.badgeIconUrl)" [src]="latestEarnedBadge.badgeIconUrl" alt="Badge icon" class="h-full w-full object-cover" />
+        <span *ngIf="!isBadgeImageUrl(latestEarnedBadge.badgeIconUrl)">{{ getBadgeIconText(latestEarnedBadge.badgeIconUrl) }}</span>
+      </div>
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">New Badge Earned</p>
+      <h3 class="mt-2 text-xl font-black text-slate-900">{{ latestEarnedBadge.badgeEarned || 'Badge' }}</h3>
+      <p class="mt-2 text-sm text-slate-600">{{ latestEarnedBadge.badgeDescription || 'Great progress! Keep going.' }}</p>
+      <a *ngIf="getVerifiableBadgeUrl(latestEarnedBadge)" [href]="getVerifiableBadgeUrl(latestEarnedBadge)!" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex text-xs font-semibold text-sky-700 hover:text-sky-800 underline">
+        Verify badge
+      </a>
+      <p class="mt-2 text-[11px] text-slate-500">{{ latestEarnedBadge.earnedAt | date:'MMM d, y • h:mm a' }}</p>
+      <button (click)="closeBadgePopup()" class="mt-5 inline-flex items-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition">
+        Awesome
+      </button>
+    </div>
+  </div>
+
   <section class="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-cyan-50 to-emerald-50 p-6 sm:p-8">
     <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-indigo-200/40 blur-3xl animate-pulse"></div>
     <div class="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-cyan-200/40 blur-2xl animate-pulse" style="animation-delay: 1s;"></div>

@@ -43,10 +43,10 @@
         </div>
         <div>
           <p class="text-slate-500">Cue Mode</p>
-          <p class="font-bold text-slate-900">{{ cueMode === 'visual_audio' ? 'Visual + Audio Cues' : cueMode }}</p>
+          <p class="font-bold text-slate-900">{{ getEffectiveCueMode() === 'visual_audio' ? 'Visual + Audio' : getEffectiveCueMode() }}</p>
         </div>
       </div>
-      <p *ngIf="cueMode === 'visual_audio'" class="mt-3 text-base sm:text-lg font-black text-indigo-700">
+      <p *ngIf="getEffectiveCueMode() === 'visual_audio'" class="mt-3 text-base sm:text-lg font-black text-indigo-700">
         Follow the strong cue and move toward the star.
       </p>
     </div>
@@ -62,8 +62,8 @@
       <div class="text-center mb-4">
         <div class="text-lg sm:text-2xl font-bold" [ngClass]="{
           'text-emerald-700 sparkle': success,
-          'text-indigo-800 text-2xl sm:text-3xl font-black': !success && cueMode === 'visual_audio',
-          'text-emerald-600': !success && cueMode !== 'visual_audio'
+          'text-indigo-800 text-2xl sm:text-3xl font-black': !success && getEffectiveCueMode() === 'visual_audio',
+          'text-emerald-600': !success && getEffectiveCueMode() !== 'visual_audio'
         }">
           {{ status }}
         </div>

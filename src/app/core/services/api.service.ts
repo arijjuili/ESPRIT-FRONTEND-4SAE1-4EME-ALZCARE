@@ -21,6 +21,10 @@ import {
   GameCatalogItem,
   GameType,
   GameActivity,
+  GamificationBadgeEvent,
+  GamificationDailyChallenge,
+  GamificationLeaderboardEntry,
+  GamificationSummary,
   GameAdaptationProfile,
   GameActivityCreateRequest,
   QuizAttempt,
@@ -351,5 +355,44 @@ export class ApiService {
    */
   submitQuizAnswer(attemptId: string, request: QuizAttemptAnswerRequest): Observable<QuizAttempt> {
     return this.http.patch<QuizAttempt>(`${this.cognitiveBaseUrl}/quiz-attempts/${attemptId}/answer`, request);
+  }
+
+  // ==================== GAMIFICATION ====================
+
+  getGamificationSummary(patientId: string): Observable<GamificationSummary> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<GamificationSummary>(`${this.cognitiveBaseUrl}/gamification/summary`, { params });
+  }
+
+  getRecentBadges(patientId: string, limit = 10): Observable<GamificationBadgeEvent[]> {
+    const params = new HttpParams().set('patientId', patientId).set('limit', String(limit));
+    return this.http.get<GamificationBadgeEvent[]>(`${this.cognitiveBaseUrl}/gamification/recent-badges`, { params });
+  }
+
+  getGamificationLeaderboard(scope: 'doctor' | 'caregiver' | 'global', ownerId?: string, limit = 20): Observable<GamificationLeaderboardEntry[]> {
+    let params = new HttpParams().set('scope', scope).set('limit', String(limit));
+    if (ownerId) {
+      params = params.set('ownerId', ownerId);
+    }
+    return this.http.get<GamificationLeaderboardEntry[]>(`${this.cognitiveBaseUrl}/gamification/leaderboard`, { params });
+  }
+
+  getBadgeTimeline(caregiverId: string, patientId?: string, gameType?: GameType, days = 30, limit = 200): Observable<GamificationBadgeEvent[]> {
+    let params = new HttpParams()
+      .set('caregiverId', caregiverId)
+      .set('days', String(days))
+      .set('limit', String(limit));
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (gameType) {
+      params = params.set('gameType', gameType);
+    }
+    return this.http.get<GamificationBadgeEvent[]>(`${this.cognitiveBaseUrl}/gamification/badge-timeline`, { params });
+  }
+
+  getDailyChallenge(patientId: string): Observable<GamificationDailyChallenge> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<GamificationDailyChallenge>(`${this.cognitiveBaseUrl}/gamification/daily-challenge`, { params });
   }
 }
