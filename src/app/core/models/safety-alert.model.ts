@@ -54,7 +54,7 @@ export interface CreateManualBehaviorLogRequest {
 
 export interface ValidateBehaviorRequest {
   validationStatus: BehaviorValidationStatus;
-  validatedBy?: string;
+  validatedBy: string; // Required - ID of the caregiver validating the behavior
   validationNotes?: string;
 }
 
@@ -68,6 +68,17 @@ export interface ResolveAlertRequest {
   resolutionNotes?: string;
   isFalsePositive: boolean;
   resolvedBy: string;
+}
+
+export interface UpdateBehaviorLogRequest {
+  type: BehaviorType;
+  severity: number; // 1-5 (frontend uses numbers, backend uses enum)
+  timestamp?: string; // ISO datetime
+  location?: string;
+  description?: string;
+  triggers?: string;
+  witnesses?: string;
+  imageUrls?: string[];
 }
 
 // ==================== RESPONSE DTOs ====================

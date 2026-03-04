@@ -72,6 +72,23 @@ export class PatientService {
   }
 
   /**
+   * Get multiple patients by their IDs
+   * Fetches all patients and filters by the provided IDs
+   */
+  getPatientsByIds(patientIds: string[]): Observable<PatientProfileResponse[]> {
+    if (patientIds.length === 0) {
+      return new Observable(observer => {
+        observer.next([]);
+        observer.complete();
+      });
+    }
+    
+    return this.http.get<PatientProfileResponse[]>(`${this.baseUrl}/patients`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  /**
    * Get patient by user ID (Keycloak user ID)
    */
   getPatientByUserId(userId: string): Observable<PatientProfileResponse> {

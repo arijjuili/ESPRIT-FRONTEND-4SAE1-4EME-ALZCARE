@@ -58,6 +58,39 @@
 
 .header-actions {
   flex-shrink: 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.return-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--theme-border-color, #e5e7eb);
+  border-radius: 10px;
+  background: white;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .mark-all-btn {
@@ -91,6 +124,56 @@
 
   &:active:not(:disabled) {
     transform: scale(0.98);
+  }
+}
+
+// Days Filter Indicator
+.days-filter-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--theme-primary-light, #f0fdfa) 0%, white 100%);
+  border: 1px solid var(--theme-border-color, #ccfbf1);
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+.filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-primary-dark, #0f766e);
+}
+
+.toggle-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--theme-primary, #14b8a6);
+  border-radius: 10px;
+  background: white;
+  color: var(--theme-primary, #14b8a6);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--theme-primary, #14b8a6);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 }
 

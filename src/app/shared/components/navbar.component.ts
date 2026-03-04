@@ -164,6 +164,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
+      label: 'Handovers',
+      path: '/caregiver/handovers',
+      icon: '📝',
+      roles: ['caregiver']
+    },
+    {
       label: 'Schedule',
       path: '/caregiver/schedule',
       icon: '📅',
@@ -189,21 +195,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['doctor']
     },
     {
-      label: 'Patients',
-      path: '/doctor/patients',
-      icon: '👥',
-      roles: ['doctor']
-    },
-    {
-      label: 'Records',
-      path: '/doctor/records',
-      icon: '📄',
-      roles: ['doctor']
-    },
-    {
-      label: 'Schedule',
-      path: '/doctor/schedule',
-      icon: '📅',
+      label: 'Checklist',
+      path: '/doctor/checklist',
+      icon: '📋',
       roles: ['doctor']
     },
     {
@@ -253,6 +247,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Users',
       path: '/admin/users',
       icon: '👥',
+      roles: ['admin']
+    },
+    {
+      label: 'Care Teams',
+      path: '/admin/care-teams',
+      icon: '👨‍⚕️',
       roles: ['admin']
     },
     {

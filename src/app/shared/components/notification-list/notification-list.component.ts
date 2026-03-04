@@ -54,6 +54,10 @@ export class NotificationListComponent implements OnInit, OnDestroy {
   isLoading = false;
   isLoadingMore = false;
 
+  // Days filter (default to last 7 days)
+  daysFilter: number | undefined = 7;
+  showAllNotifications = false;
+
   // Summary counts
   unreadCount = 0;
   totalCount = 0;
@@ -137,7 +141,8 @@ export class NotificationListComponent implements OnInit, OnDestroy {
 
     this.notificationService.getUserNotifications(userId, {
       page: this.currentPage,
-      size: this.pageSize
+      size: this.pageSize,
+      days: this.showAllNotifications ? undefined : this.daysFilter
     }).subscribe({
       next: (response) => {
         this.notifications = response.content;
@@ -171,7 +176,8 @@ export class NotificationListComponent implements OnInit, OnDestroy {
 
     this.notificationService.getUserNotifications(userId, {
       page: this.currentPage,
-      size: this.pageSize
+      size: this.pageSize,
+      days: this.showAllNotifications ? undefined : this.daysFilter
     }).subscribe({
       next: (response) => {
         this.notifications = [...this.notifications, ...response.content];
@@ -224,6 +230,11 @@ export class NotificationListComponent implements OnInit, OnDestroy {
           n.message.toLowerCase().includes(query)
       );
     }
+
+    // Sort notifications: latest first (newest to oldest)
+    this.filteredNotifications.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
     this.updateSummaryCounts();
     this.cdr.markForCheck();
@@ -482,5 +493,21 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    */
   getTypeLabel(type: NotificationType): string {
     return type.charAt(0) + type.slice(1).toLowerCase();
+  }
+
+  /**
+   * Toggle between showing last 7 days and showing all notifications
+   */
+  toggleDaysFilter(): void {
+    this.showAllNotifications = !this.showAllNotifications;
+    this.currentPage = 0;
+    this.loadNotifications();
+  }
+
+  /**
+   * Get the current days filter label
+   */
+  getDaysFilterLabel(): string {
+    return this.showAllNotifications ? 'Showing all notifications' : 'Showing last 7 days';
   }
 }

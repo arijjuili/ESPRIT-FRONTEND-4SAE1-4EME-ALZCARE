@@ -1,165 +1,279 @@
 # Changelog - CareHub
 
-## Session 29 (2026-02-25) - Daily Check-In + MMSE Assessments
+## Session 28 (2026-03-03) - Camera Management & Behavior Validation
 
-### Feature: HealthRecord-Based Assessments + Check-Ins
-**Problem:** Needed daily check-in flow and MMSE assessments scheduled via HealthRecord with doctor/caregiver views.
-**Solution:** Added HealthRecord scheduling fields, assessment submission endpoint, doctor-patient lookup, and full UI for patient check-in + MMSE submission, doctor CRUD, caregiver result view.
-**Files Changed:**  
-`alzheimerApp-backend/identity-service/src/main/java/com/alzcare/identity/controllers/DoctorProfileController.java`  
-`alzheimerApp-backend/identity-service/src/main/java/com/alzcare/identity/entities/PatientProfile.java`  
-`alzheimerApp-backend/cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/HealthRecordService.java`  
-`alzheimerApp/src/app/modules/patient/dashboard/patient-dashboard.component.ts`  
-`alzheimerApp/src/app/modules/patient/assessment/patient-assessment.component.ts`  
-`alzheimerApp/src/app/modules/doctor/assessments/doctor-assessments.component.ts`  
-`alzheimerApp/src/app/modules/caregiver/assessments/caregiver-assessments.component.ts`
+### Feature: Admin Camera Device Management
+**Purpose:** Allow administrators to pair ESP32 cameras to patients for automated behavior monitoring.
 
-### Next Session Notes (if any)
-- [ ] Consider adding assessment history (new HealthRecord per completion)
+**Features Implemented:**
+- ✅ **Camera Pairing** - Pair cameras to patients via MAC address
+- ✅ **Zone Configuration** - Assign zones (BEDROOM, HALLWAY, BATHROOM, FRONT_DOOR, KITCHEN, LIVING_ROOM)
+- ✅ **Status Management** - Toggle camera status (ACTIVE, PAUSED, OFFLINE)
+- ✅ **Camera List** - View all cameras for a patient with details
+- ✅ **Unpair Cameras** - Remove camera associations with confirmation
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `camera-device.model.ts` | CameraDevice and CameraDeviceRequest interfaces |
+| `camera-device.service.ts` | API service for camera CRUD operations |
+| `admin-camera-devices.component.ts` | Main component with patient selector |
+| `admin-camera-devices.component.html` | UI with camera cards and modals |
+
+**Route:** `/admin/medical/cameras`
 
 ---
 
-## Session 28 (2026-02-24) - Gamified Game UX + Badges
+### Feature: Caregiver Behavior Validation Workflow
+**Purpose:** Allow caregivers to validate or mark as false alarm the auto-detected behaviors from cameras.
 
-### Feature: Game UX Enhancements
-**Problem:** Game pages needed stronger guidance, clearer feedback, and a smooth return path.
-
-**Solution:** Added “Back to Brain Games” buttons, larger instruction messaging, start overlays, celebratory win states, and ensured spatial maps are solvable.
-
-**Feature: Working Daily Focus + Latest Badge**
-**Solution:** Added local session tracking and badge awards with animated overlays on completion. Daily focus now updates automatically after each game.
-
-**Files Modified:**
-| File | Changes |
-|------|---------|
-| `src/app/modules/patient/games/patient-games.component.ts` | Daily focus + latest badge logic |
-| `src/app/modules/patient/games/patient-games.component.html` | Dynamic daily focus + badge display |
-| `src/app/modules/patient/games/memory-match/*` | Bigger win state + back button + badge overlay |
-| `src/app/modules/patient/games/pattern-recognition/*` | Start overlay + larger messages + encouragement |
-| `src/app/modules/patient/games/word-recall/*` | Start overlay + answer reveal + colorful word chips |
-| `src/app/modules/patient/games/spatial-navigation/*` | Solvable map generation + animated success |
-| `src/app/modules/patient/games/attention-task/*` | Back button + badge overlay |
-
-### Follow-up: Game UX Tweaks + DB Best Time
-**Changes:** Larger back links, centered rhythm messages, mistake feedback with round reached, locked word recall inputs after checking answers, solvable map center alignment + glitter success, bigger buttons, and attention task best time sourced from DB.
+**Features Implemented:**
+- ✅ **Pending Validation Badge** - Yellow animated badge for auto-detected behaviors
+- ✅ **Validation Modal** - Modal dialog for entering validation notes
+- ✅ **Confirm Action** - Validate behavior as real incident with notes
+- ✅ **False Alarm Action** - Mark behavior as false positive with explanation
+- ✅ **Status Badges** - ✅ Confirmed / ❌ False Alarm badges after validation
+- ✅ **Quick Actions** - Validation buttons in both list and detail views
 
 **Files Modified:**
 | File | Changes |
 |------|---------|
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/GameActivityController.java` | Allow patient game activity creation |
-| `src/app/core/models/api.model.ts` | Game activity models for DB read/write |
-| `src/app/core/services/api.service.ts` | Game activity list/create endpoints |
-| `src/app/modules/patient/games/pattern-recognition/*` | Centered messages + round reached |
-| `src/app/modules/patient/games/word-recall/*` | Locked inputs + bigger instructions |
-| `src/app/modules/patient/games/spatial-navigation/*` | Centered grid + glitter success |
-| `src/app/modules/patient/games/attention-task/*` | DB-backed best time |
-| `src/app/modules/patient/games/memory-match/*` | Larger back link |
+| `behaviors-page.component.ts` | Added `canValidate()`, `confirmBehavior()`, `markAsFalseAlarm()`, `submitValidation()` methods |
+| `behaviors-page.component.html` | Added validation modal, badges, action buttons |
+| `safety-alert.model.ts` | Updated `ValidateBehaviorRequest` interface |
 
-## Session 27 (2026-02-24) - Brain Games Catalog + Gamified Pages
+**API Integration:**
+- `PUT /api/behavior-logs/{id}/validate` - Submit validation with notes
 
-### Feature: Backend-Driven Game Catalog
-**Problem:** The Brain Games page used static mock data and lacked per-game play pages.
+---
 
-**Solution:** Added a backend catalog endpoint and wired the patient UI to load games from the cognitive-memory service. Implemented distinct, playable game pages with unique layouts.
+## Session 27 (2026-02-28) - Caregiver Patient Access Control
 
-**Backend Updates:**
-| File | Changes |
-|------|---------|
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/responses/GameCatalogResponse.java` | New DTO for game catalog |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/GameActivityService.java` | Catalog definitions |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/GameActivityController.java` | Added `/game-activities/catalog` |
+### Security Fix: Restrict Caregiver Access to Assigned Patients Only
+**Problem:** Caregivers could see all patients in the system and select any patient when logging behaviors. This was a security issue as caregivers should only access patients they are explicitly assigned to.
 
-**Frontend Updates:**
-| File | Changes |
-|------|---------|
-| `src/app/core/models/api.model.ts` | Added `GameCatalogItem`, `GameType`, `DifficultyLevel` |
-| `src/app/core/services/api.service.ts` | Added `getGameCatalog` |
-| `src/app/modules/patient/games/patient-games.component.ts` | Fetch catalog and route to games |
-| `src/app/modules/patient/games/patient-games.component.html` | Gamified layout |
-| `src/app/app.routes.ts` | Added routes for each game page |
-| `src/app/modules/patient/games/memory-match/*` | Memory Match game page |
-| `src/app/modules/patient/games/pattern-recognition/*` | Pattern Recognition game page |
-| `src/app/modules/patient/games/word-recall/*` | Word Recall game page |
-| `src/app/modules/patient/games/spatial-navigation/*` | Spatial Navigation game page |
-| `src/app/modules/patient/games/attention-task/*` | Attention Task game page |
+**Solution:** Modified the caregiver dashboard and behavior log form to only show patients that the caregiver is assigned to via the Care Team Service.
 
-## Session 26 (2026-02-24) - Server-Side Memory Quiz Availability
+**Changes Made:**
 
-### Feature: Backend-Driven Availability for Memory Quizzes
-**Problem:** The client-only filtering could be bypassed or out of sync with the database.
+**1. PatientService (`patient.service.ts`)**
+- Added `getPatientsByIds()` helper method for filtering patients by IDs
 
-**Solution:** Added a server-side endpoint that returns available memory items for a patient based on quiz history within the last 7 days. The frontend now calls this endpoint.
+**2. Caregiver Dashboard (`caregiver-dashboard.component.ts`)**
+- Modified `loadRealPatients()` to fetch caregiver assignments first
+- Filters patient list to only include assigned patients (ACTIVE assignments only)
+- Updated `loadCaregiverAssignments()` to avoid duplicate API calls
 
-**Backend Updates:**
-| File | Changes |
-|------|---------|
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/MemoryItemService.java` | Added availability computation with weekly cooldown |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/controllers/MemoryItemController.java` | Added `/memory-items/available` endpoint |
+**3. Behavior Log Form (`behavior-log-form.component.ts`)**
+- Added `CareTeamService` dependency
+- Modified `loadPatients()` to only load assigned patients
+- Added authentication check and proper error handling
 
-**Frontend Updates:**
-| File | Changes |
-|------|---------|
-| `src/app/core/services/api.service.ts` | Added `getAvailableMemoryItems` |
-| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Switched to server-side filtering |
+**Security Benefits:**
+- **Before:** Caregivers could see all patients and select any patient in behavior forms
+- **After:** Caregivers only see and can select patients they are explicitly assigned to
 
-### Enhancement: Auto-Advance Quiz Without Manual Refresh
-**Problem:** Patients had to refresh the page to see the next available question.
+**API Flow:**
+1. Get caregiver assignments: `GET /api/v1/care-team/caregivers/{caregiverId}/assignments`
+2. Extract patient IDs from ACTIVE assignments
+3. Fetch all patients: `GET /api/v1/patients`
+4. Filter to only include assigned patients
 
-**Solution:** After submitting an answer, the quiz now fetches recent attempts and automatically advances to the next unanswered question if available. If all questions are answered, the quiz closes and the list refreshes.
+---
+
+## Session 26 (2026-02-28) - Timeline View for Behaviors
+
+### Feature: Timeline View for Behavior Tracking
+**Problem:** The behavior tracking page only had a table view, which made it difficult to visualize the chronological progression of incidents and understand patterns over time.
+
+**Solution:** Added a timeline view option alongside the existing table view, providing a visual, chronological display of behavior incidents grouped by date.
+
+**Features Implemented:**
+- ✅ **View Toggle** - Switch between Table and Timeline views with a toggle button
+- ✅ **Date Grouping** - Behaviors grouped by date with smart labels (Today, Yesterday, or full date)
+- ✅ **Visual Timeline** - Vertical timeline with color-coded severity dots and connector lines
+- ✅ **Chronological Order** - Behaviors sorted from newest to oldest within each day
+- ✅ **Rich Cards** - Each behavior shows: type icon, severity badge, patient name, location, source, validation status, description preview, and photo count
+- ✅ **Responsive Design** - Mobile-optimized layout with stacked elements
+- ✅ **Full Feature Parity** - Edit/delete actions, detail modal, and all filters work in both views
 
 **Files Modified:**
 | File | Changes |
 |------|---------|
-| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Auto-advance after answer submission |
+| `behaviors-page.component.ts` | Added `viewMode` state, `setViewMode()`, `getTimelineGroups()`, `getTimelineDotColor()`, `getTimelineConnectorColor()`, `formatTimelineTime()` methods |
+| `behaviors-page.component.html` | Added view toggle buttons, timeline container with date headers, timeline items with connectors, action buttons |
 
-### Enhancement: Required Field Messages for Memory Items
-**Problem:** Caregivers didn't get field-specific feedback for missing required inputs.
+**UI Components:**
+- **View Toggle** - Segmented button group with Table (📊) and Timeline (⏱️) options
+- **Date Headers** - Large date badges with incident count (e.g., "Today - 3 incidents")
+- **Timeline Items** - Cards showing behavior details with visual severity indicators
+- **Severity Dots** - Color-coded dots (green/yellow/orange/red) based on severity level
 
-**Solution:** Added per-field validation messages for create/edit memory item forms (patient, category, title, question/answer pairs).
+**API Integration:**
+- Uses existing `filteredBehaviors` array - no additional backend calls needed
+- Respects all existing filters (patient, severity, type, date range, search)
+
+---
+
+## Session 25 (2026-02-28) - Modal Scroll & Pagination Improvements
+
+### Improvement: Modal Scrollbars & Pagination
+**Enhancements made to behaviors page and modals:**
+
+**1. Modal Scroll Improvements (`styles.css`)**
+- Added custom scrollbar styles (`.custom-scrollbar`) with thin 8px width
+- Added rounded track and thumb with hover effects
+- Added Firefox compatibility
+- Added modal animations (`animate-modal-in`, `animate-modal-backdrop-in`)
+
+**2. Modal Components (`behavior-detail-modal.component.ts`, `behaviors-page.component.html`)**
+- Fixed header and footer with scrollable content area using `flex-col` layout
+- Applied `custom-scrollbar` class for styled scrolling
+- Added animations for modal appearance
+- Improved header styling with emerald theme
+- Better rounded corners and image grid hover effects
+
+**3. Pagination Features (`behaviors-page.component.ts/.html`)**
+- **Pagination state**: `currentPage`, `pageSize` (default: 10), `pageSizeOptions` [5, 10, 25, 50, 100]
+- **Computed properties**: `paginatedBehaviors`, `totalPages`, `startIndex`, `endIndex`, `paginationInfo`
+- **Navigation methods**: `goToPage()`, `goToFirstPage()`, `goToLastPage()`, `goToPreviousPage()`, `goToNextPage()`
+- **Page size selector** in stats bar
+- **Smart page numbers** - Shows max 5 visible pages with ellipsis
+- Resets to page 1 when filters change
+
+---
+
+## Session 24 (2026-02-28) - Behavior Log Reporter Names
+
+### Feature: Display Reporter Names Instead of UUIDs
+**Problem:** Behavior logs showed `reportedBy` as raw UUIDs (e.g., `0c76bbbc-7a5b-4884-8e13-999387b3994f`) which is unreadable for caregivers viewing the logs.
+
+**Solution:** Implemented automatic name resolution for `reportedBy` and `validatedBy` fields by calling Identity Service APIs when viewing behavior details.
+
+**Architecture:**
+```
+┌─────────────────┐     Get Caregiver/Doctor     ┌─────────────────┐
+│  BehaviorsPage  │ ────────────────────────────> │  Identity       │
+│  or DetailModal │  GET /api/v1/caregivers/user  │  Service (8001) │
+│                 │  GET /api/v1/doctors/user     │                 │
+└─────────────────┘                             └─────────────────┘
+```
+
+**Implementation:**
+- Added `loadReporterName()` method to fetch names on-demand
+- Tries caregiver endpoint first, falls back to doctor endpoint
+- Caches result in component property for display
+- Shows "Loading..." while fetching, "Unknown" if not found
 
 **Files Modified:**
 | File | Changes |
 |------|---------|
-| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.ts` | Added submit tracking and validation helpers |
-| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.html` | Inline required field messages |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | Added `reporterName` property, `loadReporterName()` method, API integration |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Updated "Reported By" to show `reporterName` instead of raw ID |
+| `shared/components/behavior-detail-modal.component.ts` | Added `reporterName`, `validatorName`, `ngOnChanges`, name loading logic |
+| `shared/components/behavior-detail-modal.component.html` | Updated "Reported By" and "Validated By" to show names |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Added `reporterNames` Map, `loadReporterNames()`, `getReporterName()` for list view |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Added "Reported By" column to desktop table and mobile cards |
 
-## Session 25 (2026-02-24) - Memory Quiz Cooldown + Completion Logic
+**Features Implemented:**
+- ✅ **Lazy Loading** - Names fetched only when modal opens (not on list load)
+- ✅ **Fallback Chain** - Caregiver → Doctor → "Unknown"
+- ✅ **Loading States** - Shows "Loading..." while fetching
+- ✅ **List View** - "Reported By" column in behavior history table
+- ✅ **Detail Modal** - Names shown in full behavior details
+- ✅ **Validator Names** - Also shows validator names (not just reporters)
 
-### Feature: Hide Memory Items After All Questions Answered (Weekly Reset)
-**Problem:** Memory items stayed visible even after patients answered every question, and there was no weekly reset for retaking the quiz.
+**API Integration:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/caregivers/user/{userId}` | GET | Fetch caregiver profile by Keycloak ID |
+| `/api/v1/doctors/user/{userId}` | GET | Fetch doctor profile by Keycloak ID |
 
-**Solution:** Patient memory wallet now hides items only after all questions are answered within the last 7 days. If only some questions are answered, the item stays visible. After a week, the item reappears automatically. All quiz attempts remain saved.
+**Security:**
+- No admin token required - endpoints accessible to authenticated users
+- Uses existing JWT token from `localStorage`
+
+---
+
+## Session 24 (2026-02-28) - Behavior Log Edit/Delete Functionality
+
+### Feature: Edit and Delete Manual Behavior Logs
+**Problem:** Caregivers could not correct mistakes in behavior logs after submission. Typos in descriptions, wrong severity levels, or incorrect timestamps could not be fixed without database access.
+
+**Solution:** Implemented full edit and delete functionality for manual behavior logs with confirmation dialogs.
+
+**Architecture:**
+```
+┌─────────────────┐     Edit/Delete Request     ┌─────────────────┐
+│  BehaviorLog    │ ──────────────────────────> │  Safety Alert   │
+│  List/Form      │  PUT /api/behavior-logs/{id}│  Engine (8003)  │
+│  Components     │  DELETE /api/behavior-logs  │                 │
+└─────────────────┘                             └─────────────────┘
+```
+
+**New TypeScript Interface:**
+```typescript
+// UpdateBehaviorLogRequest - For editing existing logs
+interface UpdateBehaviorLogRequest {
+  type: BehaviorType;           // Required
+  severity: number;             // 1-5 (converted to enum for backend)
+  timestamp?: string;           // ISO datetime
+  location?: string;
+  description?: string;
+  triggers?: string;
+  witnesses?: string;
+  imageUrls?: string[];
+}
+```
+
+**Files Created:**
+None (all modifications to existing files)
 
 **Files Modified:**
 | File | Changes |
 |------|---------|
-| `src/app/core/services/api.service.ts` | Added quiz attempt list endpoint |
-| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Added completion/cooldown filtering logic |
+| `core/models/safety-alert.model.ts` | Added `UpdateBehaviorLogRequest` interface |
+| `core/services/safety-alert.service.ts` | Added `updateBehaviorLog()` and `deleteBehaviorLog()` methods |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.ts` | Edit mode support, form pre-fill, severity enum conversion |
+| `modules/caregiver/behaviors/behavior-log-form/behavior-log-form.component.html` | Dynamic titles, disabled patient selection in edit mode |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.ts` | Edit/delete outputs, confirmation dialog state |
+| `modules/caregiver/behaviors/behavior-log-list/behavior-log-list.component.html` | Action buttons, delete confirmation dialog |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.ts` | `canEdit()`, `canDelete()`, `openEditForm()`, `deleteBehavior()` handlers |
+| `modules/caregiver/behaviors/behaviors-page/behaviors-page.component.html` | Actions column, edit/delete buttons, confirmation dialog |
 
-## Session 24 (2026-02-24) - Deterministic Memory Quiz Answers
+**Features Implemented:**
+- ✅ **Edit Mode** - Form pre-fills with existing log data
+- ✅ **Severity Conversion** - Enum (ONE-FIVE) ↔ Number (1-5) conversion for slider
+- ✅ **Patient Lock** - Patient cannot be changed when editing
+- ✅ **Role-Based Actions** - Only `MANUAL` source logs show edit/delete buttons
+- ✅ **Delete Confirmation** - Modal dialog showing log details before deletion
+- ✅ **Loading States** - "Deleting..." spinner during delete operation
+- ✅ **Toast Notifications** - Success/error feedback for all actions
+- ✅ **Auto-Refresh** - List refreshes after successful edit/delete
+- ✅ **Detail Modal Actions** - Edit/delete buttons in behavior detail modal
+- ✅ **Hidden Log ID** - Removed log ID from UI for cleaner appearance
 
-### Feature: Stored Correct Answers per Memory Question
-**Problem:** The memory quiz was selecting the correct answer randomly from persons or the title, so the same question could be marked correct or incorrect across runs.
+**API Integration:**
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/behavior-logs/{id}` | PUT | Update behavior log details |
+| `/api/behavior-logs/{id}` | DELETE | Permanently delete behavior log |
 
-**Solution:** Added `correctAnswers` to memory items and updated caregiver forms to capture answers per question. Patient quizzes now use the stored correct answer for the chosen question while still randomizing other options.
+**Security & Validation:**
+- Only logs with `source: MANUAL` can be edited or deleted
+- Auto-detected events (`source: AUTO`) are read-only
+- Backend validates edit/delete permissions
+- Confirmation dialog prevents accidental deletion
+- Form validation same as create mode
 
-**Backend Updates:**
-| File | Changes |
-|------|---------|
-| `cognitive-memory/src/main/resources/db/migration/V2__add_correct_answers_to_memory_item.sql` | Added `correct_answers TEXT[]` column |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/entities/MemoryItem.java` | Added `correctAnswers` field |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/requests/MemoryItemCreateRequest.java` | Added `correctAnswers` |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/requests/MemoryItemUpdateRequest.java` | Added `correctAnswers` |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/dtos/responses/MemoryItemResponse.java` | Added `correctAnswers` |
-| `cognitive-memory/src/main/java/com/alzcare/cognitivememory/services/MemoryItemService.java` | Validation for questions/answers length |
+**UX Considerations:**
+- Edit ✏️ and Delete 🗑️ buttons only appear on manual logs
+- Edit button opens form with pre-filled data
+- Delete shows confirmation with log type, date, and location
+- Cancel button returns to list without changes
+- Success toast confirms action completion
 
-**Frontend Updates:**
-| File | Changes |
-|------|---------|
-| `src/app/core/models/api.model.ts` | Added `correctAnswers` to memory item interfaces |
-| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.ts` | Added correct answer handling and validation |
-| `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.html` | Added correct answer inputs and display |
-| `src/app/modules/patient/memory-wallet/patient-memory-wallet.component.ts` | Use stored correct answers per question |
+---
 
 ## Session 23 (2026-02-22) - Cloudinary Image Upload Integration
 

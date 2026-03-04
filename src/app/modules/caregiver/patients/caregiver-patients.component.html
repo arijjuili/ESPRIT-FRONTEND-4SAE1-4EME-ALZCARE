@@ -1,0 +1,210 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+  <!-- Header Section -->
+  <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">My Patients</h1>
+      <p class="text-gray-600 mt-2">
+        <span class="font-semibold text-emerald-600">{{ patients.length }}</span> 
+        patient{{ patients.length !== 1 ? 's' : '' }} under your care
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <button 
+        (click)="refresh()"
+        class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition shadow-sm"
+        title="Refresh patient list">
+        <span>🔄</span>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
+      <app-notification-bell [theme]="currentTheme"></app-notification-bell>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex flex-col items-center justify-center py-16">
+    <div class="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+    <p class="text-gray-600 mt-4">Loading your patients...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+    <span class="text-4xl mb-3 block">⚠️</span>
+    <h3 class="text-lg font-semibold text-red-800 mb-2">Unable to Load Patients</h3>
+    <p class="text-red-600 mb-4">{{ error }}</p>
+    <button 
+      (click)="refresh()"
+      class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition">
+      Try Again
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && !error && patients.length === 0" class="bg-white rounded-2xl shadow-md p-8 sm:p-12 text-center">
+    <span class="text-6xl sm:text-8xl mb-6 block">👥</span>
+    <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-3">No Patients Assigned</h2>
+    <p class="text-gray-600 max-w-md mx-auto mb-6">
+      You don't have any active patient assignments yet. Once you're assigned to patients, they will appear here.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <button 
+        routerLink="/caregiver/dashboard"
+        class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition">
+        Return to Dashboard
+      </button>
+    </div>
+  </div>
+
+  <!-- Patients Grid -->
+  <div *ngIf="!loading && !error && patients.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+    <!-- Patient Card -->
+    <div 
+      *ngFor="let patient of patients"
+      class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border-2"
+      [class]="getCardBorderClass(patient.assignment.role)">
+      
+      <!-- Card Header with Role Badge -->
+      <div class="px-4 sm:px-6 py-3 border-b border-gray-100 flex justify-between items-center"
+           [class]="getCardBgClass(patient.assignment.role)">
+        <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Patient</span>
+        <span 
+          class="inline-block px-3 py-1 rounded-full text-xs font-bold border"
+          [class]="getRoleBadgeClass(patient.assignment.role)">
+          {{ getRoleLabel(patient.assignment.role) }}
+        </span>
+      </div>
+
+      <!-- Patient Info -->
+      <div class="p-4 sm:p-6">
+        <div class="flex items-start gap-4">
+          <!-- Patient Photo/Avatar -->
+          <div class="flex-shrink-0">
+            <div 
+              *ngIf="patient.photoUrl; else initialsAvatar"
+              class="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 border-white shadow-md">
+              <img 
+                [src]="patient.photoUrl" 
+                [alt]="getPatientFullName(patient)"
+                class="w-full h-full object-cover">
+            </div>
+            <ng-template #initialsAvatar>
+              <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-md"
+                   [class]="patient.assignment.role === CaregiverRole.PRIMARY ? 'bg-emerald-500' : 
+                            patient.assignment.role === CaregiverRole.FAMILY ? 'bg-blue-500' : 'bg-rose-500'">
+                {{ getPatientInitials(patient) }}
+              </div>
+            </ng-template>
+          </div>
+
+          <!-- Patient Details -->
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg sm:text-xl font-bold text-gray-900 truncate">
+              {{ getPatientFullName(patient) }}
+            </h3>
+            <p class="text-sm text-gray-500 mt-1">
+              Patient ID: {{ patient.id | slice:0:8 }}...
+            </p>
+            
+            <!-- Age & Gender -->
+            <div class="flex flex-wrap items-center gap-2 mt-2 text-sm">
+              <span *ngIf="patient.age" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-gray-700">
+                <span>🎂</span>
+                <span>{{ patient.age }} years</span>
+              </span>
+              <span *ngIf="patient.gender" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-gray-700">
+                {{ getGenderDisplay(patient.gender) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div class="mt-4 pt-4 border-t border-gray-100 space-y-2">
+          <!-- Alzheimer Stage -->
+          <div *ngIf="patient.alzheimerStage" class="flex items-center gap-2 text-sm">
+            <span class="text-gray-500">Stage:</span>
+            <span class="font-medium text-gray-800">{{ patient.alzheimerStage }}</span>
+          </div>
+          
+          <!-- Phone -->
+          <div *ngIf="patient.phoneNumber" class="flex items-center gap-2 text-sm">
+            <span class="text-gray-500">📞</span>
+            <span class="font-medium text-gray-800">{{ patient.phoneNumber }}</span>
+          </div>
+
+          <!-- Emergency Contact -->
+          <div *ngIf="patient.emergencyContactName" class="flex items-center gap-2 text-sm">
+            <span class="text-gray-500">🚨 Emergency:</span>
+            <span class="font-medium text-gray-800 truncate">{{ patient.emergencyContactName }}</span>
+          </div>
+        </div>
+
+        <!-- Assigned Date -->
+        <div class="mt-3 text-xs text-gray-400">
+          Assigned since {{ patient.assignment.assignedAt | date:'mediumDate' }}
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100">
+        <div class="grid grid-cols-2 gap-3">
+          <button 
+            (click)="viewPatientDetails(patient.userId)"
+            class="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition shadow-sm">
+            <span>👁️</span>
+            <span class="text-sm">View Details</span>
+          </button>
+          <button 
+            (click)="logBehavior(patient.userId)"
+            class="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 rounded-lg text-white font-medium hover:bg-emerald-700 transition shadow-sm">
+            <span>📝</span>
+            <span class="text-sm">Log Behavior</span>
+          </button>
+        </div>
+        
+        <!-- Secondary Actions -->
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <a 
+            [routerLink]="['/caregiver/tasks']"
+            [queryParams]="{ patientId: patient.userId }"
+            class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 font-medium hover:bg-blue-100 transition text-sm">
+            <span>📋</span>
+            <span>Tasks</span>
+          </a>
+          <a 
+            [routerLink]="['/caregiver/handovers']"
+            class="flex items-center justify-center gap-2 px-4 py-2 bg-violet-50 border border-violet-200 rounded-lg text-violet-700 font-medium hover:bg-violet-100 transition text-sm">
+            <span>📝</span>
+            <span>Handover</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Footer -->
+  <div *ngIf="!loading && !error && patients.length > 0" class="mt-8 bg-white rounded-xl shadow-sm p-4 sm:p-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h3 class="font-semibold text-gray-900">Care Team Summary</h3>
+        <p class="text-sm text-gray-600 mt-1">
+          You are caring for <span class="font-medium">{{ patients.length }}</span> patient(s) 
+          across <span class="font-medium">{{ getUniqueRoleCount() }}</span> different role(s)
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
+          <span>●</span>
+          {{ getRoleCount(CaregiverRole.PRIMARY) }} Primary
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+          <span>●</span>
+          {{ getRoleCount(CaregiverRole.FAMILY) }} Family
+        </span>
+        <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-100 text-rose-800 rounded-full text-sm font-medium">
+          <span>●</span>
+          {{ getRoleCount(CaregiverRole.EMERGENCY) }} Emergency
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

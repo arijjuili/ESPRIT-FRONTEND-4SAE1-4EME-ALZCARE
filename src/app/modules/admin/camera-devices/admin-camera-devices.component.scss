@@ -1,0 +1,52 @@
+// Camera Devices Component Styles
+
+// Custom scrollbar for camera grid
+.camera-grid {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+}
+
+// Status indicator pulse animation
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-active {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+// Card hover effect
+.module-card {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .camera-grid {
+    grid-template-columns: 1fr;
+  }
+}

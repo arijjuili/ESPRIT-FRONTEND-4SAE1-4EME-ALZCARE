@@ -1,0 +1,580 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-2">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg">
+        <span class="text-white text-xl">👨‍⚕️</span>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900">Care Teams</h1>
+    </div>
+    <p class="text-gray-600 ml-13 pl-1">Manage patient-caregiver assignments, doctor assignments, and care checklists.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+    <div class="flex border-b border-gray-200">
+      <button 
+        (click)="setActiveTab('caregivers')"
+        [class]="activeTab === 'caregivers' ? 
+          'px-6 py-4 text-sm font-medium border-b-2 border-violet-500 text-violet-600 bg-violet-50' : 
+          'px-6 py-4 text-sm font-medium text-gray-600 hover:text-violet-600 hover:bg-gray-50'">
+        <span class="flex items-center gap-2">
+          <span>🤝</span>
+          Patient-Caregiver
+        </span>
+      </button>
+      <button 
+        (click)="setActiveTab('doctors')"
+        [class]="activeTab === 'doctors' ? 
+          'px-6 py-4 text-sm font-medium border-b-2 border-violet-500 text-violet-600 bg-violet-50' : 
+          'px-6 py-4 text-sm font-medium text-gray-600 hover:text-violet-600 hover:bg-gray-50'">
+        <span class="flex items-center gap-2">
+          <span>👨‍⚕️</span>
+          Doctor-Patient
+        </span>
+      </button>
+      <button 
+        (click)="setActiveTab('checklists')"
+        [class]="activeTab === 'checklists' ? 
+          'px-6 py-4 text-sm font-medium border-b-2 border-violet-500 text-violet-600 bg-violet-50' : 
+          'px-6 py-4 text-sm font-medium text-gray-600 hover:text-violet-600 hover:bg-gray-50'">
+        <span class="flex items-center gap-2">
+          <span>📋</span>
+          Checklists
+        </span>
+      </button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="p-6">
+      <!-- Loading State -->
+      <div *ngIf="loading" class="flex items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+        <span class="ml-3 text-gray-600">Loading...</span>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center gap-3">
+          <span class="text-red-500 text-xl">⚠️</span>
+          <p class="text-red-700">{{ error }}</p>
+        </div>
+        <button 
+          (click)="setActiveTab(activeTab)"
+          class="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium">
+          Retry
+        </button>
+      </div>
+
+      <!-- Caregivers Tab -->
+      <div *ngIf="activeTab === 'caregivers' && !loading && !error">
+        <!-- Action Bar -->
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-semibold text-gray-900">Caregiver Assignments</h2>
+          <button 
+            (click)="openInviteModal()"
+            class="px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium shadow-sm flex items-center gap-2">
+            <span>+</span>
+            Invite Caregiver
+          </button>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Caregiver</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Date</th>
+                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr *ngFor="let assignment of caregiverAssignments" class="hover:bg-gray-50">
+                <td class="px-4 py-4">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-medium">
+                      {{ getPatientInitial(assignment.patientId) }}
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ getPatientName(assignment.patientId) }}
+                      </div>
+                      <div class="text-xs text-gray-500">ID: {{ assignment.patientId }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium">
+                      {{ getCaregiverInitial(assignment.caregiverId) }}
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ getCaregiverName(assignment.caregiverId) }}
+                      </div>
+                      <div class="text-xs text-gray-500">ID: {{ assignment.caregiverId }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <select 
+                    [value]="assignment.role"
+                    (change)="changeCaregiverRole(assignment, $any($event.target).value)"
+                    [disabled]="assignment.status === AssignmentStatus.REVOKED || loadingAction"
+                    class="text-sm border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-violet-500 focus:border-violet-500">
+                    <option *ngFor="let role of caregiverRoleOptions" [value]="role.value">
+                      {{ role.label }}
+                    </option>
+                  </select>
+                </td>
+                <td class="px-4 py-4">
+                  <span [class]="'inline-flex px-2 py-1 text-xs font-medium rounded-full border ' + getAssignmentStatusClass(assignment.status)">
+                    {{ assignment.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-600">
+                  {{ formatDate(assignment.assignedAt) }}
+                </td>
+                <td class="px-4 py-4 text-right">
+                  <button 
+                    *ngIf="assignment.status !== AssignmentStatus.REVOKED"
+                    (click)="openRevokeConfirmModal(assignment)"
+                    [disabled]="loadingAction"
+                    class="text-red-600 hover:text-red-800 text-sm font-medium px-3 py-1 rounded hover:bg-red-50">
+                    Revoke
+                  </button>
+                  <span *ngIf="assignment.status === AssignmentStatus.REVOKED" class="text-gray-400 text-sm">
+                    Revoked
+                  </span>
+                </td>
+              </tr>
+              <tr *ngIf="caregiverAssignments.length === 0">
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                  No caregiver assignments found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Doctors Tab -->
+      <div *ngIf="activeTab === 'doctors' && !loading && !error">
+        <!-- Action Bar -->
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-semibold text-gray-900">Doctor Assignments</h2>
+          <button 
+            (click)="openAssignDoctorModal()"
+            class="px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium shadow-sm flex items-center gap-2">
+            <span>+</span>
+            Assign Doctor
+          </button>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Date</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr *ngFor="let assignment of doctorAssignments" class="hover:bg-gray-50">
+                <td class="px-4 py-4">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-medium">
+                      {{ getPatientInitial(assignment.patientId) }}
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ getPatientName(assignment.patientId) }}
+                      </div>
+                      <div class="text-xs text-gray-500">ID: {{ assignment.patientId }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-medium">
+                      {{ getDoctorInitial(assignment.doctorId) }}
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ getDoctorName(assignment.doctorId) }}
+                      </div>
+                      <div class="text-xs text-gray-500">ID: {{ assignment.doctorId }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <span [class]="'inline-flex px-2 py-1 text-xs font-medium rounded-full border ' + getDoctorStatusClass(assignment.status)">
+                    {{ assignment.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-600">
+                  {{ formatDate(assignment.assignedAt) }}
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-600 max-w-xs truncate">
+                  {{ assignment.notes || '-' }}
+                </td>
+                <td class="px-4 py-4 text-right">
+                  <button 
+                    *ngIf="assignment.status === DoctorAssignmentStatus.ACTIVE"
+                    (click)="openDeactivateConfirmModal(assignment)"
+                    [disabled]="loadingAction"
+                    class="text-amber-600 hover:text-amber-800 text-sm font-medium px-3 py-1 rounded hover:bg-amber-50">
+                    Deactivate
+                  </button>
+                  <span *ngIf="assignment.status === DoctorAssignmentStatus.INACTIVE" class="text-gray-400 text-sm">
+                    Inactive
+                  </span>
+                </td>
+              </tr>
+              <tr *ngIf="doctorAssignments.length === 0">
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                  No doctor assignments found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Checklists Tab -->
+      <div *ngIf="activeTab === 'checklists' && !loading && !error">
+        <!-- Filters -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <div class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[200px]">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+              <select 
+                [(ngModel)]="filterPatientId"
+                (focus)="loadUsers()"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500">
+                <option value="">All Patients</option>
+                <option *ngFor="let patient of patients" [value]="patient.id">
+                  {{ patient.firstName }} {{ patient.lastName }}
+                </option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input 
+                type="date"
+                [(ngModel)]="filterDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500">
+            </div>
+            <div class="flex-1 min-w-[200px]">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select 
+                [(ngModel)]="filterStatus"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500">
+                <option value="">All Statuses</option>
+                <option [value]="ChecklistStatus.PENDING">Pending</option>
+                <option [value]="ChecklistStatus.ASSIGNED">Assigned</option>
+                <option [value]="ChecklistStatus.COMPLETED">Completed</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button 
+                (click)="applyChecklistFilters()"
+                class="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 font-medium">
+                Filter
+              </button>
+              <button 
+                (click)="clearChecklistFilters()"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr *ngFor="let item of checklistItems" class="hover:bg-gray-50">
+                <td class="px-4 py-4">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-medium">
+                      {{ getPatientInitial(item.patientId) }}
+                    </div>
+                    <div class="ml-3">
+                      <div class="text-sm font-medium text-gray-900">
+                        {{ getPatientName(item.patientId) }}
+                      </div>
+                      <div class="text-xs text-gray-500">ID: {{ item.patientId }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-4">
+                  <div class="text-sm text-gray-900">{{ item.description }}</div>
+                  <div class="text-xs text-gray-500">{{ item.category }}</div>
+                </td>
+                <td class="px-4 py-4">
+                  <span [class]="'inline-flex px-2 py-1 text-xs font-medium rounded-full border ' + getPriorityClass(item.priority)">
+                    {{ item.priority }}
+                  </span>
+                </td>
+                <td class="px-4 py-4">
+                  <span [class]="'inline-flex px-2 py-1 text-xs font-medium rounded-full border ' + getChecklistStatusClass(item.status)">
+                    {{ item.status }}
+                  </span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-600">
+                  <span *ngIf="item.assignedCaregiverId">
+                    {{ getCaregiverName(item.assignedCaregiverId) }}
+                  </span>
+                  <span *ngIf="!item.assignedCaregiverId" class="text-gray-400">Unassigned</span>
+                </td>
+                <td class="px-4 py-4 text-sm text-gray-600">
+                  {{ formatDate(item.date) }}
+                </td>
+              </tr>
+              <tr *ngIf="checklistItems.length === 0">
+                <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                  No checklist items found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Caregiver Modal -->
+<div *ngIf="showInviteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Invite Caregiver</h3>
+      <p class="text-sm text-gray-600">Generate an invitation for a caregiver to join a patient's care team.</p>
+    </div>
+    <form [formGroup]="inviteForm" (ngSubmit)="generateInvite()" class="p-6 space-y-4">
+      <!-- Loading Users State -->
+      <div *ngIf="loadingUsers" class="flex items-center justify-center py-4">
+        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-600"></div>
+        <span class="ml-2 text-sm text-gray-600">Loading users...</span>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
+        <select 
+          formControlName="patientId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+          [disabled]="loadingUsers">
+          <option value="">Select a patient</option>
+          <option *ngFor="let patient of patients" [value]="patient.id">
+            {{ patient.firstName }} {{ patient.lastName }} ({{ patient.email }})
+          </option>
+        </select>
+        <p *ngIf="patients.length === 0 && !loadingUsers" class="text-sm text-amber-600 mt-1">
+          No patients found. Please create patients first.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Caregiver *</label>
+        <select 
+          formControlName="caregiverId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+          [disabled]="loadingUsers">
+          <option value="">Select a caregiver</option>
+          <option *ngFor="let caregiver of caregivers" [value]="caregiver.id">
+            {{ caregiver.firstName }} {{ caregiver.lastName }} ({{ caregiver.email }})
+          </option>
+        </select>
+        <p *ngIf="caregivers.length === 0 && !loadingUsers" class="text-sm text-amber-600 mt-1">
+          No caregivers found. Please create caregivers first.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+        <select 
+          formControlName="role"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500">
+          <option *ngFor="let role of caregiverRoleOptions" [value]="role.value">
+            {{ role.label }}
+          </option>
+        </select>
+      </div>
+      <div class="flex justify-end gap-3 pt-4">
+        <button 
+          type="button"
+          (click)="closeInviteModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">
+          Cancel
+        </button>
+        <button 
+          type="submit"
+          [disabled]="inviteForm.invalid || loadingAction"
+          class="px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium disabled:opacity-50 flex items-center gap-2">
+          <span *ngIf="loadingAction" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          Generate Invite
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Assign Doctor Modal -->
+<div *ngIf="showAssignDoctorModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Assign Doctor to Patient</h3>
+      <p class="text-sm text-gray-600">Create a new doctor-patient assignment.</p>
+    </div>
+    <form [formGroup]="assignDoctorForm" (ngSubmit)="assignDoctor()" class="p-6 space-y-4">
+      <!-- Loading Users State -->
+      <div *ngIf="loadingUsers" class="flex items-center justify-center py-4">
+        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-600"></div>
+        <span class="ml-2 text-sm text-gray-600">Loading users...</span>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Doctor *</label>
+        <select 
+          formControlName="doctorId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+          [disabled]="loadingUsers">
+          <option value="">Select a doctor</option>
+          <option *ngFor="let doctor of doctors" [value]="doctor.id">
+            Dr. {{ doctor.firstName }} {{ doctor.lastName }} ({{ doctor.email }})
+          </option>
+        </select>
+        <p *ngIf="doctors.length === 0 && !loadingUsers" class="text-sm text-amber-600 mt-1">
+          No doctors found. Please create doctors first.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
+        <select 
+          formControlName="patientId"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+          [disabled]="loadingUsers">
+          <option value="">Select a patient</option>
+          <option *ngFor="let patient of patients" [value]="patient.id">
+            {{ patient.firstName }} {{ patient.lastName }} ({{ patient.email }})
+          </option>
+        </select>
+        <p *ngIf="patients.length === 0 && !loadingUsers" class="text-sm text-amber-600 mt-1">
+          No patients found. Please create patients first.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <textarea 
+          formControlName="notes"
+          rows="3"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+          placeholder="Optional notes about the assignment"></textarea>
+      </div>
+      <div class="flex justify-end gap-3 pt-4">
+        <button 
+          type="button"
+          (click)="closeAssignDoctorModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">
+          Cancel
+        </button>
+        <button 
+          type="submit"
+          [disabled]="assignDoctorForm.invalid || loadingAction"
+          class="px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium disabled:opacity-50 flex items-center gap-2">
+          <span *ngIf="loadingAction" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          Assign Doctor
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Revoke Confirm Modal -->
+<div *ngIf="showRevokeConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Confirm Revoke Access</h3>
+    </div>
+    <div class="p-6">
+      <div class="flex items-center gap-3 mb-4 text-amber-600">
+        <span class="text-2xl">⚠️</span>
+        <p class="text-sm">This action cannot be undone.</p>
+      </div>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to revoke access for 
+        <strong>{{ getCaregiverName(selectedAssignment?.caregiverId) }}</strong>
+        from patient
+        <strong>{{ getPatientName(selectedAssignment?.patientId) }}</strong>?
+      </p>
+      <div class="flex justify-end gap-3">
+        <button 
+          (click)="closeRevokeConfirmModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">
+          Cancel
+        </button>
+        <button 
+          (click)="revokeAccess()"
+          [disabled]="loadingAction"
+          class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium disabled:opacity-50 flex items-center gap-2">
+          <span *ngIf="loadingAction" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          Revoke Access
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deactivate Confirm Modal -->
+<div *ngIf="showDeactivateConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-900">Confirm Deactivate Assignment</h3>
+    </div>
+    <div class="p-6">
+      <div class="flex items-center gap-3 mb-4 text-amber-600">
+        <span class="text-2xl">⚠️</span>
+        <p class="text-sm">This action cannot be undone.</p>
+      </div>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to deactivate the assignment of 
+        <strong>{{ getDoctorName(selectedDoctorAssignment?.doctorId) }}</strong>
+        for patient
+        <strong>{{ getPatientName(selectedDoctorAssignment?.patientId) }}</strong>?
+      </p>
+      <div class="flex justify-end gap-3">
+        <button 
+          (click)="closeDeactivateConfirmModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">
+          Cancel
+        </button>
+        <button 
+          (click)="deactivateAssignment()"
+          [disabled]="loadingAction"
+          class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium disabled:opacity-50 flex items-center gap-2">
+          <span *ngIf="loadingAction" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+          Deactivate
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

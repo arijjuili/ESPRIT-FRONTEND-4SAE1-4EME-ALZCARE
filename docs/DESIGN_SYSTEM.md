@@ -88,6 +88,38 @@ Our palette uses **Teal as primary** (calm, trustworthy, medical) with complemen
 - **Status**: Outlined, semi-transparent
 - **Priority**: Color-coded (red = high, amber = medium, green = low)
 
+### Discussion Cards (Forum)
+- **Background**: White with subtle shadow
+- **Border**: Rounded-xl (12px)
+- **Padding**: p-6 for comfortable spacing
+- **Header**: User avatar + metadata (category, timestamp)
+- **Content**: Clear typography hierarchy (title > body)
+- **Actions**: Like/comment buttons with emoji icons
+- **Hover**: Lift effect with increased shadow
+- **Category Badge**: Small rounded-full badge with category label and icon
+
+### Comment Threads
+- **Nesting**: Flat list with indentation for replies
+- **Avatar**: Circular user avatar (10px radius)
+- **Author Badge**: "You" indicator for current user's content (success color)
+- **Timestamp**: Relative time format ("Posted 2 hours ago")
+- **Content**: Whitespace-pre-wrap for formatted text
+- **Separator**: Subtle border between comments
+- **Actions**: Reply, like buttons positioned bottom-right
+
+### Interaction Buttons
+- **Like Button**: Red heart emoji on hover, shows count
+- **Comment Button**: Speech bubble emoji, shows count
+- **State**: Maintains active state when user has liked/commented
+- **Animation**: Smooth color transition on interaction
+
+### Form Validation (Community Forms)
+- **Input Border**: Red-300 when invalid and touched
+- **Error Text**: Red-600, text-sm, appears below field
+- **Character Count**: Displayed for textarea fields
+- **Submit Button**: Disabled state with spinner when submitting
+- **Success State**: Toast notification on successful submission
+
 ## Typography
 
 - **Font**: System font stack (Inter, system-ui, sans-serif)
@@ -163,7 +195,16 @@ Current design is **light-mode only** but can be extended:
 | Success Badge | `bg-success bg-opacity-20 text-success` |
 | Card | `bg-white rounded-xl shadow-md p-6` |
 | Section Title | `text-2xl font-bold text-gray-900` |
+| Discussion Card | `bg-white rounded-2xl shadow-md p-6 hover-lift` |
+| Category Badge | `px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold` |
+| Author Badge | `px-2 py-1 bg-success bg-opacity-20 text-success rounded-full text-xs font-semibold` |
+| Comment Item | `comment-item hover-lift` (custom component style) |
+| Form Error | `border-red-300` + `text-red-600 text-sm mt-2` |
 
 ---
 
 **All components use this system. To customize, update `tailwind.config.js` colors and regenerate.**
+
+---
+
+*Last Updated: 2026-03-02 (Community/Forum UI Patterns Added)*

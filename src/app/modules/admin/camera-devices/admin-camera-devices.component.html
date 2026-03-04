@@ -1,0 +1,272 @@
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl lg:text-4xl font-bold text-gray-900">
+            <span class="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+              Camera Devices
+            </span>
+          </h1>
+          <p class="text-gray-600 mt-2 flex items-center gap-2">
+            <span>📹</span>
+            <span>Manage ESP32 cameras for patient monitoring</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Patient Selector -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Select Patient <span class="text-rose-500">*</span>
+      </label>
+      <div class="flex items-center gap-4">
+        <select 
+          [(ngModel)]="selectedPatientId" 
+          (change)="onPatientSelect($any($event.target).value)"
+          [disabled]="loadingPatients"
+          class="flex-1 max-w-md px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white">
+          <option value="">-- Select a patient --</option>
+          <option *ngFor="let patient of patients" [value]="patient.id">
+            {{ patient.firstName }} {{ patient.lastName }} (ID: {{ patient.id | slice:0:8 }}...)
+          </option>
+        </select>
+        
+        <span *ngIf="loadingPatients" class="text-gray-500 text-sm">
+          Loading patients...
+        </span>
+        
+        <button 
+          *ngIf="selectedPatientId"
+          (click)="openPairModal()" 
+          class="px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+          <span>➕</span>
+          <span>Pair New Camera</span>
+        </button>
+      </div>
+      
+      <!-- Selected Patient Info -->
+      <div *ngIf="selectedPatientName" class="mt-4 p-4 bg-violet-50 rounded-xl">
+        <p class="text-sm text-gray-600">
+          Selected Patient: <span class="font-semibold text-violet-700">{{ selectedPatientName }}</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- No Patient Selected State -->
+    <div *ngIf="!selectedPatientId && !loadingPatients" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+      <div class="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+        👤
+      </div>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">Select a Patient</h3>
+      <p class="text-gray-500 max-w-md mx-auto">
+        Choose a patient from the dropdown above to view and manage their paired cameras.
+      </p>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+      <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-gray-600">Loading cameras...</p>
+    </div>
+
+    <!-- Cameras List -->
+    <div *ngIf="selectedPatientId && !loading">
+      <!-- Camera Count Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <span>🎥</span>
+          <span>Paired Cameras</span>
+          <span class="text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            {{ cameras.length }} device{{ cameras.length !== 1 ? 's' : '' }}
+          </span>
+        </h2>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="cameras.length === 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+          📹
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No Cameras Paired</h3>
+        <p class="text-gray-500 max-w-md mx-auto mb-6">
+          This patient doesn't have any cameras paired yet. Click the button below to pair a new camera.
+        </p>
+        <button 
+          (click)="openPairModal()" 
+          class="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all">
+          <span class="mr-2">➕</span> Pair First Camera
+        </button>
+      </div>
+
+      <!-- Camera Cards Grid -->
+      <div *ngIf="cameras.length > 0" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div *ngFor="let camera of cameras" 
+             class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300">
+          <!-- Card Header with Status -->
+          <div class="p-5 bg-gradient-to-r from-violet-500 to-purple-600">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center text-2xl">
+                  {{ getZoneIcon(camera.zone) }}
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-white">{{ getZoneLabel(camera.zone) }}</h3>
+                  <p class="text-white/80 text-sm font-mono">{{ formatMacAddress(camera.macAddress) }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 bg-white/20 backdrop-blur rounded-full px-3 py-1">
+                <span class="w-2 h-2 rounded-full" [ngClass]="getStatusDot(camera.status)"></span>
+                <span class="text-xs text-white font-medium">{{ camera.status }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Card Body -->
+          <div class="p-5">
+            <div class="space-y-3">
+              <!-- Last Seen -->
+              <div class="flex items-center gap-2">
+                <span class="text-gray-400">🕐</span>
+                <span class="text-sm text-gray-600">Last seen:</span>
+                <span class="text-sm font-medium text-gray-900">
+                  {{ camera.lastSeen ? (camera.lastSeen | date:'short') : 'Never' }}
+                </span>
+              </div>
+              
+              <!-- Paired Date -->
+              <div class="flex items-center gap-2">
+                <span class="text-gray-400">🔗</span>
+                <span class="text-sm text-gray-600">Paired:</span>
+                <span class="text-sm font-medium text-gray-900">{{ camera.pairedAt | date:'mediumDate' }}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 mt-5 pt-4 border-t border-gray-100">
+              <button *ngIf="camera.status !== 'ACTIVE'"
+                      (click)="onUpdateStatus(camera.id, 'ACTIVE')"
+                      class="flex-1 px-3 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors">
+                Activate
+              </button>
+              <button *ngIf="camera.status !== 'PAUSED'"
+                      (click)="onUpdateStatus(camera.id, 'PAUSED')"
+                      class="flex-1 px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors">
+                Pause
+              </button>
+              <button *ngIf="camera.status !== 'OFFLINE'"
+                      (click)="onUpdateStatus(camera.id, 'OFFLINE')"
+                      class="flex-1 px-3 py-1.5 text-xs font-medium bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                Offline
+              </button>
+              <button (click)="onUnpairCamera(camera.id)"
+                      class="px-3 py-1.5 text-xs font-medium bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition-colors"
+                      title="Unpair camera">
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Pair Camera Modal -->
+<div *ngIf="showPairModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+  <!-- Backdrop -->
+  <div class="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity" (click)="closePairModal()"></div>
+
+  <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+    <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+      
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-4 sm:px-6">
+        <h3 class="text-lg font-semibold text-white" id="modal-title">Pair New Camera</h3>
+        <p class="text-sm text-violet-100 mt-1">Add a new ESP32 camera for patient monitoring</p>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-4 py-6 sm:px-6">
+        <form [formGroup]="pairForm" (ngSubmit)="onPairSubmit()" class="space-y-4">
+          
+          <!-- Patient (Read-only) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+            <input 
+              type="text" 
+              [value]="selectedPatientName" 
+              disabled
+              class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500">
+          </div>
+
+          <!-- Zone Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Zone <span class="text-rose-500">*</span>
+            </label>
+            <select 
+              formControlName="zone"
+              class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              [class.border-rose-500]="pairForm.get('zone')?.invalid && pairForm.get('zone')?.touched">
+              <option value="">Select a zone...</option>
+              <option *ngFor="let zone of zones" [value]="zone">
+                {{ getZoneIcon(zone) }} {{ getZoneLabel(zone) }}
+              </option>
+            </select>
+            <p *ngIf="pairForm.get('zone')?.invalid && pairForm.get('zone')?.touched" class="text-rose-500 text-xs mt-1">
+              Please select a zone
+            </p>
+          </div>
+
+          <!-- MAC Address -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              MAC Address <span class="text-rose-500">*</span>
+            </label>
+            <input 
+              type="text" 
+              formControlName="macAddress"
+              placeholder="AA:BB:CC:DD:EE:01"
+              class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-mono uppercase"
+              [class.border-rose-500]="pairForm.get('macAddress')?.invalid && pairForm.get('macAddress')?.touched">
+            <p class="text-gray-500 text-xs mt-1">
+              Format: AA:BB:CC:DD:EE:01 (12 hex characters with colons)
+            </p>
+            <p *ngIf="pairForm.get('macAddress')?.invalid && pairForm.get('macAddress')?.touched" class="text-rose-500 text-xs mt-1">
+              Please enter a valid MAC address
+            </p>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-2">
+        <button 
+          type="button"
+          (click)="onPairSubmit()"
+          [disabled]="pairForm.invalid || pairing"
+          class="inline-flex w-full justify-center rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-violet-500 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed">
+          <span *ngIf="pairing" class="mr-2">
+            <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+          {{ pairing ? 'Pairing...' : 'Pair Camera' }}
+        </button>
+        <button 
+          type="button"
+          (click)="closePairModal()"
+          class="mt-3 inline-flex w-full justify-center rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

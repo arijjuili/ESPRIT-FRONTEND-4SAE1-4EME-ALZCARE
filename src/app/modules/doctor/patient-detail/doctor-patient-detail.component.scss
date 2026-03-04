@@ -1,0 +1,117 @@
+// Doctor Patient Detail Component Styles
+
+// Smooth transitions for interactive elements
+.transition {
+  transition: all 0.2s ease-in-out;
+}
+
+// Custom scrollbar for checklist items
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+// Priority badge animations
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.border-l-red-500 {
+  animation: pulse-border 2s infinite;
+}
+
+// Form focus styles
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+// Button hover effects
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+// Card hover lift effect
+.hover\:shadow-md:hover {
+  transform: translateY(-2px);
+}
+
+// Status badge styles
+.bg-green-100 {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+.bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.bg-yellow-100 {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+.bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+// Priority colors
+.text-red-800 {
+  color: #991b1b;
+}
+
+.text-yellow-800 {
+  color: #92400e;
+}
+
+.text-green-800 {
+  color: #065f46;
+}
+
+// Doctor theme color utilities
+.bg-doctor-primary {
+  background-color: #3b82f6;
+}
+
+.text-doctor-primary {
+  color: #3b82f6;
+}
+
+.border-doctor-primary {
+  border-color: #3b82f6;
+}
+
+// Loading spinner animation
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
