@@ -1,0 +1,40 @@
+// Behavior Log List Component Styles
+// Uses Tailwind CSS utility classes - custom styles kept minimal
+
+:host {
+  display: block;
+}
+
+// Smooth transitions for table rows
+tr {
+  transition: background-color 0.2s ease;
+}
+
+// Custom scrollbar for table overflow
+.overflow-x-auto {
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #10b981;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #059669;
+    }
+  }
+}
+
+// Line clamp utility for description text
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

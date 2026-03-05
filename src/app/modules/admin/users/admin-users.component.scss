@@ -1,0 +1,853 @@
+// Variables
+$primary: #8b5cf6;
+$primary-light: #f5f3ff;
+$rose: #f43f5e;
+$violet: #8b5cf6;
+$blue: #3b82f6;
+$emerald: #10b981;
+$amber: #f59e0b;
+$gray-50: #f9fafb;
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-900: #111827;
+
+// Container
+.users-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+// Header Section
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+
+  .page-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: $gray-900;
+    margin-bottom: 0.25rem;
+  }
+
+  .page-subtitle {
+    color: $gray-600;
+    font-size: 0.875rem;
+  }
+}
+
+// Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.btn-primary {
+    background: linear-gradient(135deg, $primary 0%, darken($primary, 10%) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 4px 12px rgba($primary, 0.3);
+    }
+  }
+
+  &.btn-secondary {
+    background: $gray-100;
+    color: $gray-700;
+
+    &:hover:not(:disabled) {
+      background: $gray-200;
+    }
+  }
+
+  &.btn-danger {
+    background: $rose;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: darken($rose, 10%);
+    }
+  }
+}
+
+// Stats Grid
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid $gray-200;
+
+  .stat-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+
+    &.total { background: $primary-light; }
+    &.active { background: #ecfdf5; }
+    &.doctors { background: #ede9fe; }
+    &.patients { background: #f0fdfa; }
+  }
+
+  .stat-info {
+    display: flex;
+    flex-direction: column;
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $gray-900;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: $gray-600;
+    }
+  }
+}
+
+// Filters Section
+.filters-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+
+  .search-box {
+    display: flex;
+    flex: 1;
+    max-width: 400px;
+    position: relative;
+
+    .search-input {
+      flex: 1;
+      padding: 0.625rem 1rem;
+      padding-right: 2.5rem;
+      border: 1px solid $gray-300;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        ring: 2px solid $primary-light;
+      }
+    }
+
+    .search-btn {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+    }
+  }
+
+  .filter-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+
+    .filter-select {
+      padding: 0.625rem 1rem;
+      border: 1px solid $gray-300;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      background: white;
+      cursor: pointer;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+      }
+    }
+  }
+}
+
+// Error Banner
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  button {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: #dc2626;
+  }
+}
+
+// Table
+.table-container {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid $gray-200;
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    background: $gray-50;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: $gray-600;
+    border-bottom: 1px solid $gray-200;
+  }
+
+  td {
+    padding: 1rem;
+    border-bottom: 1px solid $gray-100;
+    vertical-align: middle;
+  }
+
+  .loading-row,
+  .empty-row {
+    td {
+      padding: 3rem;
+    }
+  }
+
+  .spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid $gray-200;
+    border-top-color: $primary;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .empty-state {
+    text-align: center;
+    color: $gray-600;
+
+    .empty-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+  }
+}
+
+// User Cell
+.user-cell {
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    .avatar {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .user-details {
+      display: flex;
+      flex-direction: column;
+
+      .user-name {
+        font-weight: 600;
+        color: $gray-900;
+      }
+
+      .user-email {
+        font-size: 0.75rem;
+        color: $gray-600;
+      }
+
+      .user-username {
+        font-size: 0.75rem;
+        color: $gray-400;
+      }
+    }
+  }
+}
+
+// Badges
+.badge {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+// Action Buttons
+.actions-cell {
+  display: flex;
+  gap: 0.5rem;
+
+  .action-btn {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    border: none;
+    background: $gray-100;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+
+    &:hover {
+      background: $gray-200;
+    }
+
+    &.edit:hover {
+      background: $primary-light;
+    }
+
+    &.delete:hover {
+      background: #fef2f2;
+    }
+
+    &.profile:hover {
+      background: #f0fdfa;
+    }
+  }
+}
+
+// Date Cell
+.date-cell {
+  font-size: 0.875rem;
+  color: $gray-600;
+  white-space: nowrap;
+}
+
+// Pagination
+.pagination-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: $gray-50;
+  border-radius: 0.75rem;
+  border: 1px solid $gray-200;
+
+  .page-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: $gray-600;
+
+    select {
+      padding: 0.375rem 0.75rem;
+      border: 1px solid $gray-300;
+      border-radius: 0.375rem;
+      background: white;
+      cursor: pointer;
+      font-size: 0.875rem;
+
+      &:hover {
+        border-color: $gray-400;
+      }
+    }
+  }
+
+  .pagination-info {
+    font-size: 0.875rem;
+    color: $gray-600;
+
+    strong {
+      color: $gray-900;
+      font-weight: 600;
+    }
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+
+    .page-btn {
+      padding: 0.5rem 0.875rem;
+      border: 1px solid $gray-300;
+      background: white;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.875rem;
+      min-width: 2.5rem;
+      transition: all 0.15s ease;
+
+      &:hover:not(:disabled) {
+        background: $gray-100;
+        border-color: $gray-400;
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 0.25rem;
+      margin: 0 0.5rem;
+
+      .page-number {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid $gray-300;
+        background: white;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.875rem;
+        min-width: 2.25rem;
+        transition: all 0.15s ease;
+
+        &:hover:not(:disabled):not(.active) {
+          background: $gray-100;
+          border-color: $gray-400;
+        }
+
+        &.active {
+          background: $primary;
+          color: white;
+          border-color: $primary;
+        }
+
+        &.ellipsis {
+          cursor: default;
+          border: none;
+          background: transparent;
+          padding: 0.5rem 0.25rem;
+        }
+
+        &:disabled {
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+
+// Legacy pagination (fallback)
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+
+  .page-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid $gray-300;
+    background: white;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+
+    &:hover:not(:disabled) {
+      background: $gray-50;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .page-info {
+    font-size: 0.875rem;
+    color: $gray-600;
+  }
+}
+
+// Modal
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  &.modal-sm {
+    max-width: 400px;
+  }
+
+  &.modal-lg {
+    max-width: 700px;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid $gray-200;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $gray-900;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: $gray-400;
+
+    &:hover {
+      color: $gray-600;
+    }
+  }
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid $gray-200;
+}
+
+// Form
+.form-group {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $gray-700;
+    margin-bottom: 0.375rem;
+
+    &.checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+
+      input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+      }
+    }
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid $gray-300;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px $primary-light;
+    }
+  }
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.role-fields {
+  padding: 1rem;
+  background: $gray-50;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+// Confirmation Modal
+.confirm-text {
+  font-size: 1rem;
+  color: $gray-700;
+  margin-bottom: 0.5rem;
+}
+
+.warning-text {
+  font-size: 0.875rem;
+  color: $rose;
+}
+
+// Utility
+.text-center {
+  text-align: center;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-6 {
+  margin-top: 1.5rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+// Profile Modal Styles
+.profile-header {
+  padding: 1rem;
+  background: $gray-50;
+  border-radius: 0.75rem;
+
+  .flex {
+    display: flex;
+  }
+
+  .items-center {
+    align-items: center;
+  }
+
+  .gap-4 {
+    gap: 1rem;
+  }
+}
+
+.w-16 {
+  width: 4rem;
+}
+
+.h-16 {
+  height: 4rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.text-gray-500 {
+  color: $gray-500;
+}
+
+.text-gray-600 {
+  color: $gray-600;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+// Profile Section Grid
+.profile-section {
+  .section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    &.full-width {
+      grid-column: span 2;
+
+      @media (max-width: 640px) {
+        grid-column: span 1;
+      }
+    }
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: $gray-500;
+      text-transform: uppercase;
+    }
+
+    span {
+      font-size: 0.875rem;
+      color: $gray-900;
+    }
+  }
+}
+
+// Profile Footer
+.profile-footer {
+  border-top: 1px solid $gray-200;
+  padding-top: 1rem;
+}
+
+.mx-2 {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+// Status dots
+.w-2 {
+  width: 0.5rem;
+}
+
+.h-2 {
+  height: 0.5rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.bg-green-500 {
+  background-color: #22c55e;
+}
+
+.bg-red-500 {
+  background-color: #ef4444;
+}
+
+.bg-blue-500 {
+  background-color: #3b82f6;
+}
+
+.bg-gray-400 {
+  background-color: $gray-400;
+}
+
+// Form textarea
+.form-group {
+  textarea {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid $gray-300;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    resize: vertical;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px $primary-light;
+    }
+  }
+}
+
+// Profile form spacing
+.profile-form {
+  .form-row {
+    margin-bottom: 0.5rem;
+  }
+}

@@ -1,0 +1,148 @@
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  position: relative;
+  overflow: hidden;
+  /* Animation handled by Angular */
+
+  &.toast-success {
+    background-color: #ecfdf5;
+    border-left: 4px solid #10b981;
+
+    .toast-icon {
+      color: #10b981;
+    }
+  }
+
+  &.toast-error {
+    background-color: #fef2f2;
+    border-left: 4px solid #ef4444;
+
+    .toast-icon {
+      color: #ef4444;
+    }
+  }
+
+  &.toast-warning {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+
+    .toast-icon {
+      color: #f59e0b;
+    }
+  }
+
+  &.toast-info {
+    background-color: #eff6ff;
+    border-left: 4px solid #3b82f6;
+
+    .toast-icon {
+      color: #3b82f6;
+    }
+  }
+
+  &.toast-emergency {
+    background-color: #fef2f2;
+    border-left: 4px solid #dc2626;
+    border: 2px solid #dc2626;
+
+    .toast-icon {
+      color: #dc2626;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+  }
+}
+
+.toast-icon {
+  font-size: 20px;
+  font-weight: 600;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+
+  .toast-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .toast-message {
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.5;
+  }
+}
+
+.toast-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #4b5563;
+  }
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background-color: currentColor;
+  opacity: 0.3;
+  transition: width 0.1s linear;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .toast-container {
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}

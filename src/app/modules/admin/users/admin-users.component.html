@@ -1,0 +1,727 @@
+<div class="users-container">
+  <!-- Header -->
+  <div class="header-section">
+    <div>
+      <h1 class="page-title">User Management</h1>
+      <p class="page-subtitle">Manage users, roles, and permissions</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreateModal()">
+      <span>+</span> Add New User
+    </button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">👥</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ userStats.total }}</span>
+        <span class="stat-label">Total Users</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon active">🟢</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ userStats.active }}</span>
+        <span class="stat-label">Active</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon doctors">🩺</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ userStats.byRole.DOCTOR }}</span>
+        <span class="stat-label">Doctors</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon patients">🏥</div>
+      <div class="stat-info">
+        <span class="stat-value">{{ userStats.byRole.PATIENT }}</span>
+        <span class="stat-label">Patients</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input 
+        type="text" 
+        [(ngModel)]="searchQuery"
+        (keyup.enter)="onSearch()"
+        placeholder="Search by name, email, or username..."
+        class="search-input">
+      <button class="search-btn" (click)="onSearch()">🔍</button>
+    </div>
+    
+    <div class="filter-group">
+      <select [(ngModel)]="selectedRole" (change)="onFilterChange()" class="filter-select">
+        <option value="">All Roles</option>
+        <option value="ADMIN">Admin</option>
+        <option value="DOCTOR">Doctor</option>
+        <option value="CAREGIVER">Caregiver</option>
+        <option value="PATIENT">Patient</option>
+      </select>
+
+      <select [(ngModel)]="selectedStatus" (change)="onFilterChange()" class="filter-select">
+        <option value="">All Status</option>
+        <option value="ACTIVE">Active</option>
+        <option value="INACTIVE">Inactive</option>
+        <option value="PENDING">Pending</option>
+      </select>
+
+      <button class="btn btn-secondary" (click)="clearFilters()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-banner">
+    <span>⚠️ {{ error }}</span>
+    <button (click)="error = ''">×</button>
+  </div>
+
+  <!-- Users Table -->
+  <div class="table-container">
+    <table class="users-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="loading" class="loading-row">
+          <td colspan="5" class="text-center">
+            <div class="spinner"></div>
+            <span>Loading users...</span>
+          </td>
+        </tr>
+        
+        <tr *ngIf="!loading && users.length === 0" class="empty-row">
+          <td colspan="5" class="text-center">
+            <div class="empty-state">
+              <span class="empty-icon">👤</span>
+              <p>No users found</p>
+              <button class="btn btn-secondary" (click)="clearFilters()">Clear Filters</button>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngFor="let user of users" class="user-row">
+          <td class="user-cell">
+            <div class="user-info">
+              <div class="avatar" [class]="getAvatarClass(user.role)">
+                {{ (user.firstName?.[0] || user.username[0] | uppercase) }}{{ (user.lastName?.[0] || user.username[1] || '') | uppercase }}
+              </div>
+              <div class="user-details">
+                <span class="user-name">{{ user.fullName || user.username }}</span>
+                <span class="user-email">{{ user.email }}</span>
+                <span class="user-username">&#64;{{ user.username }}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge" [class]="getRoleClass(user.role)">
+              {{ user.role }}
+            </span>
+          </td>
+          <td>
+            <span class="badge" [class]="getStatusClass(user.status)">
+              {{ user.status }}
+            </span>
+          </td>
+          <td class="date-cell">
+            {{ formatDate(user.createdAt) }}
+          </td>
+          <td class="actions-cell">
+            <button *ngIf="user.role !== 'ADMIN'" class="action-btn profile" (click)="openProfileModal(user)" title="View Profile">
+              👤
+            </button>
+            <button class="action-btn edit" (click)="openEditModal(user)" title="Edit">
+              ✏️
+            </button>
+            <button class="action-btn delete" (click)="openDeleteModal(user)" title="Delete">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination-container" *ngIf="totalElements > 0">
+    <!-- Page Size Selector -->
+    <div class="page-size-selector">
+      <label>Show:</label>
+      <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+        <option [value]="5">5</option>
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+        <option [value]="50">50</option>
+      </select>
+      <span>entries</span>
+    </div>
+
+    <!-- Pagination Info -->
+    <div class="pagination-info">
+      Showing <strong>{{ currentPage * pageSize + 1 }}</strong> to 
+      <strong>{{ Math.min((currentPage + 1) * pageSize, totalElements) }}</strong> of 
+      <strong>{{ totalElements }}</strong> users
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-controls" *ngIf="totalPages > 1">
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage === 0"
+        (click)="goToFirstPage()"
+        title="First Page">
+        |←
+      </button>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage === 0"
+        (click)="goToPreviousPage()">
+        ← Previous
+      </button>
+      
+      <!-- Page Numbers -->
+      <div class="page-numbers">
+        <button 
+          *ngFor="let page of getVisiblePages()"
+          class="page-number"
+          [class.active]="page === currentPage"
+          [class.ellipsis]="page === -1"
+          [disabled]="page === -1"
+          (click)="goToPage(page)">
+          {{ page === -1 ? '...' : page + 1 }}
+        </button>
+      </div>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage >= totalPages - 1"
+        (click)="goToNextPage()">
+        Next →
+      </button>
+      
+      <button 
+        class="page-btn" 
+        [disabled]="currentPage >= totalPages - 1"
+        (click)="goToLastPage()"
+        title="Last Page">
+        →|
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Create New User</h2>
+      <button class="close-btn" (click)="closeCreateModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Username * <small>(3-20 chars, alphanumeric + underscore)</small></label>
+        <input type="text" [(ngModel)]="newUser.username" placeholder="johndoe" maxlength="20">
+      </div>
+      
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" [(ngModel)]="newUser.email" placeholder="john@example.com" maxlength="255">
+      </div>
+      
+      <div class="form-group">
+        <label>Password * <small>(8+ chars, uppercase, lowercase, number)</small></label>
+        <input type="password" [(ngModel)]="newUser.password" placeholder="Min 8 characters" maxlength="128">
+      </div>
+      
+      <div class="form-group">
+        <label>Role *</label>
+        <select [(ngModel)]="newUser.role">
+          <option value="PATIENT">Patient</option>
+          <option value="DOCTOR">Doctor</option>
+          <option value="CAREGIVER">Caregiver</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="newUser.emailVerified">
+          <span>Email Verified (skip email verification)</span>
+        </label>
+        <small style="color: #6b7280; font-size: 0.75rem; display: block; margin-top: 0.25rem;">
+          If checked, user can login immediately without verifying email
+        </small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name * <small>(2-50 chars)</small></label>
+          <input type="text" [(ngModel)]="newUser.firstName" placeholder="First Name" maxlength="50">
+        </div>
+        <div class="form-group">
+          <label>Last Name * <small>(2-50 chars)</small></label>
+          <input type="text" [(ngModel)]="newUser.lastName" placeholder="Last Name" maxlength="50">
+        </div>
+      </div>
+
+      <!-- Role-specific fields -->
+      <div *ngIf="newUser.role === 'PATIENT'" class="role-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" [(ngModel)]="newUser.dateOfBirth">
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select [(ngModel)]="newUser.gender">
+              <option value="">Select</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="newUser.role === 'DOCTOR'" class="role-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Specialty</label>
+            <input type="text" [(ngModel)]="newUser.speciality" placeholder="Cardiology">
+          </div>
+          <div class="form-group">
+            <label>License Number</label>
+            <input type="text" [(ngModel)]="newUser.licenseNumber" placeholder="MD-12345">
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeCreateModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="loading" (click)="createUser()">
+        {{ loading ? 'Creating...' : 'Create User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" *ngIf="showEditModal" (click)="closeEditModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit User</h2>
+      <button class="close-btn" (click)="closeEditModal()">×</button>
+    </div>
+    
+    <div class="modal-body" *ngIf="selectedUser">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" [(ngModel)]="selectedUser.username" disabled style="background: #f3f4f6; cursor: not-allowed;">
+        <small style="color: #6b7280; font-size: 0.75rem;">Username cannot be changed</small>
+      </div>
+      
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" [(ngModel)]="selectedUser.email" maxlength="255">
+      </div>
+      
+      <div class="form-group">
+        <label>Role *</label>
+        <select [(ngModel)]="selectedUser.role">
+          <option value="PATIENT">Patient</option>
+          <option value="DOCTOR">Doctor</option>
+          <option value="CAREGIVER">Caregiver</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="selectedUser.enabled">
+          <span>Account Enabled</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="loading" (click)="updateUser()">
+        {{ loading ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" *ngIf="showDeleteModal" (click)="closeDeleteModal()">
+  <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Confirm Delete</h2>
+      <button class="close-btn" (click)="closeDeleteModal()">×</button>
+    </div>
+    
+    <div class="modal-body" *ngIf="selectedUser">
+      <p class="confirm-text">
+        Are you sure you want to delete <strong>{{ selectedUser.fullName }}</strong>?
+      </p>
+      <p class="warning-text">This action cannot be undone.</p>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" [disabled]="loading" (click)="deleteUser()">
+        {{ loading ? 'Deleting...' : 'Delete User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- View Profile Modal -->
+<div class="modal-overlay" *ngIf="showProfileModal" (click)="closeProfileModal()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>User Profile</h2>
+      <button class="close-btn" (click)="closeProfileModal()">×</button>
+    </div>
+    
+    <div class="modal-body" *ngIf="selectedUser">
+      <!-- Error Banner -->
+      <div *ngIf="profileError" class="error-banner mb-4">
+        <span>⚠️ {{ profileError }}</span>
+        <button (click)="profileError = ''">×</button>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="profileLoading" class="text-center py-8">
+        <div class="spinner"></div>
+        <p class="mt-2 text-gray-600">Loading profile...</p>
+      </div>
+
+      <!-- Profile Content -->
+      <div *ngIf="!profileLoading && selectedProfile">
+        <!-- User Info Header -->
+        <div class="profile-header mb-6">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold" [class]="getAvatarClass(selectedUser.role)">
+              {{ (selectedProfile.firstName[0] || selectedUser.username[0] | uppercase) }}{{ (selectedProfile.lastName[0] || selectedUser.username[1] || '') | uppercase }}
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold">{{ selectedProfile.firstName || selectedUser.username }} {{ selectedProfile.lastName || '' }}</h3>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="badge" [class]="getRoleClass(selectedUser.role)">{{ selectedUser.role }}</span>
+                <span class="text-gray-500">{{ selectedUser.email }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Patient Profile -->
+        <div *ngIf="isPatientProfile(selectedProfile)" class="profile-section">
+          <div class="section-grid">
+            <div class="info-item">
+              <label>Date of Birth</label>
+              <span>{{ formatDate(selectedProfile.dateOfBirth) || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Gender</label>
+              <span>{{ selectedProfile.gender || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Phone</label>
+              <span>{{ selectedProfile.phone || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Emergency Contact</label>
+              <span>{{ selectedProfile.emergencyContact || 'Not set' }}</span>
+            </div>
+            <div class="info-item full-width">
+              <label>Address</label>
+              <span>{{ selectedProfile.address || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Status</label>
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" [class]="selectedProfile.isActive ? 'bg-green-500' : 'bg-gray-400'"></span>
+                {{ selectedProfile.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <label>Preferred Language</label>
+              <span>{{ selectedProfile.preferredLanguage || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Game Points</label>
+              <span>🏆 {{ selectedProfile.totalPoints || 0 }}</span>
+            </div>
+            <div class="info-item">
+              <label>Current Streak</label>
+              <span>🔥 {{ selectedProfile.currentStreak || 0 }} days</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Doctor Profile -->
+        <div *ngIf="isDoctorProfile(selectedProfile)" class="profile-section">
+          <div class="section-grid">
+            <div class="info-item">
+              <label>Specialty</label>
+              <span>{{ selectedProfile.speciality || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>License Number</label>
+              <span>{{ selectedProfile.licenseNumber || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Phone</label>
+              <span>{{ selectedProfile.phone || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Contact</label>
+              <span>{{ selectedProfile.contact || 'Not set' }}</span>
+            </div>
+            <div class="info-item full-width">
+              <label>Address</label>
+              <span>{{ selectedProfile.address || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Availability</label>
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" [class]="selectedProfile.isAvailable ? 'bg-green-500' : 'bg-red-500'"></span>
+                {{ selectedProfile.isAvailable ? 'Available' : 'Not Available' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Caregiver Profile -->
+        <div *ngIf="isCaregiverProfile(selectedProfile)" class="profile-section">
+          <div class="section-grid">
+            <div class="info-item">
+              <label>Phone</label>
+              <span>{{ selectedProfile.phone || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Contact</label>
+              <span>{{ selectedProfile.contact || 'Not set' }}</span>
+            </div>
+            <div class="info-item full-width">
+              <label>Address</label>
+              <span>{{ selectedProfile.address || 'Not set' }}</span>
+            </div>
+            <div class="info-item">
+              <label>Availability</label>
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" [class]="selectedProfile.isAvailable ? 'bg-green-500' : 'bg-red-500'"></span>
+                {{ selectedProfile.isAvailable ? 'Available' : 'Not Available' }}
+              </span>
+            </div>
+            <div class="info-item">
+              <label>Professional Status</label>
+              <span class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full" [class]="selectedProfile.isProfessional ? 'bg-blue-500' : 'bg-gray-400'"></span>
+                {{ selectedProfile.isProfessional ? 'Professional' : 'Non-Professional' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timestamps -->
+        <div class="profile-footer mt-6 pt-4 border-t border-gray-200">
+          <div class="text-sm text-gray-500">
+            <span>Created: {{ formatDate(selectedProfile.createdAt) }}</span>
+            <span class="mx-2">|</span>
+            <span>Last Updated: {{ formatDate(selectedProfile.updatedAt) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer" *ngIf="!profileLoading">
+      <button class="btn btn-secondary" (click)="closeProfileModal()">Close</button>
+      <button *ngIf="selectedProfile" class="btn btn-primary" (click)="openEditProfileModal()">
+        Edit Profile
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal-overlay" *ngIf="showEditProfileModal" (click)="closeEditProfileModal()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit Profile</h2>
+      <button class="close-btn" (click)="closeEditProfileModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Error Banner -->
+      <div *ngIf="profileError" class="error-banner mb-4">
+        <span>⚠️ {{ profileError }}</span>
+        <button (click)="profileError = ''">×</button>
+      </div>
+
+      <!-- Patient Profile Edit Form -->
+      <div *ngIf="profileType === 'PATIENT'" class="profile-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
+          </div>
+          <div class="form-group">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date of Birth *</label>
+            <input type="date" [(ngModel)]="profileEditForm.dateOfBirth">
+          </div>
+          <div class="form-group">
+            <label>Gender *</label>
+            <select [(ngModel)]="profileEditForm.gender">
+              <option [value]="GenderEnum.MALE">Male</option>
+              <option [value]="GenderEnum.FEMALE">Female</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" [(ngModel)]="profileEditForm.phone" placeholder="Phone number">
+          </div>
+          <div class="form-group">
+            <label>Emergency Contact</label>
+            <input type="text" [(ngModel)]="profileEditForm.emergencyContact" placeholder="Emergency contact">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Address</label>
+          <textarea [(ngModel)]="profileEditForm.address" rows="2" placeholder="Full address"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="profileEditForm.isActive">
+            <span>Profile Active</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Doctor Profile Edit Form -->
+      <div *ngIf="profileType === 'DOCTOR'" class="profile-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
+          </div>
+          <div class="form-group">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Specialty</label>
+            <input type="text" [(ngModel)]="profileEditForm.speciality" placeholder="e.g., Cardiology, Neurology">
+          </div>
+          <div class="form-group">
+            <label>License Number</label>
+            <input type="text" [(ngModel)]="profileEditForm.licenseNumber" placeholder="Medical license number">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" [(ngModel)]="profileEditForm.phone" placeholder="Phone number">
+          </div>
+          <div class="form-group">
+            <label>Contact</label>
+            <input type="text" [(ngModel)]="profileEditForm.contact" placeholder="Alternative contact">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Address</label>
+          <textarea [(ngModel)]="profileEditForm.address" rows="2" placeholder="Clinic/Hospital address"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" [(ngModel)]="profileEditForm.isAvailable">
+            <span>Currently Available</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Caregiver Profile Edit Form -->
+      <div *ngIf="profileType === 'CAREGIVER'" class="profile-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.firstName" placeholder="First Name" maxlength="50" required>
+          </div>
+          <div class="form-group">
+            <label>Last Name * <small>(2-50 chars)</small></label>
+            <input type="text" [(ngModel)]="profileEditForm.lastName" placeholder="Last Name" maxlength="50" required>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" [(ngModel)]="profileEditForm.phone" placeholder="Phone number">
+          </div>
+          <div class="form-group">
+            <label>Contact</label>
+            <input type="text" [(ngModel)]="profileEditForm.contact" placeholder="Alternative contact">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Address</label>
+          <textarea [(ngModel)]="profileEditForm.address" rows="2" placeholder="Address"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="profileEditForm.isAvailable">
+              <span>Currently Available</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="profileEditForm.isProfessional">
+              <span>Professional Caregiver</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeEditProfileModal()">Cancel</button>
+      <button class="btn btn-primary" [disabled]="profileLoading" (click)="saveProfileChanges()">
+        {{ profileLoading ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>

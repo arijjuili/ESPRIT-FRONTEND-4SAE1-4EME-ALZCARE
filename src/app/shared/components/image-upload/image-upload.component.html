@@ -1,0 +1,110 @@
+<div class="image-upload-container">
+  <!-- Drag & Drop Zone -->
+  <div
+    *ngIf="canUploadMore"
+    class="upload-zone"
+    [class.dragging]="isDragging"
+    [class.has-error]="errorMessage"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)">
+    
+    <div class="upload-content">
+      <div class="upload-icon">
+        <span *ngIf="!isUploading">📷</span>
+        <span *ngIf="isUploading" class="animate-spin">⏳</span>
+      </div>
+      
+      <div class="upload-text">
+        <p class="primary-text">
+          <span *ngIf="!isUploading">Drop images here or click to browse</span>
+          <span *ngIf="isUploading">Uploading...</span>
+        </p>
+        <p class="secondary-text">
+          JPG, PNG up to {{ maxFileSizeMB }}MB 
+          <span class="slot-info">({{ uploadedImages.length }}/{{ maxImages }})</span>
+        </p>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="upload-actions" *ngIf="!isUploading">
+        <button type="button" class="action-btn gallery-btn" (click)="fileInput.click()">
+          <span>🖼️</span> Gallery
+        </button>
+        <button type="button" class="action-btn camera-btn" (click)="openCamera()">
+          <span>📸</span> Camera
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file inputs -->
+  <input
+    type="file"
+    #fileInput
+    [accept]="acceptedFileTypes"
+    multiple
+    class="hidden-input"
+    (change)="onFileSelected($event)" />
+  
+  <input
+    type="file"
+    #cameraInput
+    [accept]="acceptedFileTypes"
+    capture="environment"
+    class="hidden-input"
+    (change)="onCameraCapture($event)" />
+
+  <!-- Max Images Reached Message -->
+  <div *ngIf="!canUploadMore && !isUploading" class="max-images-message">
+    <span class="icon">✅</span>
+    <span>Maximum {{ maxImages }} images uploaded</span>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="error-message">
+    <span class="icon">⚠️</span>
+    <span>{{ errorMessage }}</span>
+  </div>
+
+  <!-- Image Previews -->
+  <div *ngIf="uploadedImages.length > 0" class="image-previews">
+    <div 
+      *ngFor="let image of uploadedImages; let i = index"
+      class="preview-item"
+      [class.uploading]="image.isUploading">
+      
+      <!-- Image or Loading Placeholder -->
+      <div class="preview-image">
+        <img 
+          *ngIf="!image.isUploading"
+          [src]="getThumbnailUrl(image)" 
+          [alt]="'Uploaded image ' + (i + 1)"
+          loading="lazy" />
+        
+        <!-- Uploading Placeholder -->
+        <div *ngIf="image.isUploading" class="uploading-placeholder">
+          <span class="animate-spin">⏳</span>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div *ngIf="image.isUploading" class="progress-bar">
+        <div 
+          class="progress-fill" 
+          [style.width.%]="image.uploadProgress">
+        </div>
+      </div>
+
+      <!-- Remove Button -->
+      <button 
+        type="button"
+        class="remove-btn"
+        (click)="removeImage(i)"
+        [disabled]="image.isUploading"
+        title="Remove image">
+        <span>×</span>
+      </button>
+    </div>
+  </div>
+</div>

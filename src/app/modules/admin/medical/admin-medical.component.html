@@ -1,0 +1,131 @@
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl lg:text-4xl font-bold text-gray-900">
+            <span class="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+              Medical Management
+            </span>
+          </h1>
+          <p class="text-gray-600 mt-2 flex items-center gap-2">
+            <span>🏥</span>
+            <span>Manage medications, appointments, and healthcare operations</span>
+          </p>
+        </div>
+        <button class="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all">
+          <span class="mr-2">➕</span> Add Medical Record
+        </button>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div *ngFor="let stat of medicalStats" 
+           class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500 mb-1">{{ stat.label }}</p>
+            <p class="text-3xl font-bold text-gray-900">{{ stat.value }}</p>
+            <p class="text-xs text-gray-400 mt-2">{{ stat.trend }}</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+               [ngClass]="{
+                 'bg-violet-100': stat.color === 'violet',
+                 'bg-blue-100': stat.color === 'blue',
+                 'bg-amber-100': stat.color === 'amber',
+                 'bg-rose-100': stat.color === 'rose'
+               }">
+            {{ stat.icon }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medical Modules Grid -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <span>🎯</span>
+          <span>Medical Modules</span>
+          <span class="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">6 Axes</span>
+        </h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div *ngFor="let module of medicalModules" 
+             class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
+             [routerLink]="module.route"
+             [class.pointer-events-none]="!module.route">
+          <div class="p-6 bg-gradient-to-r" [ngClass]="getModuleColor(module.id)">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center text-2xl">
+                  {{ module.icon }}
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-white">{{ module.name }}</h3>
+                  <p class="text-white/80 text-sm">Axis {{ module.id }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-600 text-sm mb-4">{{ module.description }}</p>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <div>
+                  <p class="text-2xl font-bold text-gray-900">{{ module.count }}</p>
+                  <p class="text-xs text-gray-500">Records</p>
+                </div>
+                <span class="px-3 py-1 text-xs font-medium rounded-full border"
+                      [ngClass]="getStatusClass(module.status)">
+                  {{ module.status | titlecase }}
+                </span>
+              </div>
+              <span *ngIf="module.route" class="text-violet-600 hover:text-violet-700 font-medium text-sm">
+                Manage →
+              </span>
+              <span *ngIf="!module.route" class="text-gray-400 font-medium text-sm">
+                Coming Soon
+              </span>
+            </div>
+            <p class="text-xs text-gray-400 mt-4">Last updated: {{ module.lastUpdated }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <span>📋</span>
+          <span>Recent Medical Activities</span>
+        </h2>
+        <button class="text-sm text-violet-600 hover:text-violet-700 font-medium">View All</button>
+      </div>
+      <div class="space-y-4">
+        <div *ngFor="let activity of recentActivities" 
+             class="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+               [ngClass]="'bg-' + activity.color + '-100 text-' + activity.color + '-600'">
+            {{ activity.icon }}
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <p class="font-medium text-gray-900">{{ activity.action }}</p>
+              <span class="text-xs text-gray-500">{{ activity.time }}</span>
+            </div>
+            <p class="text-sm text-gray-600">
+              <span class="font-medium">{{ activity.user }}</span> • {{ activity.patient }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

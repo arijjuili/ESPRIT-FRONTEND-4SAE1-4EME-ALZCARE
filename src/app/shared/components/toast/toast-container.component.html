@@ -1,0 +1,29 @@
+<div class="toast-container">
+  <div 
+    *ngFor="let toast of toasts; trackBy: trackByToastId"
+    class="toast"
+    [class]="'toast-' + toast.type"
+    [@slideIn]>
+    
+    <div class="toast-icon">
+      {{ getToastIcon(toast.type) }}
+    </div>
+    
+    <div class="toast-content">
+      <div *ngIf="toast.title" class="toast-title">{{ toast.title }}</div>
+      <div class="toast-message">{{ toast.message }}</div>
+    </div>
+    
+    <button 
+      class="toast-close"
+      (click)="removeToast(toast.id)">
+      ✕
+    </button>
+    
+    <div 
+      *ngIf="toast.duration > 0"
+      class="toast-progress"
+      [style.width.%]="toast.progress">
+    </div>
+  </div>
+</div>

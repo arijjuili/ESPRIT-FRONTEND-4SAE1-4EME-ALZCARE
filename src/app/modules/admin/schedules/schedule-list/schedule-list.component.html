@@ -1,0 +1,182 @@
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 p-8">
+    <!-- Header -->
+    <div class="max-w-7xl mx-auto mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">📅 Notification Schedules</h1>
+                <p class="text-gray-600">Manage automated notification campaigns</p>
+            </div>
+            <button (click)="createSchedule()"
+                class="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium">
+                ➕ Create Schedule
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="max-w-7xl mx-auto text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600"></div>
+        <p class="mt-4 text-gray-600">Loading schedules...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error && !loading" class="max-w-7xl mx-auto">
+        <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+            <p class="text-red-600">{{ error }}</p>
+            <button (click)="loadSchedules()" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Retry
+            </button>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading && !error && schedules.length === 0" class="max-w-7xl mx-auto">
+        <div class="bg-white rounded-xl shadow-md p-12 text-center">
+            <div class="text-6xl mb-4">📅</div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">No Schedules Yet</h3>
+            <p class="text-gray-600 mb-6">Create your first automated notification campaign</p>
+            <button (click)="createSchedule()"
+                class="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all duration-200 font-medium">
+                ➕ Create Schedule
+            </button>
+        </div>
+    </div>
+
+    <!-- Schedule List -->
+    <div *ngIf="!loading && !error && schedules.length > 0" class="max-w-7xl mx-auto">
+        <div class="grid gap-6">
+            <div *ngFor="let schedule of schedules"
+                class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-200">
+                <div class="p-6">
+                    <!-- Header Row -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 class="text-xl font-bold text-gray-900">{{ schedule.name }}</h3>
+                                <span
+                                    [class]="schedule.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'"
+                                    class="px-3 py-1 rounded-full text-sm font-medium">
+                                    {{ schedule.active ? '✅ Active' : '⏸️ Inactive' }}
+                                </span>
+                            </div>
+                            <p *ngIf="schedule.description" class="text-gray-600 text-sm">{{ schedule.description }}</p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-2">
+                            <button (click)="toggleSchedule(schedule)" [title]="schedule.active ? 'Disable' : 'Enable'"
+                                class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                {{ schedule.active ? '⏸️' : '▶️' }}
+                            </button>
+                            <button (click)="triggerSchedule(schedule)" title="Trigger Now"
+                                class="p-2 hover:bg-blue-100 rounded-lg transition-colors">
+                                ⚡
+                            </button>
+                            <button (click)="editSchedule(schedule.id)" title="Edit"
+                                class="p-2 hover:bg-violet-100 rounded-lg transition-colors">
+                                ✏️
+                            </button>
+                            <button (click)="deleteSchedule(schedule)" title="Delete"
+                                class="p-2 hover:bg-red-100 rounded-lg transition-colors">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Info Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <!-- Target -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">{{ targetRoleIcons[schedule.targetRole] }}</span>
+                            <div>
+                                <div class="text-xs text-gray-500">Target</div>
+                                <div class="font-medium text-gray-900">{{ schedule.targetRole }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule Type -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">{{ scheduleTypeIcons[schedule.scheduleType] }}</span>
+                            <div>
+                                <div class="text-xs text-gray-500">Schedule</div>
+                                <div class="font-medium text-gray-900">{{ getScheduleTypeDisplay(schedule) }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Priority -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">
+                                {{ schedule.priority === 'CRITICAL' ? '🔴' : schedule.priority === 'HIGH' ? '🟠' :
+                                schedule.priority === 'NORMAL' ? '🟡' : '🟢' }}
+                            </span>
+                            <div>
+                                <div class="text-xs text-gray-500">Priority</div>
+                                <div class="font-medium text-gray-900">{{ schedule.priority }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Channels -->
+                        <div class="flex items-center gap-2">
+                            <div class="flex gap-1">
+                                <span *ngFor="let channel of schedule.channels" class="text-lg">
+                                    {{ channelIcons[channel] }}
+                                </span>
+                            </div>
+                            <div>
+                                <div class="text-xs text-gray-500">Channels</div>
+                                <div class="font-medium text-gray-900">{{ schedule.channels.length }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Execution Stats -->
+                    <div class="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
+                        <div>
+                            <div class="text-xs text-gray-500">Executions</div>
+                            <div class="font-bold text-gray-900">{{ schedule.executionCount }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Last Run</div>
+                            <div class="font-medium text-gray-900 text-sm">{{ formatDate(schedule.lastExecutedAt) }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">Next Run</div>
+                            <div class="font-medium text-gray-900 text-sm">{{ formatDate(schedule.nextExecutionTime) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="mt-8 flex justify-between items-center bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600">
+                Showing {{ currentPage * pageSize + 1 }} - {{ Math.min((currentPage + 1) * pageSize, totalElements) }}
+                of {{ totalElements }}
+            </div>
+            <div class="flex gap-2">
+                <button (click)="previousPage()" [disabled]="currentPage === 0" [class.opacity-50]="currentPage === 0"
+                    [class.cursor-not-allowed]="currentPage === 0"
+                    class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:hover:bg-gray-100">
+                    ← Previous
+                </button>
+                <div class="flex items-center gap-1">
+                    <button *ngFor="let page of [].constructor(totalPages); let i = index" (click)="goToPage(i)"
+                        [class.bg-violet-600]="i === currentPage" [class.text-white]="i === currentPage"
+                        [class.bg-gray-100]="i !== currentPage"
+                        class="px-3 py-2 rounded-lg hover:bg-violet-500 hover:text-white transition-colors">
+                        {{ i + 1 }}
+                    </button>
+                </div>
+                <button (click)="nextPage()" [disabled]="currentPage >= totalPages - 1"
+                    [class.opacity-50]="currentPage >= totalPages - 1"
+                    [class.cursor-not-allowed]="currentPage >= totalPages - 1"
+                    class="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:hover:bg-gray-100">
+                    Next →
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

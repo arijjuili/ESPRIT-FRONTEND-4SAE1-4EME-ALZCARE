@@ -1,0 +1,262 @@
+<div class="p-8">
+  <!-- Back Button -->
+  <div class="mb-6">
+    <button 
+      (click)="goBack()"
+      class="flex items-center gap-2 text-gray-600 hover:text-primary-600 transition">
+      ← Back to Community
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoadingPost" class="bg-white rounded-2xl shadow-md p-12 text-center">
+    <div class="inline-flex items-center justify-center">
+      <svg class="animate-spin h-12 w-12 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+    <p class="mt-4 text-gray-600">Loading post...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !isLoadingPost" class="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+    <div class="text-red-500 text-5xl mb-4">⚠️</div>
+    <h3 class="text-lg font-bold text-red-900 mb-2">Unable to Load Post</h3>
+    <p class="text-red-700 mb-6">{{ error }}</p>
+    <button 
+      (click)="retryLoad()"
+      class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold">
+      Try Again
+    </button>
+  </div>
+
+  <!-- Post Content -->
+  <div *ngIf="post && !isLoadingPost && !error" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Content -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Post Detail Card -->
+      <div class="bg-white rounded-2xl shadow-md p-8">
+        <!-- Post Header -->
+        <div class="flex items-start justify-between mb-6">
+          <div class="flex gap-4 flex-1">
+            <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
+              👤
+            </div>
+            <div>
+              <!-- Category Badge -->
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-sm">{{ getCategoryIcon(post.category) }}</span>
+                <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold">
+                  {{ getCategoryLabel(post.category) }}
+                </span>
+              </div>
+              <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ post.title }}</h1>
+              <div class="flex items-center gap-4 text-gray-500 text-sm">
+                <span>Posted {{ formatDate(post.creationDate) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Popularity Score -->
+            <span *ngIf="post.popularityScore > 0" 
+              class="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-full text-xs font-semibold"
+              title="Popularity Score: {{ post.popularityScore }}">
+              🔥 {{ formatPopularity(post.popularityScore) }}
+            </span>
+            <!-- Author Badge -->
+            <span *ngIf="isPostAuthor(post)" class="px-2 py-1 bg-success bg-opacity-20 text-success rounded-full text-xs font-semibold">
+              You
+            </span>
+            <button class="text-gray-400 hover:text-gray-600 p-1">⋯</button>
+          </div>
+        </div>
+
+        <!-- Post Content -->
+        <div class="prose prose-lg max-w-none text-gray-800 mb-6 leading-relaxed whitespace-pre-wrap">
+          {{ post.content }}
+        </div>
+
+        <!-- Post Actions -->
+        <div class="flex gap-4 text-gray-600 text-sm border-t border-gray-100 pt-6">
+          <button 
+            (click)="likePost()"
+            class="flex items-center gap-2 hover:text-red-600 transition px-3 py-2 rounded-lg hover:bg-red-50">
+            ❤️ <span>{{ post.likeCount }}</span>
+          </button>
+          <div class="flex items-center gap-2 px-3 py-2">
+            💬 <span>{{ getCommentCountText() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments Section -->
+      <div class="bg-white rounded-2xl shadow-md p-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">{{ getCommentCountText() }}</h2>
+        
+        <!-- Create Comment Form -->
+        <div class="mb-8">
+          <form [formGroup]="commentForm" (ngSubmit)="createComment()" class="space-y-4">
+            <div class="comment-form-container">
+              <textarea 
+                id="content"
+                formControlName="content"
+                placeholder="Share your thoughts or ask a question..."
+                rows="4"
+                (input)="onContentChange()"
+                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                [ngClass]="{'border-red-300': commentForm.get('content')?.invalid && commentForm.get('content')?.touched, 'border-red-400': hasToxicContent()}"></textarea>
+              
+              <!-- Comment Error Messages -->
+              <div *ngIf="commentForm.get('content')?.invalid && commentForm.get('content')?.touched" class="mt-2 text-sm text-red-600">
+                <div *ngIf="commentForm.get('content')?.errors?.['required']">Comment is required</div>
+                <div *ngIf="commentForm.get('content')?.errors?.['minlength']">Comment must be at least 2 characters</div>
+                <div *ngIf="commentForm.get('content')?.errors?.['maxlength']">Comment must not exceed 500 characters</div>
+              </div>
+            </div>
+
+            <!-- Toxic Content Warning -->
+            <div *ngIf="hasToxicContent()" class="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div class="flex items-start gap-3">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                  <p class="font-semibold text-red-800">Inappropriate Content Detected</p>
+                  <p class="text-red-700 text-sm mt-1">
+                    Your comment contains inappropriate language: 
+                    <span class="font-mono bg-red-100 px-1 rounded">{{ getDetectedWords().join(', ') }}</span>
+                  </p>
+                  <p class="text-red-600 text-sm mt-2">
+                    Please revise your content before submitting.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Content Check Loading -->
+            <div *ngIf="isCheckingContent" class="text-sm text-gray-500 flex items-center gap-2">
+              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Checking content...
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="flex gap-3">
+              <button 
+                type="submit"
+                [disabled]="commentForm.invalid || isSubmittingComment || hasToxicContent()"
+                class="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
+                <span *ngIf="!isSubmittingComment">{{ getSubmitButtonText() }}</span>
+                <span *ngIf="isSubmittingComment" class="flex items-center">
+                  <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Posting...
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Comments Loading -->
+        <div *ngIf="isLoadingComments" class="loading-container py-8">
+          <svg class="animate-spin h-8 w-8 text-primary-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p class="mt-2 text-gray-600">Loading comments...</p>
+        </div>
+
+        <!-- Comments List -->
+        <div *ngIf="!isLoadingComments" class="space-y-6">
+          <!-- Empty State -->
+          <div *ngIf="comments.length === 0" class="empty-state">
+            <div class="empty-icon">💬</div>
+            <h3 class="empty-title">No Comments Yet</h3>
+            <p>Be the first to share your thoughts!</p>
+          </div>
+
+          <!-- Comments -->
+          <div *ngFor="let comment of comments" class="comment-item hover-lift">
+            <div class="flex gap-4">
+              <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+                👤
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                  <span *ngIf="isCommentAuthor(comment)" class="author-badge">
+                    You
+                  </span>
+                  <span class="text-gray-500 text-sm">{{ formatDate(comment.creationDate) }}</span>
+                </div>
+                <p class="text-gray-800 leading-relaxed">{{ comment.content }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Related Categories -->
+      <div class="bg-white rounded-2xl shadow-md p-6 hover-lift">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">🏷️ Related Categories</h3>
+        <div class="space-y-3">
+          <div *ngFor="let category of categories" class="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition cursor-pointer hover-lift">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">{{ category.icon }}</span>
+              <p class="font-semibold text-gray-900 text-sm">{{ category.label }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Community Guidelines -->
+      <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200 hover-lift">
+        <h3 class="text-lg font-bold text-primary-900 mb-3">💬 Community Guidelines</h3>
+        <ul class="space-y-2 text-sm text-primary-800">
+          <li>✓ Be respectful and kind</li>
+          <li>✓ Share your experiences</li>
+          <li>✓ Support each other</li>
+          <li>✓ Ask questions freely</li>
+          <li>✓ No medical advice</li>
+        </ul>
+      </div>
+
+      <!-- Content Moderation Info -->
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-md p-6 border border-blue-200 hover-lift">
+        <h3 class="text-lg font-bold text-blue-900 mb-3">🛡️ Safe Community</h3>
+        <p class="text-sm text-blue-800 mb-3">
+          We use automated content moderation to keep our community safe.
+        </p>
+        <ul class="space-y-1 text-xs text-blue-700">
+          <li>• Toxic content is automatically detected</li>
+          <li>• Inappropriate language is blocked</li>
+          <li>• French & English moderation enabled</li>
+        </ul>
+      </div>
+
+      <!-- Quick Stats -->
+      <div *ngIf="post" class="bg-white rounded-2xl shadow-md p-6 hover-lift">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">📊 Post Stats</h3>
+        <div class="space-y-3 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Likes:</span>
+            <span class="font-semibold">{{ post.likeCount }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Comments:</span>
+            <span class="font-semibold">{{ post.commentCount }}</span>
+          </div>
+          <div class="flex justify-between" *ngIf="post.popularityScore > 0">
+            <span class="text-gray-600">Popularity:</span>
+            <span class="font-semibold text-orange-600">🔥 {{ formatPopularity(post.popularityScore) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

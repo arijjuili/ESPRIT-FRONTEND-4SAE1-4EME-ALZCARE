@@ -1,0 +1,465 @@
+<div class="bg-white">
+  <!-- Navigation Header -->
+  <nav class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Logo & Brand -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg">♥</div>
+          <div>
+            <div class="text-2xl font-bold text-primary-700">CareHub</div>
+            <div class="text-xs text-gray-500 font-medium">Alzheimer Care Platform</div>
+          </div>
+        </div>
+        
+        <!-- Nav Links (Desktop) -->
+        <div class="hidden md:flex items-center gap-8">
+          <button (click)="scrollToSection('features')" class="text-gray-700 hover:text-primary-600 font-medium transition cursor-pointer bg-transparent border-none">Features</button>
+          <button (click)="scrollToSection('how-it-works')" class="text-gray-700 hover:text-primary-600 font-medium transition cursor-pointer bg-transparent border-none">How It Works</button>
+          <button (click)="scrollToSection('benefits')" class="text-gray-700 hover:text-primary-600 font-medium transition cursor-pointer bg-transparent border-none">Benefits</button>
+        </div>
+        
+        <!-- CTA Buttons -->
+        <div *ngIf="currentUser; else loggedOut" class="flex items-center gap-3">
+          <a [routerLink]="dashboardLink" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg hover:bg-primary-700 transition font-semibold shadow-md hover:shadow-lg">
+            Dashboard
+          </a>
+          <button (click)="logout()" class="bg-gray-200 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-300 transition font-semibold">
+            Logout
+          </button>
+        </div>
+        <ng-template #loggedOut>
+          <a routerLink="/login" class="bg-primary-600 text-white px-6 py-2.5 rounded-lg hover:bg-primary-700 transition font-semibold shadow-md hover:shadow-lg">
+            Login
+          </a>
+        </ng-template>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section with Visual Hierarchy -->
+  <section class="relative bg-gradient-to-br from-primary-700 via-primary-600 to-primary-800 text-white pt-20 pb-32 px-4 overflow-hidden">
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 right-0 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+      <div class="absolute bottom-0 left-0 w-96 h-96 bg-primary-300 rounded-full mix-blend-multiply filter blur-3xl"></div>
+    </div>
+    
+    <div class="max-w-6xl mx-auto relative z-10">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <!-- Left: Content -->
+        <div>
+          <div class="inline-block mb-6">
+            <span class="bg-primary-100 text-primary-700 px-4 py-2 rounded-full text-sm font-semibold">✨ Compassionate Care Platform</span>
+          </div>
+          <h1 class="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+            Alzheimer Care,<br/><span class="text-primary-200">Reimagined</span>
+          </h1>
+          <p class="text-xl text-primary-100 mb-8 leading-relaxed max-w-lg">
+            A unified, intelligent platform connecting patients, caregivers, doctors, and administrators for compassionate, coordinated, and data-driven cognitive health outcomes.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4">
+            <a *ngIf="currentUser; else heroLogin" [routerLink]="dashboardLink" class="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl text-center">
+              Go to Dashboard
+            </a>
+            <ng-template #heroLogin>
+              <a routerLink="/login" class="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl text-center">
+                Get Started Free
+              </a>
+            </ng-template>
+            <button (click)="scrollToSection('features')" class="border-2 border-white text-white px-8 py-3.5 rounded-lg font-bold hover:bg-white hover:text-primary-700 transition text-center cursor-pointer bg-transparent">
+              Learn More
+            </button>
+          </div>
+          
+          <!-- Stats Row -->
+          <div class="flex gap-8 mt-12">
+            <div>
+              <div class="text-3xl font-bold">1000+</div>
+              <div class="text-primary-200 text-sm">Active Users</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold">50+</div>
+              <div class="text-primary-200 text-sm">Healthcare Partners</div>
+            </div>
+            <div>
+              <div class="text-3xl font-bold">99.9%</div>
+              <div class="text-primary-200 text-sm">Uptime</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right: Visual Preview -->
+        <div class="hidden lg:block">
+          <div class="bg-white rounded-2xl shadow-2xl p-6 transform hover:scale-105 transition">
+            <div class="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl h-64 flex items-center justify-center text-6xl">
+              📱
+            </div>
+            <div class="mt-4 space-y-3">
+              <div class="h-4 bg-gray-200 rounded-full w-3/4"></div>
+              <div class="h-4 bg-gray-200 rounded-full w-full"></div>
+              <div class="h-4 bg-primary-200 rounded-full w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="py-24 px-4 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Tailored Dashboards for Every Role</h2>
+        <p class="text-gray-600 text-lg max-w-3xl mx-auto">
+          Specialized interfaces designed for each user type—from patients managing their health to doctors making clinical decisions
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Patient Card -->
+        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition border border-gray-100 p-8 hover:border-primary-200 group">
+          <div class="w-14 h-14 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition">👤</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">For Patients</h3>
+          <p class="text-gray-600 text-sm mb-4 leading-relaxed">Personal wellness management with intuitive tools</p>
+          <ul class="text-gray-700 space-y-2 text-sm font-medium">
+            <li class="flex gap-2"><span class="text-primary-600">✓</span> Health dashboard</li>
+            <li class="flex gap-2"><span class="text-primary-600">✓</span> Appointment tracking</li>
+            <li class="flex gap-2"><span class="text-primary-600">✓</span> Medication schedules</li>
+            <li class="flex gap-2"><span class="text-primary-600">✓</span> Activity reminders</li>
+          </ul>
+        </div>
+
+        <!-- Caregiver Card -->
+        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition border border-gray-100 p-8 hover:border-success group">
+          <div class="w-14 h-14 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition">🤝</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">For Caregivers</h3>
+          <p class="text-gray-600 text-sm mb-4 leading-relaxed">Manage care tasks and monitor patient wellbeing</p>
+          <ul class="text-gray-700 space-y-2 text-sm font-medium">
+            <li class="flex gap-2"><span class="text-success">✓</span> Patient monitoring</li>
+            <li class="flex gap-2"><span class="text-success">✓</span> Task management</li>
+            <li class="flex gap-2"><span class="text-success">✓</span> Alert notifications</li>
+            <li class="flex gap-2"><span class="text-success">✓</span> Activity logging</li>
+          </ul>
+        </div>
+
+        <!-- Doctor Card -->
+        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition border border-gray-100 p-8 hover:border-info group">
+          <div class="w-14 h-14 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition">👨‍⚕️</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">For Doctors</h3>
+          <p class="text-gray-600 text-sm mb-4 leading-relaxed">Clinical tools for data-driven patient care</p>
+          <ul class="text-gray-700 space-y-2 text-sm font-medium">
+            <li class="flex gap-2"><span class="text-info">✓</span> Patient records</li>
+            <li class="flex gap-2"><span class="text-info">✓</span> Prescriptions</li>
+            <li class="flex gap-2"><span class="text-info">✓</span> Medical history</li>
+            <li class="flex gap-2"><span class="text-info">✓</span> Health monitoring</li>
+          </ul>
+        </div>
+
+        <!-- Admin Card -->
+        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition border border-gray-100 p-8 hover:border-warning group">
+          <div class="w-14 h-14 bg-gradient-to-br from-amber-100 to-amber-200 rounded-lg flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition">⚙️</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">For Administrators</h3>
+          <p class="text-gray-600 text-sm mb-4 leading-relaxed">Platform control and system oversight</p>
+          <ul class="text-gray-700 space-y-2 text-sm font-medium">
+            <li class="flex gap-2"><span class="text-warning">✓</span> User management</li>
+            <li class="flex gap-2"><span class="text-warning">✓</span> Analytics</li>
+            <li class="flex gap-2"><span class="text-warning">✓</span> Access control</li>
+            <li class="flex gap-2"><span class="text-warning">✓</span> Reports</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="py-24 px-4 bg-white">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">How CareHub Works</h2>
+        <p class="text-gray-600 text-lg max-w-3xl mx-auto">
+          A seamless ecosystem connecting all stakeholders in the care journey
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Patient Portal -->
+        <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-8 border-l-4 border-primary-500 hover:shadow-lg transition">
+          <div class="flex gap-4 mb-4">
+            <div class="w-12 h-12 bg-primary-500 text-white rounded-lg flex items-center justify-center text-2xl flex-shrink-0">👤</div>
+            <h3 class="text-2xl font-bold text-gray-900 self-center">Patient Portal</h3>
+          </div>
+          <p class="text-gray-700 leading-relaxed mb-4">
+            Patients gain access to their complete health profile, upcoming appointments, medication schedules, and personalized daily reminders. The intuitive interface is designed for ease of use across all age groups and tech proficiency levels.
+          </p>
+          <ul class="text-sm text-gray-700 space-y-2 font-medium">
+            <li>✓ Comprehensive health dashboard</li>
+            <li>✓ Secure messaging with care team</li>
+            <li>✓ Cognitive activity tracking</li>
+          </ul>
+        </div>
+
+        <!-- Caregiver Dashboard -->
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-8 border-l-4 border-green-500 hover:shadow-lg transition">
+          <div class="flex gap-4 mb-4">
+            <div class="w-12 h-12 bg-green-500 text-white rounded-lg flex items-center justify-center text-2xl flex-shrink-0">🤝</div>
+            <h3 class="text-2xl font-bold text-gray-900 self-center">Caregiver Dashboard</h3>
+          </div>
+          <p class="text-gray-700 leading-relaxed mb-4">
+            Caregivers can monitor multiple patients, manage daily care tasks with priority levels, receive real-time health alerts, and maintain activity logs. Designed for efficient task coordination and responsive care delivery.
+          </p>
+          <ul class="text-sm text-gray-700 space-y-2 font-medium">
+            <li>✓ Multi-patient management</li>
+            <li>✓ Real-time alert system</li>
+            <li>✓ Task prioritization & tracking</li>
+          </ul>
+        </div>
+
+        <!-- Doctor Console -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-8 border-l-4 border-blue-500 hover:shadow-lg transition">
+          <div class="flex gap-4 mb-4">
+            <div class="w-12 h-12 bg-blue-500 text-white rounded-lg flex items-center justify-center text-2xl flex-shrink-0">👨‍⚕️</div>
+            <h3 class="text-2xl font-bold text-gray-900 self-center">Doctor Console</h3>
+          </div>
+          <p class="text-gray-700 leading-relaxed mb-4">
+            Doctors access comprehensive patient records, clinical history, and real-time health metrics. Prescription management, appointment scheduling, and data-driven insights support clinical decision-making.
+          </p>
+          <ul class="text-sm text-gray-700 space-y-2 font-medium">
+            <li>✓ Full patient medical records</li>
+            <li>✓ Prescription & medication tracking</li>
+            <li>✓ Clinical decision support</li>
+          </ul>
+        </div>
+
+        <!-- Admin Control -->
+        <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-8 border-l-4 border-amber-500 hover:shadow-lg transition">
+          <div class="flex gap-4 mb-4">
+            <div class="w-12 h-12 bg-amber-500 text-white rounded-lg flex items-center justify-center text-2xl flex-shrink-0">⚙️</div>
+            <h3 class="text-2xl font-bold text-gray-900 self-center">Admin Control</h3>
+          </div>
+          <p class="text-gray-700 leading-relaxed mb-4">
+            Administrators manage user accounts, configure system permissions, generate compliance reports, and monitor platform performance. Comprehensive oversight tools ensure system integrity and security.
+          </p>
+          <ul class="text-sm text-gray-700 space-y-2 font-medium">
+            <li>✓ User & role management</li>
+            <li>✓ System analytics & reporting</li>
+            <li>✓ Security & access control</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Benefits Section -->
+  <section id="benefits" class="py-24 px-4 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Why Choose CareHub?</h2>
+        <p class="text-gray-600 text-lg max-w-3xl mx-auto">
+          Purpose-built for Alzheimer's care with features that matter
+        </p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Coordinated Care -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">🎯</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">Coordinated Care</h3>
+          <p class="text-gray-600 leading-relaxed">
+            All stakeholders—patients, caregivers, doctors, and administrators—work on a single platform, eliminating information silos and improving care outcomes.
+          </p>
+        </div>
+
+        <!-- Data Insights -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">📊</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">Data-Driven Insights</h3>
+          <p class="text-gray-600 leading-relaxed">
+            Real-time health metrics, trend analysis, and clinical dashboards empower healthcare providers to make informed decisions quickly.
+          </p>
+        </div>
+
+        <!-- Security & Privacy -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">🔒</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">Enterprise Security</h3>
+          <p class="text-gray-600 leading-relaxed">
+            HIPAA-compliant infrastructure, end-to-end encryption, and regular security audits protect sensitive patient data.
+          </p>
+        </div>
+
+        <!-- User Experience -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">✨</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">Intuitive Design</h3>
+          <p class="text-gray-600 leading-relaxed">
+            Carefully designed interfaces with accessibility-first principles ensure usability across all age groups and abilities.
+          </p>
+        </div>
+
+        <!-- Scalability -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">📈</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">Scalable Platform</h3>
+          <p class="text-gray-600 leading-relaxed">
+            From small clinics to large hospital networks, CareHub scales to support organizations of any size.
+          </p>
+        </div>
+
+        <!-- Support -->
+        <div class="bg-white rounded-xl p-8 shadow-md hover:shadow-lg transition text-center group">
+          <div class="inline-block w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-4xl mb-4 group-hover:bg-primary-200 transition">🤲</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">24/7 Support</h3>
+          <p class="text-gray-600 leading-relaxed">
+            Dedicated support team, comprehensive documentation, and community forums ensure you're never without help.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials Section (Optional) -->
+  <section class="py-24 px-4 bg-white">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-4xl font-bold text-gray-900 mb-4">Trusted by Healthcare Professionals</h2>
+        <p class="text-gray-600 text-lg">See how CareHub is transforming Alzheimer's care</p>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Testimonial 1 -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-200">
+          <div class="flex gap-1 mb-4">
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+          </div>
+          <p class="text-gray-700 mb-4 italic">"CareHub has completely transformed how we manage patient care. The coordination between our team has improved dramatically."</p>
+          <p class="font-bold text-gray-900">Dr. Sarah Johnson</p>
+          <p class="text-gray-600 text-sm">Neurology Specialist</p>
+        </div>
+
+        <!-- Testimonial 2 -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-200">
+          <div class="flex gap-1 mb-4">
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+          </div>
+          <p class="text-gray-700 mb-4 italic">"As a caregiver, this platform makes it so much easier to stay on top of my mom's medications and appointments. Highly recommended."</p>
+          <p class="font-bold text-gray-900">Maria Rodriguez</p>
+          <p class="text-gray-600 text-sm">Family Caregiver</p>
+        </div>
+
+        <!-- Testimonial 3 -->
+        <div class="bg-gray-50 rounded-xl p-8 border border-gray-200">
+          <div class="flex gap-1 mb-4">
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+            <span class="text-primary-500">⭐</span>
+          </div>
+          <p class="text-gray-700 mb-4 italic">"The security and HIPAA compliance give us peace of mind. Implementation was smooth thanks to the support team."</p>
+          <p class="font-bold text-gray-900">Healthcare IT Director</p>
+          <p class="text-gray-600 text-sm">Regional Medical Center</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA Section -->
+  <section class="bg-gradient-to-r from-primary-700 to-primary-900 text-white py-24 px-4 relative overflow-hidden">
+    <!-- Decorative elements -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+    </div>
+    
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+      <h2 class="text-5xl font-bold mb-6">Ready to Transform Patient Care?</h2>
+      <p class="text-xl text-primary-100 mb-12">
+        Join healthcare organizations across the region improving Alzheimer's care with CareHub.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a *ngIf="currentUser; else ctaLogin" [routerLink]="dashboardLink" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl">
+          Go to Dashboard
+        </a>
+        <ng-template #ctaLogin>
+          <a routerLink="/login" class="bg-white text-primary-700 px-8 py-4 rounded-lg font-bold hover:bg-primary-50 transition shadow-lg hover:shadow-xl">
+            Get Started Free
+          </a>
+        </ng-template>
+        <a href="#" class="border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white hover:text-primary-700 transition">
+          Schedule Demo
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-300 py-16 px-4">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <!-- Company Info -->
+        <div>
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-6 h-6 bg-primary-500 rounded text-white flex items-center justify-center text-sm font-bold">♥</div>
+            <span class="font-bold text-white text-lg">CareHub</span>
+          </div>
+          <p class="text-gray-400 text-sm leading-relaxed">
+            Compassionate Alzheimer care management platform connecting patients, caregivers, doctors, and administrators.
+          </p>
+        </div>
+        
+        <!-- Product -->
+        <div>
+          <h4 class="font-bold text-white mb-4">Product</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#features" class="hover:text-primary-400 transition">Features</a></li>
+            <li><a href="#how-it-works" class="hover:text-primary-400 transition">How It Works</a></li>
+            <li><a href="#benefits" class="hover:text-primary-400 transition">Benefits</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Pricing</a></li>
+          </ul>
+        </div>
+        
+        <!-- Company -->
+        <div>
+          <h4 class="font-bold text-white mb-4">Company</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#" class="hover:text-primary-400 transition">About Us</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Blog</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Careers</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Contact</a></li>
+          </ul>
+        </div>
+        
+        <!-- Legal -->
+        <div>
+          <h4 class="font-bold text-white mb-4">Legal</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li><a href="#" class="hover:text-primary-400 transition">Privacy Policy</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Terms of Service</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Security</a></li>
+            <li><a href="#" class="hover:text-primary-400 transition">Compliance</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <!-- Divider -->
+      <div class="border-t border-gray-800 pt-8">
+        <div class="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
+          <p>&copy; 2026 CareHub. All rights reserved. | Made with ♥ for better Alzheimer care</p>
+          <div class="flex gap-6 mt-4 md:mt-0">
+            <a href="#" class="hover:text-primary-400 transition">Twitter</a>
+            <a href="#" class="hover:text-primary-400 transition">LinkedIn</a>
+            <a href="#" class="hover:text-primary-400 transition">Facebook</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>

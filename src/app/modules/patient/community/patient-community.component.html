@@ -1,0 +1,335 @@
+<div class="p-8">
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-4xl font-bold text-gray-900 mb-2">👥 Community</h1>
+    <p class="text-gray-600">Connect, share, and support one another</p>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Feed -->
+    <div class="lg:col-span-2">
+      <!-- Create Post Input/Trigger -->
+      <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
+        <div class="flex gap-4">
+          <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg">👤</div>
+          <div class="flex-1">
+            <button 
+              (click)="toggleCreateForm()"
+              class="w-full px-4 py-3 border border-gray-200 rounded-lg text-left text-gray-400 hover:border-gray-300 hover:bg-gray-50 transition focus:outline-none focus:ring-2 focus:ring-primary-500">
+              Share your thoughts...
+            </button>
+            <div class="flex gap-2 mt-3">
+              <button 
+                (click)="toggleCreateForm()"
+                class="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
+                New Post
+              </button>
+              <button class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                📎
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create Post Form -->
+      <div *ngIf="showCreateForm" class="bg-white rounded-2xl shadow-md p-6 mb-6 border-2 border-primary-200">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Create New Post</h3>
+        
+        <form [formGroup]="postForm" (ngSubmit)="createPost()" class="space-y-4">
+          <!-- Title Field -->
+          <div>
+            <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
+            <input 
+              type="text" 
+              id="title"
+              formControlName="title"
+              placeholder="Enter post title..."
+              (input)="onContentChange()"
+              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              [ngClass]="{'border-red-300': postForm.get('title')?.invalid && postForm.get('title')?.touched, 'border-red-400': hasToxicContent()}">
+            
+            <!-- Title Error Messages -->
+            <div *ngIf="postForm.get('title')?.invalid && postForm.get('title')?.touched" class="mt-2 text-sm text-red-600">
+              <div *ngIf="postForm.get('title')?.errors?.['required']">Title is required</div>
+              <div *ngIf="postForm.get('title')?.errors?.['minlength']">Title must be at least 5 characters</div>
+              <div *ngIf="postForm.get('title')?.errors?.['maxlength']">Title must not exceed 200 characters</div>
+            </div>
+          </div>
+
+          <!-- Category Field -->
+          <div>
+            <label for="category" class="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
+            <select 
+              id="category"
+              formControlName="category"
+              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              [ngClass]="{'border-red-300': postForm.get('category')?.invalid && postForm.get('category')?.touched}">
+              <option value="" disabled>Select a category...</option>
+              <option *ngFor="let cat of categories" [value]="cat.value">
+                {{ cat.icon }} {{ cat.label }}
+              </option>
+            </select>
+            
+            <!-- Category Error Messages -->
+            <div *ngIf="postForm.get('category')?.invalid && postForm.get('category')?.touched" class="mt-2 text-sm text-red-600">
+              <div *ngIf="postForm.get('category')?.errors?.['required']">Please select a category</div>
+            </div>
+          </div>
+
+          <!-- Content Field -->
+          <div>
+            <label for="content" class="block text-sm font-semibold text-gray-700 mb-2">Content *</label>
+            <textarea 
+              id="content"
+              formControlName="content"
+              placeholder="Share your thoughts, experiences, or questions..."
+              rows="5"
+              (input)="onContentChange()"
+              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              [ngClass]="{'border-red-300': postForm.get('content')?.invalid && postForm.get('content')?.touched, 'border-red-400': hasToxicContent()}"></textarea>
+            
+            <!-- Content Error Messages -->
+            <div *ngIf="postForm.get('content')?.invalid && postForm.get('content')?.touched" class="mt-2 text-sm text-red-600">
+              <div *ngIf="postForm.get('content')?.errors?.['required']">Content is required</div>
+              <div *ngIf="postForm.get('content')?.errors?.['minlength']">Content must be at least 10 characters</div>
+            </div>
+          </div>
+
+          <!-- Toxic Content Warning -->
+          <div *ngIf="hasToxicContent()" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl">⚠️</span>
+              <div>
+                <p class="font-semibold text-red-800">Inappropriate Content Detected</p>
+                <p class="text-red-700 text-sm mt-1">
+                  Your post contains inappropriate language: 
+                  <span class="font-mono bg-red-100 px-1 rounded">{{ getDetectedWords().join(', ') }}</span>
+                </p>
+                <p class="text-red-600 text-sm mt-2">
+                  Please revise your content before submitting.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Content Check Loading -->
+          <div *ngIf="isCheckingContent" class="text-sm text-gray-500 flex items-center gap-2">
+            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Checking content...
+          </div>
+
+          <!-- Form Actions -->
+          <div class="flex gap-3 pt-2">
+            <button 
+              type="submit"
+              [disabled]="postForm.invalid || isSubmitting || hasToxicContent()"
+              class="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
+              <span *ngIf="!isSubmitting">Create Post</span>
+              <span *ngIf="isSubmitting" class="flex items-center justify-center">
+                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating...
+              </span>
+            </button>
+            <button 
+              type="button"
+              (click)="cancelCreatePost()"
+              class="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition font-semibold">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Feed Tabs -->
+      <div class="bg-white rounded-t-2xl shadow-md border-b border-gray-200 mb-0">
+        <div class="flex">
+          <button 
+            (click)="switchFeed('latest')"
+            class="flex-1 py-4 px-6 font-semibold text-center transition border-b-2"
+            [ngClass]="activeFeed === 'latest' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-600 hover:text-gray-900'">
+            <span class="flex items-center justify-center gap-2">
+              📰 Latest
+            </span>
+          </button>
+          <button 
+            (click)="switchFeed('trending')"
+            class="flex-1 py-4 px-6 font-semibold text-center transition border-b-2"
+            [ngClass]="activeFeed === 'trending' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-600 hover:text-gray-900'">
+            <span class="flex items-center justify-center gap-2">
+              🔥 Trending
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="bg-white rounded-b-2xl shadow-md p-12 text-center">
+        <div class="inline-flex items-center justify-center">
+          <svg class="animate-spin h-12 w-12 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <p class="mt-4 text-gray-600">Loading community posts...</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-b-2xl p-8 text-center">
+        <div class="text-red-500 text-5xl mb-4">⚠️</div>
+        <h3 class="text-lg font-bold text-red-900 mb-2">Unable to Load Posts</h3>
+        <p class="text-red-700 mb-6">{{ error }}</p>
+        <button 
+          (click)="retryLoadPosts()"
+          class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold">
+          Try Again
+        </button>
+      </div>
+
+      <!-- Posts Feed -->
+      <div *ngIf="!isLoading && !error" class="space-y-6 bg-transparent pt-6">
+        <!-- Empty State -->
+        <div *ngIf="posts.length === 0" class="bg-white rounded-2xl shadow-md p-12 text-center">
+          <div class="text-gray-300 text-6xl mb-4">💬</div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">No Posts Yet</h3>
+          <p class="text-gray-600 mb-6">Be the first to share something with the community!</p>
+          <button 
+            (click)="toggleCreateForm()"
+            class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold">
+            Create First Post
+          </button>
+        </div>
+
+        <!-- Posts List -->
+        <div *ngFor="let post of posts" class="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
+          <!-- Post Header -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex gap-4 flex-1">
+              <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
+                👤
+              </div>
+              <div>
+                <!-- Category Badge -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-sm">{{ getCategoryIcon(post.category) }}</span>
+                  <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold">
+                    {{ getCategoryLabel(post.category) }}
+                  </span>
+                </div>
+                <p class="font-bold text-gray-900">{{ post.title }}</p>
+                <p class="text-sm text-gray-700 mb-1">{{ getAuthorName(post) }}</p>
+                <p class="text-gray-500 text-sm">{{ formatDate(post.creationDate) }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- Popularity Score (shown for trending feed) -->
+              <span *ngIf="activeFeed === 'trending' || post.popularityScore > 50" 
+                class="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-full text-xs font-semibold"
+                title="Popularity Score: {{ post.popularityScore }}">
+                🔥 {{ formatPopularity(post.popularityScore) }}
+              </span>
+              <!-- Author Badge -->
+              <span *ngIf="isPostAuthor(post)" class="px-2 py-1 bg-success bg-opacity-20 text-success rounded-full text-xs font-semibold">
+                You
+              </span>
+              <button class="text-gray-400 hover:text-gray-600 p-1">⋯</button>
+            </div>
+          </div>
+
+          <!-- Post Content -->
+          <p class="text-gray-800 mb-4 leading-relaxed">{{ post.content }}</p>
+
+          <!-- Post Actions -->
+          <div class="flex gap-4 text-gray-600 text-sm border-t border-gray-100 pt-4">
+            <button 
+              (click)="likePost(post.id)"
+              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50">
+              ❤️ <span>{{ post.likeCount }}</span>
+            </button>
+            <button 
+              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50">
+              💬 <span>{{ post.commentCount }}</span>
+            </button>
+            <button 
+              (click)="viewPost(post.id)"
+              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50 ml-auto">
+              👁️ View Post
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Support Groups -->
+      <div class="bg-white rounded-2xl shadow-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">🤝 Support Groups</h3>
+        <div class="space-y-3">
+          <div class="p-3 bg-primary-50 rounded-lg border border-primary-200 hover:bg-primary-100 transition cursor-pointer">
+            <p class="font-semibold text-gray-900 text-sm">Caregivers Circle</p>
+            <p class="text-gray-600 text-xs mt-1">2.4K members</p>
+          </div>
+          <div class="p-3 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition cursor-pointer">
+            <p class="font-semibold text-gray-900 text-sm">Wellness Buddies</p>
+            <p class="text-gray-600 text-xs mt-1">1.8K members</p>
+          </div>
+          <div class="p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition cursor-pointer">
+            <p class="font-semibold text-gray-900 text-sm">Brain Games Masters</p>
+            <p class="text-gray-600 text-xs mt-1">3.2K members</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trending Topics -->
+      <div class="bg-white rounded-2xl shadow-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">🔥 Trending Topics</h3>
+        <div class="space-y-3 text-sm">
+          <div class="hover:bg-gray-50 p-2 rounded cursor-pointer">
+            <p class="font-semibold text-gray-900">#MindfulnessMonday</p>
+            <p class="text-gray-500">3.2K posts</p>
+          </div>
+          <div class="hover:bg-gray-50 p-2 rounded cursor-pointer">
+            <p class="font-semibold text-gray-900">#HealthyHabits</p>
+            <p class="text-gray-500">2.8K posts</p>
+          </div>
+          <div class="hover:bg-gray-50 p-2 rounded cursor-pointer">
+            <p class="font-semibold text-gray-900">#CommunityLove</p>
+            <p class="text-gray-500">2.1K posts</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Tips -->
+      <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200">
+        <h3 class="text-lg font-bold text-primary-900 mb-3">💬 Community Guidelines</h3>
+        <ul class="space-y-2 text-sm text-primary-800">
+          <li>✓ Be respectful</li>
+          <li>✓ Share experiences</li>
+          <li>✓ Support each other</li>
+          <li>✓ No medical advice</li>
+        </ul>
+      </div>
+
+      <!-- Content Moderation Info -->
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-md p-6 border border-blue-200">
+        <h3 class="text-lg font-bold text-blue-900 mb-3">🛡️ Safe Community</h3>
+        <p class="text-sm text-blue-800 mb-3">
+          We use automated content moderation to keep our community safe and welcoming.
+        </p>
+        <ul class="space-y-1 text-xs text-blue-700">
+          <li>• Toxic content is automatically detected</li>
+          <li>• Inappropriate language is blocked</li>
+          <li>• French & English moderation enabled</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

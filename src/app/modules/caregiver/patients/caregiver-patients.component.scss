@@ -1,0 +1,115 @@
+/**
+ * Caregiver Patients Component Styles
+ * 
+ * Uses Tailwind CSS utility classes primarily.
+ * This file contains additional custom styles for specific interactions.
+ */
+
+// Smooth transitions for cards
+.patient-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+// Avatar placeholder gradient backgrounds
+.avatar-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.avatar-family {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.avatar-emergency {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+}
+
+// Role badge subtle animation
+.role-badge {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+}
+
+// Action button hover effects
+.action-btn {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+  }
+  
+  &:active::after {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+// Loading skeleton animation
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f3f4f6 25%,
+    #e5e7eb 50%,
+    #f3f4f6 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// Card border glow effect on hover for primary caregivers
+.primary-glow:hover {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .patient-grid {
+    gap: 1rem;
+  }
+  
+  .card-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+}
+
+// Print styles
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .patient-card {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+}
