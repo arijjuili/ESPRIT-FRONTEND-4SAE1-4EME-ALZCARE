@@ -1,11 +1,11 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of, Subject } from 'rxjs';
-import { catchError, takeUntil } from 'rxjs/operators';
-import { AuthService } from '../../../core/services/auth.service';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { DailyCareService } from '../../../core/services/daily-care.service';
-import { DailyCareTask, DailyRoutine } from '../../../core/models/daily-care.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { Habit, HabitTask, HabitType, AutonomyMode } from '../../../core/models/daily-care.model';
 
 @Component({
   selector: 'app-patient-routines',
@@ -15,31 +15,23 @@ import { DailyCareTask, DailyRoutine } from '../../../core/models/daily-care.mod
   styleUrls: ['./patient-routines.component.scss']
 })
 export class PatientRoutinesComponent implements OnInit, OnDestroy {
-  routines: DailyRoutine[] = [];
-  filteredRoutines: DailyRoutine[] = [];
-  tasks: DailyCareTask[] = [];
+  habits: Habit[] = [];
+  filteredHabits: Habit[] = [];
 
-  patientId = '';
   searchTerm = '';
-  selectedDate = this.getTodayDate();
+  filterType: HabitType | 'ALL' = 'ALL';
   loading = false;
-  togglingTaskId: string | null = null;
+  error = '';
 
   private destroy$ = new Subject<void>();
 
   constructor(
-    private authService: AuthService,
-    private dailyCareService: DailyCareService
+    private dailyCareService: DailyCareService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
-    const currentUser = this.authService.getCurrentUser();
-    if (!currentUser) {
-      return;
-    }
-
-    this.patientId = currentUser.id;
-    this.loadData();
+    this.loadHabits();
   }
 
   ngOnDestroy(): void {
@@ -47,77 +39,91 @@ export class PatientRoutinesComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  loadData(): void {
-    if (!this.patientId) return;
-
+  loadHabits(): void {
     this.loading = true;
+    this.error = '';
 
-    forkJoin({
-      routines: this.dailyCareService.getRoutines().pipe(catchError(() => of([]))),
-      tasks: this.dailyCareService.getPatientDailyTasks(this.patientId, this.selectedDate).pipe(catchError(() => of([])))
-    })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(({ routines, tasks }) => {
-        this.routines = routines;
-        this.tasks = tasks;
-        this.applyRoutineFilter();
-        this.loading = false;
-      });
-  }
+    const patientId = this.authService.getCurrentUserId();
+    if (!patientId) {
+      this.error = 'Missing patient identity. Please log in again.';
+      this.loading = false;
+      return;
+    }
 
-  applyRoutineFilter(): void {
-    const query = this.searchTerm.trim().toLowerCase();
-    this.filteredRoutines = !query
-      ? [...this.routines]
-      : this.routines.filter(routine =>
-          routine.name.toLowerCase().includes(query) ||
-          routine.description.toLowerCase().includes(query)
-        );
-  }
-
-  getRoutineTasks(routineId: string): DailyCareTask[] {
-    return this.tasks.filter(task => task.routineId === routineId);
-  }
-
-  getCompletedCount(routineId: string): number {
-    return this.getRoutineTasks(routineId).filter(task => task.completed).length;
-  }
-
-  getCompletionRate(routineId: string): number {
-    const routineTasks = this.getRoutineTasks(routineId);
-    if (routineTasks.length === 0) return 0;
-    return Math.round((this.getCompletedCount(routineId) / routineTasks.length) * 100);
-  }
-
-  get totalTasks(): number {
-    return this.tasks.length;
-  }
-
-  get completedTasks(): number {
-    return this.tasks.filter(task => task.completed).length;
-  }
-
-  toggleTask(task: DailyCareTask): void {
-    this.togglingTaskId = task.id;
-
-    this.dailyCareService
-      .updateTaskStatus(task.id, { completed: !task.completed })
+    this.dailyCareService.getAssignedHabitsForPatient(patientId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: updatedTask => {
-          const index = this.tasks.findIndex(item => item.id === updatedTask.id);
-          if (index !== -1) {
-            this.tasks[index] = updatedTask;
-          }
-          this.togglingTaskId = null;
+        next: (habits) => {
+          this.habits = habits.map(h => ({
+            ...h,
+            tasks: h.tasks || []
+          }));
+          this.applyFilter();
+          this.loading = false;
         },
         error: () => {
-          this.togglingTaskId = null;
+          this.error = 'Failed to load habits. Make sure the backend is running.';
+          this.loading = false;
         }
       });
   }
 
-  private getTodayDate(): string {
-    return new Date().toISOString().split('T')[0];
+  applyFilter(): void {
+    let result = [...this.habits];
+
+    if (this.filterType !== 'ALL') {
+      result = result.filter(h => h.type === this.filterType);
+    }
+
+    const query = this.searchTerm.trim().toLowerCase();
+    if (query) {
+      result = result.filter(h => h.name.toLowerCase().includes(query));
+    }
+
+    this.filteredHabits = result;
+  }
+
+  getTasksForHabit(habit: Habit): HabitTask[] {
+    return habit.tasks || [];
+  }
+
+  getTypeLabel(type: HabitType): string {
+    switch (type) {
+      case 'MORNING': return 'Morning';
+      case 'EVENING': return 'Evening';
+      case 'ACTIVITY': return 'Activity';
+      default: return type;
+    }
+  }
+
+  getTypeClass(type: HabitType): string {
+    switch (type) {
+      case 'MORNING': return 'bg-amber-100 text-amber-700';
+      case 'EVENING': return 'bg-indigo-100 text-indigo-700';
+      case 'ACTIVITY': return 'bg-emerald-100 text-emerald-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  getAutonomyClass(mode: AutonomyMode): string {
+    switch (mode) {
+      case 'INDEPENDENT': return 'bg-green-100 text-green-700';
+      case 'ASSISTED': return 'bg-yellow-100 text-yellow-700';
+      case 'DEPENDENT': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  get activeCount(): number {
+    return this.habits.filter(h => h.active).length;
+  }
+
+  get totalTasks(): number {
+    return this.habits.reduce((count, h) => count + (h.tasks?.length || 0), 0);
+  }
+
+  get criticalTasks(): number {
+    return this.habits.reduce((count, h) =>
+      count + (h.tasks?.filter(t => t.isCritical).length || 0), 0);
   }
 }

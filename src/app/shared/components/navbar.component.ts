@@ -185,7 +185,13 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Checklist',
       path: '/doctor/checklist',
-      icon: '📋',
+      icon: 'C',
+      roles: ['doctor']
+    },
+    {
+      label: 'Habits',
+      path: '/doctor/habits',
+      icon: 'R',
       roles: ['doctor']
     },
     // Admin routes - 12 Axes Management
@@ -348,4 +354,5 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 }
+
 

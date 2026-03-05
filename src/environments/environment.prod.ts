@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
   
-  // API Gateway - all backend requests go through here
+  // API Gateway - use relative path so reverse proxy can route requests
   apiUrl: '/api',
   
   // Keycloak Configuration - for authentication only

@@ -1,7 +1,7 @@
 export const environment = {
   production: false,
   
-  // API Gateway - all backend requests go through here
+  // API Gateway - use relative path so Angular proxy handles localhost routing
   apiUrl: '/api',
   
   // Keycloak Configuration - for authentication only

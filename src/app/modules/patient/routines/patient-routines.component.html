@@ -1,101 +1,94 @@
-<div class="p-8">
-  <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-    <div>
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">Daily Routines</h1>
-      <p class="text-gray-600">See your routines and complete tasks by schedule.</p>
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <h1 class="text-3xl lg:text-4xl font-bold text-gray-900">My Daily Habits</h1>
+        <p class="text-gray-600 mt-2">View your habits and tasks. Updates are managed by your doctor.</p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <select
+          [(ngModel)]="filterType"
+          (ngModelChange)="applyFilter()"
+          class="px-4 py-2 border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400">
+          <option value="ALL">All Types</option>
+          <option value="MORNING">Morning</option>
+          <option value="EVENING">Evening</option>
+          <option value="ACTIVITY">Activity</option>
+        </select>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="applyFilter()"
+          placeholder="Search habits..."
+          class="px-4 py-2 border border-violet-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400"
+        />
+      </div>
     </div>
 
-    <div class="flex flex-col sm:flex-row gap-3">
-      <input
-        type="date"
-        [(ngModel)]="selectedDate"
-        (change)="loadData()"
-        class="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-      />
-      <input
-        type="text"
-        [(ngModel)]="searchTerm"
-        (ngModelChange)="applyRoutineFilter()"
-        placeholder="Search routine..."
-        class="px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-      />
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white rounded-2xl shadow-sm p-5 border border-primary-100">
-      <p class="text-sm text-gray-600">Routines</p>
-      <p class="text-3xl font-bold text-gray-900 mt-1">{{ filteredRoutines.length }}</p>
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm p-5 border border-primary-100">
-      <p class="text-sm text-gray-600">Tasks (Selected Day)</p>
-      <p class="text-3xl font-bold text-gray-900 mt-1">{{ totalTasks }}</p>
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm p-5 border border-primary-100">
-      <p class="text-sm text-gray-600">Completed</p>
-      <p class="text-3xl font-bold text-emerald-600 mt-1">{{ completedTasks }}</p>
-    </div>
-  </div>
-
-  <div class="bg-white rounded-2xl shadow-sm border border-primary-100 overflow-hidden">
-    <div *ngIf="loading" class="p-8 text-center text-gray-500">Loading routines...</div>
-
-    <div *ngIf="!loading && filteredRoutines.length === 0" class="p-8 text-center text-gray-500">
-      No routines available.
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="bg-white rounded-2xl shadow-sm p-5 border border-violet-100">
+        <p class="text-sm text-gray-600">Total Habits</p>
+        <p class="text-3xl font-bold text-gray-900 mt-1">{{ habits.length }}</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm p-5 border border-violet-100">
+        <p class="text-sm text-gray-600">Active Habits</p>
+        <p class="text-3xl font-bold text-emerald-600 mt-1">{{ activeCount }}</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm p-5 border border-violet-100">
+        <p class="text-sm text-gray-600">Total Tasks</p>
+        <p class="text-3xl font-bold text-violet-600 mt-1">{{ totalTasks }}</p>
+      </div>
     </div>
 
-    <div *ngIf="!loading && filteredRoutines.length > 0" class="divide-y divide-gray-100">
-      <div *ngFor="let routine of filteredRoutines" class="p-6">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div class="flex items-center gap-3">
-              <h2 class="text-lg font-semibold text-gray-900">{{ routine.name }}</h2>
-              <span class="px-2 py-1 rounded-full text-xs font-semibold"
-                    [ngClass]="routine.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'">
-                {{ routine.active ? 'Active' : 'Draft' }}
-              </span>
-            </div>
-            <p class="text-sm text-gray-600 mt-1">{{ routine.description }}</p>
-            <p class="text-xs text-gray-500 mt-2">
-              {{ getCompletedCount(routine.id) }}/{{ getRoutineTasks(routine.id).length }} completed
-              <span *ngIf="routine.scheduleWindow">• {{ routine.scheduleWindow }}</span>
-            </p>
-          </div>
-          <div class="text-sm font-semibold text-primary-700">
-            {{ getCompletionRate(routine.id) }}%
-          </div>
-        </div>
+    <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-6 text-red-700">
+      {{ error }}
+      <button (click)="loadHabits()" class="ml-3 underline font-semibold">Retry</button>
+    </div>
 
-        <div class="mt-4 space-y-2" *ngIf="getRoutineTasks(routine.id).length > 0">
-          <label *ngFor="let task of getRoutineTasks(routine.id)" class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            <input
-              type="checkbox"
-              [checked]="task.completed"
-              [disabled]="togglingTaskId === task.id"
-              (change)="toggleTask(task)"
-              class="mt-1 w-5 h-5"
-            />
-            <div class="flex-1">
-              <p class="font-semibold" [ngClass]="task.completed ? 'line-through text-gray-400' : 'text-gray-900'">
-                {{ task.title }}
+    <div *ngIf="loading" class="bg-white rounded-2xl shadow-sm border border-violet-100 p-8 text-center text-gray-500">
+      Loading habits...
+    </div>
+
+    <div *ngIf="!loading && !error && filteredHabits.length === 0" class="bg-white rounded-2xl shadow-sm border border-violet-100 p-8 text-center text-gray-500">
+      No habits found.
+    </div>
+
+    <div *ngIf="!loading && filteredHabits.length > 0" class="space-y-4">
+      <div *ngFor="let habit of filteredHabits" class="bg-white rounded-2xl shadow-sm border border-violet-100 overflow-hidden">
+        <div class="p-6">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div class="flex items-center gap-3 flex-wrap">
+                <h2 class="text-lg font-semibold text-gray-900">{{ habit.name }}</h2>
+                <span class="px-2 py-1 rounded-full text-xs font-semibold" [ngClass]="getTypeClass(habit.type)">
+                  {{ getTypeLabel(habit.type) }}
+                </span>
+                <span *ngIf="habit.active" class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Active</span>
+                <span *ngIf="!habit.active" class="px-2 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Inactive</span>
+              </div>
+              <p class="text-sm text-gray-500 mt-2">
+                 {{ habit.targetTime }} &middot; {{ habit.tasks?.length || 0 }} tasks
               </p>
-              <p class="text-sm text-gray-600">{{ task.description }}</p>
-              <p class="text-xs text-gray-500 mt-1">Due {{ task.dueDate | date:'shortTime' }}</p>
             </div>
-            <span class="text-xs px-2 py-1 rounded-full"
-                  [ngClass]="{
-                    'bg-rose-100 text-rose-700': task.priority === 'high',
-                    'bg-amber-100 text-amber-700': task.priority === 'medium',
-                    'bg-green-100 text-green-700': task.priority === 'low'
-                  }">
-              {{ task.priority | titlecase }}
-            </span>
-          </label>
+          </div>
         </div>
 
-        <p *ngIf="getRoutineTasks(routine.id).length === 0" class="mt-4 text-sm text-gray-500">
-          No tasks for this routine on selected date.
-        </p>
+        <div *ngIf="habit.tasks && habit.tasks.length > 0" class="border-t border-gray-100 px-6 pb-4 pt-3">
+          <div class="space-y-2">
+            <div *ngFor="let task of habit.tasks" class="flex items-center gap-3 p-2 bg-gray-50 rounded-lg text-sm">
+              <span class="w-6 h-6 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {{ task.orderIndex }}
+              </span>
+              <span class="font-medium text-gray-900 flex-1">{{ task.title }}</span>
+              <span *ngIf="task.isCritical" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">Critical</span>
+              <span class="text-xs px-2 py-0.5 rounded-full" [ngClass]="getAutonomyClass(task.autonomyMode)">{{ task.autonomyMode }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!habit.tasks || habit.tasks.length === 0" class="border-t border-gray-100 px-6 py-4 text-sm text-gray-500">
+          No tasks for this habit yet.
+        </div>
       </div>
     </div>
   </div>

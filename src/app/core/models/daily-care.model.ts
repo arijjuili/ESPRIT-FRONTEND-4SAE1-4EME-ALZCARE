@@ -5,9 +5,11 @@ export interface Habit {
   id: number;
   name: string;
   type: HabitType;
-  targetTime: string; // HH:mm:ss
-  isActive: boolean;
-  createdAt: string; // ISO datetime
+  targetTime: string;
+  active: boolean;
+  createdAt: string;
+  ownerId?: string;
+  tasks: HabitTask[];
 }
 
 export interface HabitTask {
@@ -20,11 +22,32 @@ export interface HabitTask {
   habitId?: number;
 }
 
+export interface HabitTaskRequest {
+  habitId: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+  critical: boolean;
+  autonomyMode: AutonomyMode;
+}
+
+export interface HabitAssignmentRequest {
+  habitId: number;
+}
+
+export interface HabitAssignment {
+  id?: number | string;
+  habitId: number;
+  patientId: string;
+  doctorId: string;
+  assignedAt?: string;
+}
+
 export interface CreateHabitRequest {
   name: string;
   type: HabitType;
   targetTime: string;
-  isActive?: boolean;
+  active?: boolean;
 }
 
 export type UpdateHabitRequest = Partial<CreateHabitRequest>;
@@ -39,7 +62,7 @@ export interface CreateHabitTaskRequest {
 
 export type UpdateHabitTaskRequest = Partial<CreateHabitTaskRequest>;
 
-// Legacy compatibility for existing UI pages.
+// Legacy - kept for admin/routines and other pages that still use these
 export type DailyCarePriority = 'low' | 'medium' | 'high';
 export type DailyCareStatus = 'PENDING' | 'COMPLETED' | 'MISSED';
 
@@ -72,4 +95,13 @@ export interface DailyRoutine {
 export interface UpdateTaskStatusRequest {
   completed: boolean;
   notes?: string;
+}
+
+export interface HabitTaskRequest {
+  habitId: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+  critical: boolean;
+  autonomyMode: AutonomyMode;
 }

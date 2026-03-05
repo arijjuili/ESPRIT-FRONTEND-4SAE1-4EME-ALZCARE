@@ -1,15 +1,16 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 import {
   Habit,
   HabitTask,
-  CreateHabitRequest,
-  UpdateHabitRequest,
-  CreateHabitTaskRequest,
-  UpdateHabitTaskRequest,
+  HabitTaskRequest,
+  HabitAssignment,
+  HabitAssignmentRequest,
+  HabitType,
   DailyCareTask,
   DailyCarePriority,
   DailyCareStatus,
@@ -21,392 +22,256 @@ import {
   providedIn: 'root'
 })
 export class DailyCareService {
-  private apiUrl = `${environment.apiUrl}/v1/daily-care`;
-  private habitsUrl = `${this.apiUrl}/habits`;
-  private habitTasksUrl = `${this.apiUrl}/habit-tasks`;
-  private legacyRoutinesUrl = `${this.apiUrl}/routines`;
+  private habitUrl = `${environment.apiUrl}/v1/habit`;
+  private taskUrl = `${environment.apiUrl}/v1/habit-task`;
 
-  private mockHabits: Habit[] = [
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  // ===== REAL BACKEND METHODS (your dailyCare-service) =====
+
+  getAllHabits(): Observable<Habit[]> {
+    return this.http.get<Habit[] | { content: Habit[] }>(this.habitUrl).pipe(
+      map((response) => this.extractHabits(response))
+    );
+  }
+
+  getHabitsByType(type: HabitType): Observable<Habit[]> {
+    const params = new HttpParams().set('type', type);
+    return this.http.get<Habit[] | { content: Habit[] }>(this.habitUrl, { params }).pipe(
+      map((response) => this.extractHabits(response))
+    );
+  }
+
+  getHabitsByActive(active: boolean): Observable<Habit[]> {
+    const params = new HttpParams().set('active', active.toString());
+    return this.http.get<Habit[] | { content: Habit[] }>(this.habitUrl, { params }).pipe(
+      map((response) => this.extractHabits(response))
+    );
+  }
+
+  getHabitById(id: number): Observable<Habit> {
+    return this.http.get<Habit>(`${this.habitUrl}/${id}`);
+  }
+
+  getAssignedHabitsForPatient(patientId: string): Observable<Habit[]> {
+    return this.http
+      .get<Habit[] | { content: Habit[] }>(`${this.habitUrl}/patients/${patientId}`)
+      .pipe(map((response) => this.extractHabits(response)));
+  }
+
+  assignHabitToPatient(
+    doctorId: string,
+    patientId: string,
+    request: HabitAssignmentRequest
+  ): Observable<HabitAssignment> {
+    return this.http.post<HabitAssignment>(
+      `${this.habitUrl}/doctors/${doctorId}/patients/${patientId}/assignments`,
+      request
+    );
+  }
+
+  unassignHabitFromPatient(doctorId: string, patientId: string, habitId: number): Observable<void> {
+    const primaryUrl = `${this.habitUrl}/doctors/${doctorId}/patients/${patientId}/assignments/${habitId}`;
+    const fallbackUrl1 = `${this.habitUrl}/doctors/${doctorId}/patients/${patientId}/assignments`;
+    const fallbackUrl2 = `${this.habitUrl}/doctors/${doctorId}/assignments/${habitId}`;
+    const fallbackUrl3 = `${this.habitUrl}/assignments/${habitId}`;
+
+    return this.http.delete<void>(primaryUrl).pipe(
+      catchError((error) => {
+        if (error?.status !== 404) return throwError(() => error);
+
+        return this.http.delete<void>(fallbackUrl1, {
+          params: new HttpParams().set('habitId', habitId.toString())
+        }).pipe(
+          catchError((error1) => {
+            if (error1?.status !== 404) return throwError(() => error1);
+
+            return this.http.delete<void>(fallbackUrl2, {
+              params: new HttpParams().set('patientId', patientId)
+            }).pipe(
+              catchError((error2) => {
+                if (error2?.status !== 404) return throwError(() => error2);
+
+                return this.http.delete<void>(fallbackUrl3, {
+                  params: new HttpParams()
+                    .set('doctorId', doctorId)
+                    .set('patientId', patientId)
+                });
+              })
+            );
+          })
+        );
+      })
+    );
+  }
+
+  createHabit(habit: Partial<Habit>): Observable<Habit> {
+    const unauthorized = this.requireDoctorAccess('create habits');
+    if (unauthorized) return unauthorized;
+    return this.http.post<Habit>(this.habitUrl, habit);
+  }
+
+  updateHabit(id: number, habit: Partial<Habit>): Observable<Habit> {
+    const unauthorized = this.requireDoctorAccess('update habits');
+    if (unauthorized) return unauthorized;
+    return this.http.put<Habit>(`${this.habitUrl}/${id}`, habit);
+  }
+
+  toggleHabitActive(id: number, active: boolean): Observable<Habit> {
+    const unauthorized = this.requireDoctorAccess('change habit status');
+    if (unauthorized) return unauthorized;
+    const params = new HttpParams().set('value', active.toString());
+    return this.http.patch<Habit>(`${this.habitUrl}/${id}/active`, null, { params });
+  }
+
+  deleteHabit(id: number): Observable<void> {
+    const unauthorized = this.requireDoctorAccess('delete habits');
+    if (unauthorized) return unauthorized;
+    return this.http.delete<void>(`${this.habitUrl}/${id}`);
+  }
+
+  createTask(task: any): Observable<HabitTask> {
+    return this.http.post<HabitTask>(this.taskUrl, task);
+  }
+
+  updateTask(id: number, task: HabitTaskRequest): Observable<HabitTask> {
+    const unauthorized = this.requireDoctorAccess('update habit tasks');
+    if (unauthorized) return unauthorized;
+    return this.http.put<HabitTask>(`${this.taskUrl}/${id}`, task);
+  }
+
+  deleteTask(id: number): Observable<void> {
+    const unauthorized = this.requireDoctorAccess('delete habit tasks');
+    if (unauthorized) return unauthorized;
+    return this.http.delete<void>(`${this.taskUrl}/${id}`);
+  }
+
+  getReadableHabitsForCurrentUser(): Observable<Habit[]> {
+    const currentUser = this.authService.getCurrentUser();
+    const currentUserId = this.authService.getCurrentUserId();
+
+    if (currentUser?.role === 'patient' && currentUserId) {
+      return this.getAssignedHabitsForPatient(currentUserId).pipe(
+        catchError(() => of([]))
+      );
+    }
+
+    return this.getAllHabits().pipe(
+      catchError(() => this.getHabitsByActive(true)),
+      catchError(() => of([]))
+    );
+  }
+
+  // ===== LEGACY METHODS (used by admin/caregiver/activities pages) =====
+
+  private mockTasks: DailyCareTask[] = [
     {
-      id: 1,
-      name: 'Morning routine',
-      type: 'MORNING',
-      targetTime: '08:00:00',
-      isActive: true,
-      createdAt: new Date().toISOString()
+      id: 'dt-001',
+      patientId: 'demo-patient',
+      title: 'Morning medications',
+      description: 'Take Donepezil after breakfast',
+      dueDate: new Date().toISOString(),
+      priority: 'high' as DailyCarePriority,
+      completed: false,
+      status: 'PENDING' as DailyCareStatus,
+      routineId: 'dr-001'
     },
     {
-      id: 2,
-      name: 'Afternoon activity',
-      type: 'ACTIVITY',
-      targetTime: '14:30:00',
-      isActive: true,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 3,
-      name: 'Evening routine',
-      type: 'EVENING',
-      targetTime: '19:30:00',
-      isActive: false,
-      createdAt: new Date().toISOString()
+      id: 'dt-002',
+      patientId: 'demo-patient',
+      title: 'Hydration reminder',
+      description: 'Drink one full glass of water',
+      dueDate: new Date().toISOString(),
+      priority: 'medium' as DailyCarePriority,
+      completed: false,
+      status: 'PENDING' as DailyCareStatus,
+      routineId: 'dr-002'
     }
   ];
 
-  private mockHabitTasksByHabitId: Record<number, HabitTask[]> = {
-    1: [
-      {
-        id: 101,
-        habitId: 1,
-        title: 'Take morning medication',
-        description: 'Take Donepezil after breakfast',
-        orderIndex: 1,
-        isCritical: true,
-        autonomyMode: 'ASSISTED'
-      },
-      {
-        id: 102,
-        habitId: 1,
-        title: 'Hydration reminder',
-        description: 'Drink one full glass of water',
-        orderIndex: 2,
-        isCritical: false,
-        autonomyMode: 'INDEPENDENT'
-      }
-    ],
-    2: [
-      {
-        id: 201,
-        habitId: 2,
-        title: 'Memory exercise',
-        description: 'Photo album recall for 20 minutes',
-        orderIndex: 1,
-        isCritical: false,
-        autonomyMode: 'INDEPENDENT'
-      }
-    ],
-    3: [
-      {
-        id: 301,
-        habitId: 3,
-        title: 'Prepare for sleep',
-        description: 'Start evening wind-down routine',
-        orderIndex: 1,
-        isCritical: true,
-        autonomyMode: 'DEPENDENT'
-      }
-    ]
-  };
+  private mockRoutines: DailyRoutine[] = [
+    {
+      id: 'dr-001',
+      name: 'Morning care routine',
+      description: 'Wake up, hygiene, breakfast, medications',
+      active: true,
+      patientCount: 28,
+      taskCount: 8,
+      scheduleWindow: '06:30 - 10:00'
+    },
+    {
+      id: 'dr-002',
+      name: 'Afternoon activities',
+      description: 'Hydration, walk, cognitive stimulation',
+      active: true,
+      patientCount: 31,
+      taskCount: 6,
+      scheduleWindow: '13:00 - 17:00'
+    }
+  ];
 
-  private taskStatusOverrides = new Map<string, UpdateTaskStatusRequest>();
-
-  constructor(private http: HttpClient) { }
-
-  getHabits(): Observable<Habit[]> {
-    return this.http.get<Habit[]>(this.habitsUrl).pipe(
-      catchError(() => of(this.mockHabits.map(habit => ({ ...habit }))))
-    );
-  }
-
-  getHabitById(habitId: number): Observable<Habit> {
-    return this.http.get<Habit>(`${this.habitsUrl}/${habitId}`).pipe(
-      catchError(() => {
-        const habit = this.mockHabits.find(item => item.id === habitId);
-        return of(habit ? { ...habit } : this.createUnknownHabit(habitId));
-      })
-    );
-  }
-
-  createHabit(request: CreateHabitRequest): Observable<Habit> {
-    return this.http.post<Habit>(this.habitsUrl, request).pipe(
-      catchError(() => {
-        const nextId = this.mockHabits.length > 0
-          ? Math.max(...this.mockHabits.map(item => item.id)) + 1
-          : 1;
-        const habit: Habit = {
-          id: nextId,
-          name: request.name,
-          type: request.type,
-          targetTime: request.targetTime,
-          isActive: request.isActive ?? true,
-          createdAt: new Date().toISOString()
-        };
-        this.mockHabits.push(habit);
-        this.mockHabitTasksByHabitId[nextId] = [];
-        return of({ ...habit });
-      })
-    );
-  }
-
-  updateHabit(habitId: number, request: UpdateHabitRequest): Observable<Habit> {
-    return this.http.put<Habit>(`${this.habitsUrl}/${habitId}`, request).pipe(
-      catchError(() => {
-        const index = this.mockHabits.findIndex(item => item.id === habitId);
-        if (index === -1) {
-          return of(this.createUnknownHabit(habitId));
-        }
-        this.mockHabits[index] = { ...this.mockHabits[index], ...request };
-        return of({ ...this.mockHabits[index] });
-      })
-    );
-  }
-
-  deleteHabit(habitId: number): Observable<void> {
-    return this.http.delete<void>(`${this.habitsUrl}/${habitId}`).pipe(
-      catchError(() => {
-        this.mockHabits = this.mockHabits.filter(item => item.id !== habitId);
-        delete this.mockHabitTasksByHabitId[habitId];
-        return of(void 0);
-      })
-    );
-  }
-
-  toggleHabitStatus(habitId: number): Observable<Habit> {
-    return this.http.patch<Habit>(`${this.habitsUrl}/${habitId}/toggle`, {}).pipe(
-      catchError(() => {
-        const habit = this.mockHabits.find(item => item.id === habitId);
-        if (!habit) {
-          return of(this.createUnknownHabit(habitId));
-        }
-        habit.isActive = !habit.isActive;
-        return of({ ...habit });
-      })
-    );
-  }
-
-  getHabitTasks(habitId: number): Observable<HabitTask[]> {
-    return this.http.get<HabitTask[]>(`${this.habitsUrl}/${habitId}/tasks`).pipe(
-      catchError(() => of(this.getMockHabitTasks(habitId)))
-    );
-  }
-
-  createHabitTask(habitId: number, request: CreateHabitTaskRequest): Observable<HabitTask> {
-    return this.http.post<HabitTask>(`${this.habitsUrl}/${habitId}/tasks`, request).pipe(
-      catchError(() => {
-        const tasks = this.mockHabitTasksByHabitId[habitId] || [];
-        const nextId = tasks.length > 0 ? Math.max(...tasks.map(item => item.id)) + 1 : habitId * 100 + 1;
-        const task: HabitTask = {
-          id: nextId,
-          habitId,
-          title: request.title,
-          description: request.description,
-          orderIndex: request.orderIndex,
-          isCritical: request.isCritical,
-          autonomyMode: request.autonomyMode
-        };
-        this.mockHabitTasksByHabitId[habitId] = [...tasks, task];
-        return of({ ...task });
-      })
-    );
-  }
-
-  updateHabitTask(taskId: number, request: UpdateHabitTaskRequest): Observable<HabitTask> {
-    return this.http.put<HabitTask>(`${this.habitTasksUrl}/${taskId}`, request).pipe(
-      catchError(() => {
-        const located = this.findMockTaskById(taskId);
-        if (!located) {
-          const unknownTask: HabitTask = {
-            id: taskId,
-            title: 'Unknown task',
-            description: '',
-            orderIndex: 0,
-            isCritical: false,
-            autonomyMode: 'INDEPENDENT'
-          };
-          return of({
-            ...unknownTask
-          });
-        }
-        located.task = { ...located.task, ...request };
-        this.mockHabitTasksByHabitId[located.habitId] = this.mockHabitTasksByHabitId[located.habitId].map(item =>
-          item.id === taskId ? located.task : item
-        );
-        return of({ ...located.task });
-      })
-    );
-  }
-
-  deleteHabitTask(taskId: number): Observable<void> {
-    return this.http.delete<void>(`${this.habitTasksUrl}/${taskId}`).pipe(
-      catchError(() => {
-        Object.keys(this.mockHabitTasksByHabitId).forEach(habitIdKey => {
-          const habitId = Number(habitIdKey);
-          this.mockHabitTasksByHabitId[habitId] = this.mockHabitTasksByHabitId[habitId].filter(item => item.id !== taskId);
-        });
-        return of(void 0);
-      })
-    );
-  }
-
-  reorderHabitTasks(habitId: number, orderedTaskIds: number[]): Observable<HabitTask[]> {
-    return this.http.put<HabitTask[]>(`${this.habitsUrl}/${habitId}/tasks/reorder`, { orderedTaskIds }).pipe(
-      catchError(() => {
-        const existing = this.getMockHabitTasks(habitId);
-        const byId = new Map(existing.map(item => [item.id, item]));
-        const reordered: HabitTask[] = orderedTaskIds
-          .map((taskId, index) => {
-            const task = byId.get(taskId);
-            return task ? { ...task, orderIndex: index + 1 } : null;
-          })
-          .filter((task): task is HabitTask => task !== null);
-        const untouched = existing
-          .filter(task => !orderedTaskIds.includes(task.id))
-          .map((task, index) => ({ ...task, orderIndex: reordered.length + index + 1 }));
-        this.mockHabitTasksByHabitId[habitId] = [...reordered, ...untouched];
-        return of(this.getMockHabitTasks(habitId));
-      })
-    );
-  }
-
-  // Legacy API consumed by existing components.
-  getPatientDailyTasks(patientId: string, date = this.getDateOnly()): Observable<DailyCareTask[]> {
-    const params = new HttpParams().set('date', date);
-
-    return this.http.get<DailyCareTask[]>(`${this.apiUrl}/patients/${patientId}/tasks`, { params }).pipe(
-      catchError(() => of(this.getMockTasksForDate(patientId, date)))
-    );
+  getPatientDailyTasks(patientId: string, date?: string): Observable<DailyCareTask[]> {
+    return of(this.mockTasks.map(t => ({ ...t, patientId })));
   }
 
   updateTaskStatus(taskId: string, request: UpdateTaskStatusRequest): Observable<DailyCareTask> {
-    return this.http.patch<DailyCareTask>(`${this.apiUrl}/tasks/${taskId}/status`, request).pipe(
-      catchError(() => {
-        this.taskStatusOverrides.set(taskId, request);
-        const task = this.getMockTasksForDate('demo-patient', this.getDateOnly()).find(item => item.id === taskId);
-        if (!task) {
-          return of({
-            id: taskId,
-            patientId: 'demo-patient',
-            title: 'Unknown task',
-            description: 'Task not found in local fallback',
-            dueDate: new Date().toISOString(),
-            priority: 'low' as DailyCarePriority,
-            completed: request.completed,
-            status: (request.completed ? 'COMPLETED' : 'PENDING') as DailyCareStatus
-          });
-        }
-        return of({
-          ...task,
-          completed: request.completed,
-          status: (request.completed ? 'COMPLETED' : 'PENDING') as DailyCareStatus,
-          notes: request.notes ?? task.notes
-        });
-      })
-    );
+    const task = this.mockTasks.find(t => t.id === taskId);
+    if (task) {
+      task.completed = request.completed;
+      task.status = (request.completed ? 'COMPLETED' : 'PENDING') as DailyCareStatus;
+    }
+    return of(task ? { ...task } : {
+      id: taskId,
+      patientId: 'demo-patient',
+      title: 'Unknown task',
+      description: '',
+      dueDate: new Date().toISOString(),
+      priority: 'low' as DailyCarePriority,
+      completed: request.completed,
+      status: (request.completed ? 'COMPLETED' : 'PENDING') as DailyCareStatus
+    });
   }
 
   getRoutines(): Observable<DailyRoutine[]> {
-    return this.getHabits().pipe(map(habits => habits.map(habit => this.mapHabitToRoutine(habit))));
+    return of(this.mockRoutines.map(r => ({ ...r })));
   }
 
   toggleRoutineStatus(routineId: string): Observable<DailyRoutine> {
-    return this.http.patch<DailyRoutine>(`${this.legacyRoutinesUrl}/${routineId}/toggle`, {}).pipe(
-      catchError(() => {
-        const parsedId = Number(routineId);
-        if (Number.isNaN(parsedId)) {
-          return of({
-            id: routineId,
-            name: 'Unknown routine',
-            description: 'Routine not found in local fallback',
-            active: false,
-            patientCount: 0,
-            taskCount: 0
-          });
-        }
-        return this.toggleHabitStatus(parsedId).pipe(
-          map(habit => this.mapHabitToRoutine(habit))
-        );
-      })
-    );
-  }
-
-  private getMockTasksForDate(patientId: string, date: string): DailyCareTask[] {
-    const resolvedPatientId = patientId || 'demo-patient';
-    const activeHabits = this.mockHabits.filter(habit => habit.isActive);
-    const tasks: DailyCareTask[] = [];
-
-    activeHabits.forEach(habit => {
-      const habitTasks = this.getMockHabitTasks(habit.id);
-      habitTasks.forEach(task => {
-        const legacyTaskId = `${habit.id}-${task.id}`;
-        const override = this.taskStatusOverrides.get(legacyTaskId);
-        const completed = override?.completed ?? false;
-
-        tasks.push({
-          id: legacyTaskId,
-          patientId: resolvedPatientId,
-          title: task.title,
-          description: task.description,
-          dueDate: this.buildDueDate(date, habit.targetTime),
-          priority: this.mapTaskPriority(task),
-          completed,
-          status: (completed ? 'COMPLETED' : 'PENDING') as DailyCareStatus,
-          routineId: String(habit.id),
-          notes: override?.notes
-        });
-      });
-    });
-
-    return tasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  }
-
-  private getDateOnly(): string {
-    return new Date().toISOString().split('T')[0];
-  }
-
-  private getMockHabitTasks(habitId: number): HabitTask[] {
-    return (this.mockHabitTasksByHabitId[habitId] || [])
-      .map(task => ({ ...task }))
-      .sort((a, b) => a.orderIndex - b.orderIndex);
-  }
-
-  private findMockTaskById(taskId: number): { habitId: number; task: HabitTask } | null {
-    const entries = Object.entries(this.mockHabitTasksByHabitId);
-    for (const [habitIdKey, tasks] of entries) {
-      const task = tasks.find(item => item.id === taskId);
-      if (task) {
-        return { habitId: Number(habitIdKey), task: { ...task } };
-      }
+    const routine = this.mockRoutines.find(r => r.id === routineId);
+    if (routine) {
+      routine.active = !routine.active;
     }
-    return null;
-  }
-
-  private createUnknownHabit(habitId: number): Habit {
-    return {
-      id: habitId,
-      name: 'Unknown habit',
-      type: 'ACTIVITY',
-      targetTime: '08:00:00',
-      isActive: false,
-      createdAt: new Date().toISOString()
-    };
-  }
-
-  private mapHabitToRoutine(habit: Habit): DailyRoutine {
-    return {
-      id: String(habit.id),
-      name: habit.name,
-      description: `${habit.type} routine scheduled at ${habit.targetTime}`,
-      active: habit.isActive,
+    return of(routine ? { ...routine } : {
+      id: routineId,
+      name: 'Unknown',
+      description: '',
+      active: false,
       patientCount: 0,
-      taskCount: this.getMockHabitTasks(habit.id).length,
-      scheduleWindow: habit.targetTime,
-      createdAt: habit.createdAt
-    };
+      taskCount: 0
+    });
   }
 
-  private mapTaskPriority(task: HabitTask): DailyCarePriority {
-    if (task.isCritical) {
-      return 'high';
+  private requireDoctorAccess(action: string): Observable<never> | null {
+    const role = this.authService.getCurrentUser()?.role;
+    if (role === 'doctor') {
+      return null;
     }
-    if (task.autonomyMode === 'DEPENDENT') {
-      return 'medium';
-    }
-    return 'low';
+
+    return throwError(() => new Error(`Unauthorized: only doctors can ${action}.`));
   }
 
-  private buildDueDate(date: string, targetTime: string): string {
-    const normalizedTime = targetTime.length === 5 ? `${targetTime}:00` : targetTime;
-    const parsed = new Date(`${date}T${normalizedTime}`);
-    return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+  private extractHabits(response: Habit[] | { content: Habit[] }): Habit[] {
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    if (response && Array.isArray(response.content)) {
+      return response.content;
+    }
+
+    return [];
   }
 }

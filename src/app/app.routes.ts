@@ -116,6 +116,10 @@ export const routes: Routes = [
       {
         path: 'checklist',
         loadComponent: () => import('./modules/doctor/checklist/doctor-checklist.component').then(m => m.DoctorChecklistComponent)
+      },
+      {
+        path: 'habits',
+        loadComponent: () => import('./modules/doctor/habits/doctor-habits.component').then(m => m.DoctorHabitsComponent)
       }
     ]
   },
