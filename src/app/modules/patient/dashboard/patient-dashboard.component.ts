@@ -185,6 +185,19 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  getCleanBadgeDescription(badge?: GamificationBadgeEvent | null): string {
+    const raw = (badge?.badgeDescription || '').trim();
+    if (!raw) {
+      return badge?.gameType || 'Badge unlocked through gameplay';
+    }
+    const verifiableIndex = raw.indexOf(' | Verifiable:');
+    if (verifiableIndex >= 0) {
+      const cleaned = raw.slice(0, verifiableIndex).trim();
+      return cleaned || (badge?.gameType || 'Badge unlocked through gameplay');
+    }
+    return raw;
+  }
+
   getDailyChallengeGameLabel(): string {
     if (!this.dailyChallenge?.gameType) return 'Challenge';
     return this.dailyChallenge.gameType
@@ -469,6 +482,12 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
       this.apiService.getGamificationSummary(patientId).subscribe({
         next: (summary) => {
           this.gamificationSummary = summary;
+        },
+        error: () => {}
+      });
+      this.apiService.getGamificationLeaderboard('global', undefined, 10).subscribe({
+        next: (entries) => {
+          this.leaderboard = entries;
         },
         error: () => {}
       });

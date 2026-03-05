@@ -7,7 +7,6 @@
       </div>
       <p class="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">New Badge Earned</p>
       <h3 class="mt-2 text-xl font-black text-slate-900">{{ latestEarnedBadge.badgeEarned || 'Badge' }}</h3>
-      <p class="mt-2 text-sm text-slate-600">{{ latestEarnedBadge.badgeDescription || 'Great progress! Keep going.' }}</p>
       <a *ngIf="getVerifiableBadgeUrl(latestEarnedBadge)" [href]="getVerifiableBadgeUrl(latestEarnedBadge)!" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex text-xs font-semibold text-sky-700 hover:text-sky-800 underline">
         Verify badge
       </a>
