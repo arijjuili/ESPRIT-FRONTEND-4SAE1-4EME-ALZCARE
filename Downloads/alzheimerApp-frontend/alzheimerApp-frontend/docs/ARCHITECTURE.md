@@ -57,10 +57,11 @@ alzheimerApp/src/app/
 
 | Metric | Count |
 |--------|-------|
-| Total Components | 24+ |
+| Total Components | 26+ |
 | Admin Dashboard Pages | 8 (Medical, Caregivers, Interactive, Community, Users, Analytics, Settings) |
 | Patient Pages | 6 (Dashboard, Activities, Medications, Games, Community, Profile) |
-| Routes | 17+ |
+| Caregiver Pages | 3 (Dashboard, Patients, Medications) |
+| Routes | 19+ |
 | Profile Types | 3 (Patient, Doctor, Caregiver) |
 | Services | 5 (Auth, Api, Data, UserManagement, MedicalFollowup) |
 | Guards/Interceptors | 2 (AuthGuard, AuthInterceptor) |
@@ -130,11 +131,13 @@ Real API integration via `ApiService` with proper error handling and fallback to
 | `admin-analytics` | System metrics & reporting | `/admin/analytics` |
 | `admin-settings` | Platform configuration | `/admin/settings` |
 
-### Caregiver Module (2 Components)
-| Component | Purpose |
-|-----------|---------|
-| `caregiver-layout` | Layout wrapper |
-| `caregiver-dashboard` | Patient list, care tasks, schedules |
+### Caregiver Module (4 Components)
+| Component | Purpose | Route |
+|-----------|---------|-------|
+| `caregiver-layout` | Layout wrapper | `/caregiver` |
+| `caregiver-dashboard` | Overview, care tasks, schedules | `/caregiver/dashboard` |
+| `caregiver-patients` | List of patients under care with medication status | `/caregiver/patients` |
+| `caregiver-medications` | Medication intakes & validation for assisted patients | `/caregiver/medications?patientId={id}` |
 
 ### Doctor Module (2 Components)
 | Component | Purpose |
@@ -207,6 +210,35 @@ The admin dashboard provides comprehensive management for all 12 application axe
 ### Issue #2: Inline Templates (2026-02-10)
 **Problem:** All components used inline HTML/CSS  
 **Fix:** Refactored to separate template/style files (42+ new files)
+
+---
+
+## Caregiver Medication Management
+
+### Autonomy Levels & Caregiver Responsibilities
+
+The medication system supports three autonomy levels that determine the caregiver's role:
+
+| Autonomy Level | Description | Caregiver Action |
+|----------------|-------------|------------------|
+| **INDEPENDENT** | Patient manages medications alone | View-only access to intakes |
+| **ASSISTED** | Patient needs help with medications | Can validate patient intakes |
+| **DEPENDENT** | Patient cannot manage medications | Must validate all intakes |
+
+### Medication Validation Flow
+
+1. **Patient Selection**: Caregiver selects a patient from the dropdown
+2. **View Intakes**: System displays all medication intakes for the patient
+3. **Validation**: For ASSISTED/DEPENDENT patients, caregiver clicks "Validate" to confirm intake
+4. **Mark as Missed**: Caregiver can mark intakes as missed with a reason
+
+### API Endpoints Used
+
+- `GET /api/medications/plans?patientId={id}` - Get patient's medication plans
+- `GET /api/medications/intakes/patient/{id}` - Get all intakes for a patient
+- `POST /api/medications/intakes/{id}/confirm/caregiver` - Validate intake
+- `POST /api/medications/intakes/{id}/miss` - Mark as missed
+- `GET /api/medications/stats/patient/{id}` - Get adherence statistics
 
 ---
 

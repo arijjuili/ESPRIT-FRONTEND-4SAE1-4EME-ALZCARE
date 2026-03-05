@@ -1,0 +1,301 @@
+
+<div class="patients-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-title">
+      <h1>Patient List</h1>
+      <p class="subtitle">Manage your patients and access their medical records</p>
+    </div>
+    <button class="btn-refresh" (click)="refresh()" title="Rafraîchir">
+      🔄
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-error">
+    <span class="alert-icon">⚠️</span>
+    <div class="alert-content">
+      <p class="alert-title">Erreur</p>
+      <p>{{ error }}</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading patients...</p>
+  </div>
+
+  <div *ngIf="!loading" class="content-wrapper">
+    <!-- Filters Section -->
+    <div class="filters-section">
+      <!-- Search Bar -->
+      <div class="filter-group search-group">
+        <label for="search">Search</label>
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input
+            id="search"
+            type="text"
+            class="search-input"
+            placeholder="Name, email or username..."
+            [(ngModel)]="searchQuery"
+            (input)="onSearchInput($any($event).target.value)"
+          />
+          <button 
+            *ngIf="searchQuery" 
+            class="clear-search" 
+            (click)="onSearchInput('')"
+            title="Effacer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Autonomy Filter -->
+      <div class="filter-group">
+        <label for="autonomy">Autonomy Level</label>
+        <select 
+          id="autonomy" 
+          class="filter-select"
+          [(ngModel)]="autonomyFilter"
+          (ngModelChange)="applyFilters()"
+        >
+          <option value="ALL">All levels</option>
+          <option [value]="autonomyLevels.INDEPENDENT">Independent</option>
+          <option [value]="autonomyLevels.ASSISTED">Assisted</option>
+          <option [value]="autonomyLevels.DEPENDENT">Dependent</option>
+        </select>
+      </div>
+
+      <!-- Risk Filter -->
+      <div class="filter-group">
+        <label for="risk">Risk Level</label>
+        <select 
+          id="risk" 
+          class="filter-select"
+          [(ngModel)]="riskFilter"
+          (ngModelChange)="applyFilters()"
+        >
+          <option value="ALL">All levels</option>
+          <option [value]="riskLevels.LOW">Low</option>
+          <option [value]="riskLevels.MEDIUM">Medium</option>
+          <option [value]="riskLevels.HIGH">High</option>
+        </select>
+      </div>
+
+    </div>
+
+    <!-- Results Summary -->
+    <div class="results-summary">
+      <p>
+        <strong>{{ filteredPatients.length }}</strong> patient(s) found
+      </p>
+      
+      <!-- Page Size Selector -->
+      <div class="page-size-selector">
+        <label for="pageSize">Show:</label>
+        <select 
+          id="pageSize" 
+          [(ngModel)]="pageSize"
+          (ngModelChange)="onPageSizeChange($event)"
+        >
+          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+        </select>
+        <span>per page</span>
+      </div>
+    </div>
+
+    <!-- Patients Table -->
+    <div class="table-container">
+      <table class="patients-table">
+        <thead>
+          <tr>
+            <th 
+              class="sortable" 
+              (click)="toggleSort('fullName')"
+              [class.sorted-asc]="sortConfig.column === 'fullName' && sortConfig.direction === 'asc'"
+              [class.sorted-desc]="sortConfig.column === 'fullName' && sortConfig.direction === 'desc'"
+            >
+              Nom complet
+              <span class="sort-icon">{{ getSortIcon('fullName') }}</span>
+            </th>
+            <th 
+              class="sortable" 
+              (click)="toggleSort('autonomyLevel')"
+              [class.sorted-asc]="sortConfig.column === 'autonomyLevel' && sortConfig.direction === 'asc'"
+              [class.sorted-desc]="sortConfig.column === 'autonomyLevel' && sortConfig.direction === 'desc'"
+            >
+              Autonomie
+              <span class="sort-icon">{{ getSortIcon('autonomyLevel') }}</span>
+            </th>
+            <th 
+              class="sortable" 
+              (click)="toggleSort('riskLevel')"
+              [class.sorted-asc]="sortConfig.column === 'riskLevel' && sortConfig.direction === 'asc'"
+              [class.sorted-desc]="sortConfig.column === 'riskLevel' && sortConfig.direction === 'desc'"
+            >
+              Risk Level
+              <span class="sort-icon">{{ getSortIcon('riskLevel') }}</span>
+            </th>
+            <th 
+              class="sortable" 
+              (click)="toggleSort('nextAppointment')"
+              [class.sorted-asc]="sortConfig.column === 'nextAppointment' && sortConfig.direction === 'asc'"
+              [class.sorted-desc]="sortConfig.column === 'nextAppointment' && sortConfig.direction === 'desc'"
+            >
+              Next Appointment
+              <span class="sort-icon">{{ getSortIcon('nextAppointment') }}</span>
+            </th>
+            <th class="actions-header">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let patient of getPaginatedPatients(); trackBy: trackByPatientId" class="patient-row">
+            <!-- Name Column -->
+            <td class="name-cell">
+              <div class="patient-info">
+                <div class="patient-avatar">{{ getInitials(patient.fullName) }}</div>
+                <div class="patient-details">
+                  <span class="patient-name">{{ patient.fullName }}</span>
+                  <span class="patient-email">{{ patient.email }}</span>
+                </div>
+              </div>
+            </td>
+            
+            <!-- Autonomy Column -->
+            <td class="autonomy-cell">
+              <span 
+                class="badge"
+                [class]="getAutonomyBadgeClass(patient.autonomyLevel)"
+              >
+                {{ getAutonomyLabel(patient.autonomyLevel) }}
+              </span>
+            </td>
+            
+            <!-- Risk Column -->
+            <td class="risk-cell">
+              <span 
+                class="badge"
+                [class]="getRiskBadgeClass(patient.riskLevel)"
+              >
+                {{ getRiskLabel(patient.riskLevel) }}
+              </span>
+            </td>
+            
+            <!-- Next Appointment Column -->
+            <td class="appointment-cell">
+              <span [class.no-date]="!patient.nextAppointment">
+                {{ formatDate(patient.nextAppointment) }}
+              </span>
+            </td>
+            
+            <!-- Actions Column -->
+            <td class="actions-cell">
+              <div class="action-buttons">
+               <a [routerLink]="['/doctor/patients', patient.id, 'records']"
+   class="btn-action btn-primary"
+   title="Ouvrir dossier">
+  <span class="btn-icon">📁</span>
+  <span class="btn-text">Records</span>
+</a>
+                <button 
+                  (click)="onPrescribeClick(patient)"
+                  class="btn-action btn-success"
+                  title="Nouvelle prescription"
+                >
+                  <span class="btn-icon">💊</span>
+                  <span class="btn-text">Prescribe</span>
+                </button>
+                <a 
+                  [routerLink]="['/doctor/patients', patient.id, 'appointments']"
+                  class="btn-action btn-info"
+                  title="Prendre rendez-vous"
+                >
+                  <span class="btn-icon">📅</span>
+                  <span class="btn-text">RDV</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredPatients.length === 0" class="empty-state">
+        <div class="empty-icon">👥</div>
+        <h3>No patients found</h3>
+        <p *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'">
+          Try adjusting your filters to see more results.
+        </p>
+        <p *ngIf="!searchQuery && autonomyFilter === 'ALL' && riskFilter === 'ALL'">
+          No patients are registered in the system.
+        </p>
+        <button 
+          *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'"
+          class="btn-reset"
+          (click)="resetFilters()"
+        >
+          Reset filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="filteredPatients.length > 0" class="pagination-container">
+      <div class="pagination-info">
+        Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> to 
+        <strong>{{ Math.min(currentPage * pageSize, filteredPatients.length) }}</strong> 
+        of <strong>{{ filteredPatients.length }}</strong> patients
+      </div>
+      
+      <div class="pagination-controls">
+        <button 
+          class="btn-page"
+          [disabled]="currentPage === 1"
+          (click)="goToPage(currentPage - 1)"
+        >
+          ‹ Previous
+        </button>
+        
+        <div class="page-numbers">
+          <button 
+            *ngFor="let page of getPageNumbers()"
+            class="btn-page-number"
+            [class.active]="page === currentPage"
+            (click)="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </div>
+        
+        <button 
+          class="btn-page"
+          [disabled]="currentPage === getTotalPages()"
+          (click)="goToPage(currentPage + 1)"
+        >
+          Next ›
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Active Plan Modal -->
+<app-active-plan-modal
+  *ngIf="showActivePlanModal && activePlanForModal && activePlanPatientId"
+  [activePlan]="activePlanForModal"
+  [patientId]="activePlanPatientId"
+  (actionSelected)="onModalActionSelected($event)"
+  (closed)="onModalClosed()">
+</app-active-plan-modal>
+
+<!-- Adjust Plan Modal -->
+<app-adjust-plan
+  *ngIf="showAdjustPlanModal && planToAdjust"
+  [plan]="planToAdjust"
+  [patientId]="planToAdjust.patientId"
+  (confirmed)="onAdjustConfirmed($event)"
+  (cancelled)="onAdjustCancelled()">
+</app-adjust-plan>

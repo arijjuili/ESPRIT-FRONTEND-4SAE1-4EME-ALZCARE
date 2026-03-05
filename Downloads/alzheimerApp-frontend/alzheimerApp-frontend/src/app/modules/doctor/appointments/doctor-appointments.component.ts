@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -83,10 +84,15 @@ export class DoctorAppointmentsComponent implements OnInit {
     endAt: ''
   };
 
+  // Route parameter for pre-selected patient
+  routePatientId: string | null = null;
+
   constructor(
     private medicalService: MedicalFollowupService,
     private userManagementService: UserManagementService,
-    private authService: AuthService
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -94,6 +100,48 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.initializeDateFilters();
     this.loadAppointments();
     this.loadPatients();
+    
+    // Check for patient ID in route params (from /doctor/patients/:id/appointments)
+    this.route.params.subscribe(params => {
+      this.routePatientId = params['id'] || null;
+      if (this.routePatientId) {
+        console.log('Patient ID from route:', this.routePatientId);
+        this.preselectPatientFromRoute();
+      }
+    });
+  }
+
+  /**
+   * Pre-select patient when coming from patient list
+   */
+  preselectPatientFromRoute(): void {
+    if (!this.routePatientId || this.patients.length === 0) {
+      return;
+    }
+    
+    const patient = this.patients.find(p => p.id === this.routePatientId);
+    if (patient) {
+      console.log('Found patient for appointment:', patient);
+      
+      // First open the modal
+      this.openModal();
+      
+      // Then set the patient data after modal is rendered
+      setTimeout(() => {
+        this.selectedPatient = patient;
+        this.newAppointment.patientId = patient.id;
+        this.patientSearchQuery = this.getPatientDisplayName(patient);
+        console.log('Display name set to:', this.patientSearchQuery);
+        
+        // Load caregiver info
+        this.loadPatientCaregiver(patient.id);
+        
+        // Force change detection to update the view
+        this.cdr.detectChanges();
+      }, 0);
+    } else {
+      console.warn('Patient not found for ID:', this.routePatientId);
+    }
   }
 
   /**
@@ -131,6 +179,10 @@ export class DoctorAppointmentsComponent implements OnInit {
         this.patients = patients;
         this.filteredPatients = this.patients;
         this.loadingPatients = false;
+        // If we have a route patient ID, try to pre-select now
+        if (this.routePatientId) {
+          this.preselectPatientFromRoute();
+        }
       },
       error: (err) => {
         console.error('Error loading patients:', err);
@@ -203,11 +255,16 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Get display name for patient (full name only)
    */
   getPatientDisplayName(patient: ManagedUser): string {
-    return patient.fullName || 
-      (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
-      patient.username || 
-      patient.email ||
-      'Unknown';
+    if (!patient) return 'Unknown';
+    
+    const fullName = patient.fullName?.trim();
+    const firstLast = patient.firstName && patient.lastName 
+      ? `${patient.firstName} ${patient.lastName}`.trim() 
+      : '';
+    const username = patient.username?.trim();
+    const email = patient.email?.trim();
+    
+    return fullName || firstLast || username || email || 'Unknown';
   }
 
   /**

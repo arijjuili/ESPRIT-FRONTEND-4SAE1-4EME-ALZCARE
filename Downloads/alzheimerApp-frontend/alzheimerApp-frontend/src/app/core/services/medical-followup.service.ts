@@ -21,6 +21,7 @@ import {
   MedicationIntake,
   MedicationIntakeCreateRequest,
   MedicationIntakeUpdateRequest,
+  ValidatorRole,
   // Stats
   MedicationDashboardStats,
   AppointmentDashboardStats
@@ -128,14 +129,29 @@ export class MedicalFollowupService {
    * Create a new medication plan
    */
   createMedicationPlan(plan: MedicationPlanCreateRequest): Observable<MedicationPlan> {
-    return this.http.post<MedicationPlan>(`${this.baseUrl}/medication/plans`, plan);
+    return this.http.post<MedicationPlan>(`${this.baseUrl}/medications/plans`, plan);
+  }
+
+  /**
+   * Replace a patient's active medication plan with a new one.
+   * The old plan is stopped (status STOPPED, endDate set to today)
+   * and a new plan is created with status ACTIVE.
+   * 
+   * @param patientId - Patient ID whose plan is being replaced
+   * @param newPlan - The new medication plan to create
+   * @returns Observable with the newly created ACTIVE plan
+   */
+  replaceMedicationPlan(patientId: string, newPlan: MedicationPlanCreateRequest): Observable<MedicationPlan> {
+    const url = `${this.baseUrl}/medications/patients/${patientId}/plans/replace`;
+    console.log("HTTP POST replaceMedicationPlan URL:", url);
+    return this.http.post<MedicationPlan>(url, newPlan);
   }
 
   /**
    * Get medication plan by ID
    */
   getMedicationPlan(id: number): Observable<MedicationPlan> {
-    return this.http.get<MedicationPlan>(`${this.baseUrl}/medication/plans/${id}`);
+    return this.http.get<MedicationPlan>(`${this.baseUrl}/medications/plans/${id}`);
   }
 
   /**
@@ -143,7 +159,7 @@ export class MedicalFollowupService {
    */
   getPatientMedicationPlans(patientId: string): Observable<MedicationPlan[]> {
     return this.http.get<MedicationPlan[]>(
-      `${this.baseUrl}/medication/plans`,
+      `${this.baseUrl}/medications/plans`,
       { params: new HttpParams().set('patientId', patientId) }
     );
   }
@@ -157,7 +173,7 @@ export class MedicalFollowupService {
     // Since backend doesn't support global search, we'll use a workaround
     // by trying the search endpoint first, then falling back to client-side filtering
     return this.http.get<MedicationPlan[]>(
-      `${this.baseUrl}/medication/plans/search`,
+      `${this.baseUrl}/medications/plans/search`,
       { params: new HttpParams().set('query', query) }
     ).pipe(
       catchError(() => {
@@ -178,12 +194,13 @@ export class MedicalFollowupService {
         if (patients.length === 0) {
           return of([]);
         }
-        // Fetch medication plans for each patient
-        const requests = patients.map(patient => 
-          this.getPatientMedicationPlans(patient.id).pipe(
+        // Fetch medication plans for each patient using keycloakId
+        const requests = patients.map(patient => {
+          const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+          return this.getPatientMedicationPlans(keycloakId).pipe(
             catchError(() => of([])) // Ignore errors for individual patients
-          )
-        );
+          );
+        });
         return forkJoin(requests).pipe(
           map(results => results.flat()) // Flatten array of arrays
         );
@@ -196,14 +213,14 @@ export class MedicalFollowupService {
    * Update a medication plan
    */
   updateMedicationPlan(id: number, plan: MedicationPlanUpdateRequest): Observable<MedicationPlan> {
-    return this.http.put<MedicationPlan>(`${this.baseUrl}/medication/plans/${id}`, plan);
+    return this.http.put<MedicationPlan>(`${this.baseUrl}/medications/plans/${id}`, plan);
   }
 
   /**
    * Delete a medication plan
    */
   deleteMedicationPlan(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/medication/plans/${id}`);
+    return this.http.delete<void>(`${this.baseUrl}/medications/plans/${id}`);
   }
 
   // ==================== MEDICATION ITEMS ====================
@@ -212,28 +229,28 @@ export class MedicalFollowupService {
    * Add an item to a medication plan
    */
   addMedicationItem(planId: number, item: MedicationItemCreateRequest): Observable<MedicationItem> {
-    return this.http.post<MedicationItem>(`${this.baseUrl}/medication/plans/${planId}/items`, item);
+    return this.http.post<MedicationItem>(`${this.baseUrl}/medications/plans/${planId}/items`, item);
   }
 
   /**
    * Get all items in a medication plan
    */
   getMedicationItems(planId: number): Observable<MedicationItem[]> {
-    return this.http.get<MedicationItem[]>(`${this.baseUrl}/medication/plans/${planId}/items`);
+    return this.http.get<MedicationItem[]>(`${this.baseUrl}/medications/plans/${planId}/items`);
   }
 
   /**
    * Update a medication item
    */
   updateMedicationItem(id: number, item: MedicationItemUpdateRequest): Observable<MedicationItem> {
-    return this.http.put<MedicationItem>(`${this.baseUrl}/medication/items/${id}`, item);
+    return this.http.put<MedicationItem>(`${this.baseUrl}/medications/items/${id}`, item);
   }
 
   /**
    * Delete a medication item
    */
   deleteMedicationItem(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/medication/items/${id}`);
+    return this.http.delete<void>(`${this.baseUrl}/medications/items/${id}`);
   }
 
   // ==================== MEDICATION INTAKES ====================
@@ -242,28 +259,159 @@ export class MedicalFollowupService {
    * Add an intake to a medication item
    */
   addMedicationIntake(itemId: number, intake: MedicationIntakeCreateRequest): Observable<MedicationIntake> {
-    return this.http.post<MedicationIntake>(`${this.baseUrl}/medication/items/${itemId}/intakes`, intake);
+    return this.http.post<MedicationIntake>(`${this.baseUrl}/medications/items/${itemId}/intakes`, intake);
   }
 
   /**
    * Get all intakes for a medication item
    */
   getMedicationIntakes(itemId: number): Observable<MedicationIntake[]> {
-    return this.http.get<MedicationIntake[]>(`${this.baseUrl}/medication/items/${itemId}/intakes`);
+    return this.http.get<MedicationIntake[]>(`${this.baseUrl}/medications/items/${itemId}/intakes`);
+  }
+
+  /**
+   * Get all intakes for a specific patient (across all medications)
+   */
+  getPatientMedicationIntakes(patientId: string): Observable<MedicationIntake[]> {
+    return this.http.get<MedicationIntake[]>(`${this.baseUrl}/medications/intakes/patient/${patientId}`);
+  }
+
+  /**
+   * Get today's pending intakes for a patient
+   */
+  getTodaysMedicationIntakes(patientId: string): Observable<MedicationIntake[]> {
+    return this.http.get<MedicationIntake[]>(`${this.baseUrl}/medications/intakes/patient/${patientId}/today`);
+  }
+
+  /**
+   * Get intakes for a patient within a date range
+   */
+  getMedicationIntakesByDateRange(patientId: string, from: string, to: string): Observable<MedicationIntake[]> {
+    return this.http.get<MedicationIntake[]>(
+      `${this.baseUrl}/medications/intakes/patient/${patientId}/range`,
+      { params: new HttpParams().set('from', from).set('to', to) }
+    );
   }
 
   /**
    * Update a medication intake
    */
   updateMedicationIntake(id: number, intake: MedicationIntakeUpdateRequest): Observable<MedicationIntake> {
-    return this.http.put<MedicationIntake>(`${this.baseUrl}/medication/intakes/${id}`, intake);
+    return this.http.put<MedicationIntake>(`${this.baseUrl}/medications/intakes/${id}`, intake);
   }
 
   /**
    * Delete a medication intake
    */
   deleteMedicationIntake(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/medication/intakes/${id}`);
+    return this.http.delete<void>(`${this.baseUrl}/medications/intakes/${id}`);
+  }
+
+  // ==================== PATIENT MEDICATION ACTIONS ====================
+
+  /**
+   * Patient confirms they took their medication
+   * PATCH /api/v1/intakes/{id}/confirm
+   */
+confirmMedicationIntake(intakeId: number, body: { notes?: string } = {}) {
+  return this.http.patch<MedicationIntake>(
+    `${this.baseUrl}/medications/intakes/${intakeId}/confirm`,
+    body
+  );
+}
+
+  /**
+   * Patient confirms they took their medication (legacy method with patientId)
+   */
+  confirmMedicationIntakeByPatient(intakeId: number, patientId: string, notes?: string): Observable<MedicationIntake> {
+  return this.confirmMedicationIntake(intakeId, notes ? { notes } : {});
+}
+
+  /**
+   * Caregiver confirms medication was taken on behalf of patient
+   */
+  confirmMedicationIntakeByCaregiver(intakeId: number, caregiverId: string, notes?: string): Observable<MedicationIntake> {
+    let params = new HttpParams().set('caregiverId', caregiverId);
+    if (notes) {
+      params = params.set('notes', notes);
+    }
+    return this.http.post<MedicationIntake>(
+      `${this.baseUrl}/medications/intakes/${intakeId}/confirm/caregiver`,
+      null,
+      { params }
+    );
+  }
+
+  /**
+   * Mark medication intake as missed
+   */
+  markMedicationIntakeAsMissed(
+    intakeId: number, 
+    validatorId: string, 
+    role: ValidatorRole, 
+    reason?: string
+  ): Observable<MedicationIntake> {
+    let params = new HttpParams()
+      .set('validatorId', validatorId)
+      .set('role', role);
+    if (reason) {
+      params = params.set('reason', reason);
+    }
+    return this.http.post<MedicationIntake>(
+      `${this.baseUrl}/medications/intakes/${intakeId}/miss`,
+      null,
+      { params }
+    );
+  }
+
+  // ==================== DASHBOARD STATS ====================
+
+  /**
+   * Get medication statistics for a patient
+   */
+  getPatientMedicationStats(patientId: string): Observable<{
+    totalPlans: number;
+    activePlans: number;
+    adherenceRate: number;
+    pendingIntakesToday: number;
+  }> {
+    return this.http.get<any>(`${this.baseUrl}/medications/stats/patient/${patientId}`);
+  }
+
+  // ==================== DEBUG ====================
+
+  /**
+   * Debug: Get all medication plans (for troubleshooting)
+   */
+  getAllMedicationPlansDebug(): Observable<Array<{
+    id: number;
+    title: string;
+    patientId: string;
+    status: string;
+    itemCount: number;
+  }>> {
+    return this.http.get<any[]>(`${this.baseUrl}/medications/plans/all`);
+  }
+
+  /**
+   * Health check - Test if backend is reachable
+   */
+  healthCheck(): Observable<boolean> {
+    return this.http.get(`${this.baseUrl}/medications/plans`, { 
+      params: new HttpParams().set('patientId', 'health-check'),
+      observe: 'response'
+    }).pipe(
+      map(response => response.status === 200),
+      catchError((err) => {
+        // 504 Gateway Timeout or other errors mean backend is down
+        if (err.status === 504 || err.status === 0) {
+          console.error('[MedicalFollowupService] Backend is not reachable:', err);
+          return of(false);
+        }
+        // Other errors (404, etc) mean backend is up but endpoint doesn't exist
+        return of(true);
+      })
+    );
   }
 
   // ==================== DASHBOARD HELPERS ====================

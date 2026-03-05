@@ -1,0 +1,133 @@
+/**
+ * Doctor Records Component Styles
+ * Clean, medical-themed styling for read-only records view
+ */
+
+// Treatment Cards
+.treatment-card {
+  transition: all 0.2s ease-in-out;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Appointment Items
+.appointment-item {
+  transition: background-color 0.15s ease-in-out;
+  
+  &:first-child {
+    border-top-left-radius: 0.75rem;
+    border-top-right-radius: 0.75rem;
+  }
+  
+  &:last-child {
+    border-bottom-left-radius: 0.75rem;
+    border-bottom-right-radius: 0.75rem;
+  }
+}
+
+// Line clamp utility
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Status badge styles
+.status-badge {
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+// Modal animation
+.fixed {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Custom scrollbar for modal
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 3px;
+  }
+}
+
+// Section headers
+section h2 {
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 2px;
+  }
+}
+
+// Empty state styling
+.empty-state {
+  .empty-icon {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .treatment-card {
+    margin-bottom: 1rem;
+  }
+  
+  .appointment-item {
+    padding: 1rem;
+  }
+}
+
+// Print styles for medical records
+@media print {
+  .treatment-card,
+  .appointment-item {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+  }
+  
+  button {
+    display: none !important;
+  }
+}

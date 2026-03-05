@@ -218,10 +218,33 @@ export class AuthService {
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated and token is not expired
    */
   isAuthenticated(): boolean {
-    return this.isAuthenticatedSubject.value;
+    // Check if subject says we're authenticated
+    if (!this.isAuthenticatedSubject.value) {
+      return false;
+    }
+    // Also verify token is not expired
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      return false;
+    }
+    try {
+      const tokenData = this.decodeToken(token);
+      const now = Math.floor(Date.now() / 1000);
+      // Check if token is expired (exp is in seconds)
+      if (tokenData.exp && tokenData.exp < now) {
+        console.log('[AuthService] Token expired, logging out');
+        this.logout();
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[AuthService] Invalid token', e);
+      this.logout();
+      return false;
+    }
   }
 
   /**
@@ -236,6 +259,14 @@ export class AuthService {
     const token = localStorage.getItem('access_token');
     if (stored && token) {
       try {
+        // Verify token is not expired before restoring session
+        const tokenData = this.decodeToken(token);
+        const now = Math.floor(Date.now() / 1000);
+        if (tokenData.exp && tokenData.exp < now) {
+          console.log('[AuthService] Stored token expired, clearing session');
+          this.logout();
+          return;
+        }
         const user = JSON.parse(stored);
         this.currentUserSubject.next(user);
         this.isAuthenticatedSubject.next(true);

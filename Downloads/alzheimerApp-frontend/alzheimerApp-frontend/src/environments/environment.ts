@@ -2,7 +2,7 @@ export const environment = {
   production: false,
   
   // API Gateway - all backend requests go through here
-  apiUrl: '/api',
+  apiUrl: '/api/v1',
   
   // Keycloak Configuration - for authentication only
   keycloak: {

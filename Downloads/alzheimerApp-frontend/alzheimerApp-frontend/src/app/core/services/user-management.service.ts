@@ -30,9 +30,9 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class UserManagementService {
-  private apiUrl = `${environment.apiUrl}/v1/admin/users`;
-  private profileApiUrl = `${environment.apiUrl}/v1/admin/profiles`;
-  private patientsApiUrl = `${environment.apiUrl}/v1/patients`;
+  private apiUrl = `${environment.apiUrl}/admin/users`;
+  private profileApiUrl = `${environment.apiUrl}/admin/profiles`;
+  private patientsApiUrl = `${environment.apiUrl}/patients`;
 
   constructor(private http: HttpClient) { }
 
@@ -52,6 +52,20 @@ export class UserManagementService {
    */
   getPatientById(patientId: string): Observable<ManagedUser> {
     return this.http.get<ManagedUser>(`${this.patientsApiUrl}/${patientId}`);
+  }
+
+  /**
+   * Get patients assigned to a caregiver
+   * Falls back to all active patients if endpoint doesn't exist
+   */
+  getPatientsForCaregiver(caregiverId: string): Observable<ManagedUser[]> {
+    // Try to get patients specifically assigned to this caregiver
+    return this.http.get<ManagedUser[]>(`${environment.apiUrl}/caregivers/${caregiverId}/patients`).pipe(
+      catchError(() => {
+        // Fallback: return all active patients
+        return this.getActivePatients();
+      })
+    );
   }
 
   /**

@@ -173,6 +173,9 @@ export interface KeycloakUserInfo {
   name?: string;
   given_name?: string;
   family_name?: string;
+  // JWT standard claims
+  exp?: number;  // Expiration time (Unix timestamp in seconds)
+  iat?: number;  // Issued at time
   // Roles from protocol mapper (oidc-usermodel-realm-role-mapper)
   roles?: string[];
   realm_access?: {

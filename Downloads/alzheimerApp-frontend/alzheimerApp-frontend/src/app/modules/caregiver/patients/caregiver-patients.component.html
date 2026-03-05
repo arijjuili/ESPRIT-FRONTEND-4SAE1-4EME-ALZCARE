@@ -1,0 +1,309 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
+  <!-- Header -->
+  <div class="mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">My Patients 👥</h1>
+    <p class="text-sm sm:text-base text-gray-600 mt-2">View and manage the patients under your care</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">⚠️</span>
+      <div>
+        <h3 class="font-bold text-red-800">Error Loading Patients</h3>
+        <p class="text-red-600 text-sm">{{ error }}</p>
+      </div>
+    </div>
+    <button 
+      (click)="loadData()" 
+      class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+      Retry
+    </button>
+  </div>
+
+  <!-- Filters & Search -->
+  <div *ngIf="!loading && !error" class="bg-white rounded-xl shadow-md p-4 sm:p-6 mb-6">
+    <div class="flex flex-col sm:flex-row gap-4">
+      <!-- Search -->
+      <div class="flex-1">
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery"
+            (input)="onSearchInput($event)"
+            placeholder="Search patients by name..."
+            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+        </div>
+      </div>
+      
+      <!-- Autonomy Filter -->
+      <div class="sm:w-48">
+        <select 
+          [(ngModel)]="autonomyFilter"
+          (change)="applyFilters()"
+          class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+          <option value="ALL">All Autonomy Levels</option>
+          <option value="INDEPENDENT">Independent</option>
+          <option value="ASSISTED">Assisted</option>
+          <option value="DEPENDENT">Dependent</option>
+        </select>
+      </div>
+
+      <!-- Refresh Button -->
+      <button 
+        (click)="loadData()"
+        class="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition flex items-center justify-center gap-2">
+        <span>🔄</span>
+        <span class="hidden sm:inline">Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Patients List -->
+  <div *ngIf="!loading && !error" class="bg-white rounded-xl shadow-md overflow-hidden">
+    <!-- Empty State -->
+    <div *ngIf="filteredPatients.length === 0" class="text-center py-12">
+      <div class="text-6xl mb-4">👥</div>
+      <h3 class="text-lg font-bold text-gray-800 mb-2">No Patients Found</h3>
+      <p class="text-gray-600">{{ patients.length === 0 ? 'You have no patients assigned to you.' : 'No patients match your search criteria.' }}</p>
+    </div>
+
+    <!-- Patient Cards -->
+    <div *ngIf="filteredPatients.length > 0" class="divide-y divide-gray-100">
+      <div 
+        *ngFor="let patient of filteredPatients" 
+        class="p-4 sm:p-6 hover:bg-gray-50 transition">
+        <div class="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          <!-- Patient Info -->
+          <div class="flex-1">
+            <div class="flex items-start gap-4">
+              <!-- Avatar -->
+              <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg flex-shrink-0">
+                {{ getInitials(patient.fullName) }}
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-bold text-gray-900 truncate">{{ patient.fullName }}</h3>
+                <p class="text-sm text-gray-600">{{ patient.email }}</p>
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <!-- Autonomy Badge -->
+                  <span 
+                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="getAutonomyBadgeClass(patient.autonomyLevel)">
+                    {{ getAutonomyLabel(patient.autonomyLevel) }}
+                  </span>
+                  
+                  <!-- Risk Badge -->
+                  <span 
+                    *ngIf="patient.riskLevel"
+                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    [ngClass]="getRiskBadgeClass(patient.riskLevel)">
+                    {{ getRiskLabel(patient.riskLevel) }} Risk
+                  </span>
+
+                  <!-- Status Badge -->
+                  <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                    ✓ Active
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Medication Summary -->
+          <div class="lg:w-64 flex flex-col justify-center">
+            <div *ngIf="patient.medicationPlan" class="text-sm">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-gray-600">Plan:</span>
+                <span class="font-semibold text-gray-800 truncate max-w-[150px]">{{ patient.medicationPlan.title }}</span>
+              </div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-gray-600">Medications:</span>
+                <span class="font-semibold text-gray-800">{{ patient.medicationPlan.items?.length || 0 }}</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-gray-600">Adherence:</span>
+                <span class="font-semibold" [ngClass]="patient.adherenceRate >= 80 ? 'text-green-600' : 'text-yellow-600'">
+                  {{ patient.adherenceRate }}%
+                </span>
+              </div>
+            </div>
+            <div *ngIf="!patient.medicationPlan" class="text-sm text-gray-500 italic">
+              No active medication plan
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex flex-wrap lg:flex-col gap-2 lg:justify-center">
+            <button 
+              (click)="viewMedications(patient)"
+              class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 text-sm">
+              <span>💊</span>
+              <span>Medications</span>
+            </button>
+            
+            <button 
+              (click)="viewPatientDetails(patient)"
+              class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition flex items-center gap-2 text-sm">
+              <span>👤</span>
+              <span>Details</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Pending Intakes Alert -->
+        <div 
+          *ngIf="patient.pendingIntakes > 0" 
+          class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
+          <span class="text-xl">⚠️</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-yellow-800">
+              {{ patient.pendingIntakes }} pending medication intake{{ patient.pendingIntakes > 1 ? 's' : '' }} today
+            </p>
+            <p 
+              *ngIf="patient.autonomyLevel === 'ASSISTED'" 
+              class="text-xs text-yellow-700 mt-1">
+              Patient requires assistance - You can validate their intake
+            </p>
+          </div>
+          <button 
+            (click)="viewMedications(patient)"
+            class="px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-xs font-semibold hover:bg-yellow-300 transition">
+            View
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Patient Details Modal -->
+<div 
+  *ngIf="selectedPatient" 
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
+  (click)="closePatientDetails()">
+  <div 
+    class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+    (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="bg-emerald-600 px-6 py-4 rounded-t-2xl flex items-center justify-between">
+      <h2 class="text-xl font-bold text-white">Patient Details</h2>
+      <button 
+        (click)="closePatientDetails()"
+        class="text-white hover:text-emerald-200 transition text-2xl">
+        ×
+      </button>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="p-6">
+      <!-- Patient Header -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-2xl flex-shrink-0">
+          {{ getInitials(selectedPatient.fullName) }}
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">{{ selectedPatient.fullName }}</h3>
+          <p class="text-gray-600">{{ selectedPatient.email }}</p>
+        </div>
+      </div>
+      
+      <!-- Info Grid -->
+      <div class="space-y-4">
+        <!-- Username -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Username</span>
+          <span class="font-semibold text-gray-900">{{ selectedPatient.username }}</span>
+        </div>
+        
+        <!-- Status -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Status</span>
+          <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+            {{ selectedPatient.status }}
+          </span>
+        </div>
+        
+        <!-- Autonomy Level -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Autonomy Level</span>
+          <span 
+            class="px-3 py-1 rounded-full text-xs font-semibold"
+            [ngClass]="getAutonomyBadgeClass(selectedPatient.autonomyLevel)">
+            {{ getAutonomyLabel(selectedPatient.autonomyLevel) }}
+          </span>
+        </div>
+        
+        <!-- Risk Level -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Risk Level</span>
+          <span 
+            *ngIf="selectedPatient.riskLevel"
+            class="px-3 py-1 rounded-full text-xs font-semibold"
+            [ngClass]="getRiskBadgeClass(selectedPatient.riskLevel)">
+            {{ getRiskLabel(selectedPatient.riskLevel) }}
+          </span>
+          <span *ngIf="!selectedPatient.riskLevel" class="text-gray-500 italic">Not assessed</span>
+        </div>
+        
+        <!-- Adherence Rate -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Medication Adherence</span>
+          <span 
+            class="font-semibold"
+            [ngClass]="selectedPatient.adherenceRate >= 80 ? 'text-green-600' : 'text-yellow-600'">
+            {{ selectedPatient.adherenceRate }}%
+          </span>
+        </div>
+        
+        <!-- Pending Intakes -->
+        <div class="flex items-center justify-between py-3 border-b border-gray-100">
+          <span class="text-gray-600">Pending Intakes Today</span>
+          <span 
+            class="font-semibold"
+            [ngClass]="selectedPatient.pendingIntakes > 0 ? 'text-yellow-600' : 'text-green-600'">
+            {{ selectedPatient.pendingIntakes }}
+          </span>
+        </div>
+        
+        <!-- Medication Plan -->
+        <div class="py-3" *ngIf="selectedPatient.medicationPlan">
+          <span class="text-gray-600 block mb-2">Current Medication Plan</span>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="font-semibold text-gray-900">{{ selectedPatient.medicationPlan.title }}</p>
+            <p class="text-sm text-gray-600 mt-1">
+              {{ selectedPatient.medicationPlan.items?.length || 0 }} medication(s)
+            </p>
+          </div>
+        </div>
+        
+        <div class="py-3" *ngIf="!selectedPatient.medicationPlan">
+          <span class="text-gray-600 block mb-2">Current Medication Plan</span>
+          <p class="text-gray-500 italic">No active medication plan</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="px-6 py-4 bg-gray-50 rounded-b-2xl flex gap-3">
+      <button 
+        (click)="viewMedications(selectedPatient); closePatientDetails()"
+        class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+        <span>💊</span>
+        <span>View Medications</span>
+      </button>
+      <button 
+        (click)="closePatientDetails()"
+        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+        Close
+      </button>
+    </div>
+  </div>
+</div>

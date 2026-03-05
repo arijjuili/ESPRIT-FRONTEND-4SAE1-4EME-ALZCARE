@@ -7,7 +7,8 @@ import {
   MedicationItem,
   MedicationIntake,
   IntakeStatus,
-  PlanStatus
+  PlanStatus,
+  MedicationAutonomyLevel
 } from '../../../core/models/medical-followup.model';
 
 /**
@@ -32,13 +33,10 @@ export class PatientMedicationsComponent implements OnInit {
   loading = false;
   error: string | null = null;
 
-  // Fallback mock data (if backend is not available)
-  medications: any[] = [];
-  useMockData = false;
+
 
   // Patient ID (to be retrieved from auth)
-  patientId = 'dfdbff82-1dea-4c1e-bd2d-d3d2bfd0fbc4'; // UUID format
-
+patientId!: string;
   // Stats
   totalPlans = 0;
   activePlans = 0;
@@ -55,56 +53,51 @@ export class PatientMedicationsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.loadMedicationPlans();
-  }
+  const user = this.authService.getCurrentUser();
+
+  console.log('[PatientMedications] currentUser:', user);
+
+ if (!user?.id) {
+  this.error = 'No authenticated user found';
+  this.loading = false;
+  return;
+}
+
+  this.patientId = user.id; // ✅ ici c'est le sub Keycloak
+  this.loadMedicationPlans();
+}
 
   /**
    * Load medication plans from backend
    */
   loadMedicationPlans(): void {
-    this.loading = true;
-    this.error = null;
+  this.loading = true;
+  this.error = null;
 
-    this.medicalService.getPatientMedicationPlans(this.patientId).subscribe({
-      next: (plans) => {
-        this.medicationPlans = plans;
-        this.calculateStats();
-        this.loading = false;
-        this.useMockData = false;
-      },
-      error: (err) => {
-        console.error('Error loading medication plans:', err);
-        this.error = 'Unable to load medications from server';
-        this.loading = false;
-        // Fallback to mock data
-        this.loadMockData();
-      }
-    });
-  }
+  // ✅ LOG POUR DEBUG
+  console.log('[PatientMedications] loading plans for patientId:', this.patientId);
+
+  this.medicalService.getPatientMedicationPlans(this.patientId).subscribe({
+    next: (plans) => {
+      console.log('[PatientMedications] plans received:', plans); // utile aussi
+      this.medicationPlans = plans;
+      this.calculateStats();
+      this.loading = false;
+     
+    },
+    error: (err) => {
+  console.error('Error loading medication plans:', err);
+  this.error = 'Unable to load medications from server';
+  this.loading = false;
+
+}
+  });
+}
 
   /**
    * Fallback: Load mock data (legacy behavior)
    */
-  loadMockData(): void {
-    this.useMockData = true;
-    // Simulate existing mock data
-    this.medications = [
-      {
-        name: 'Donepezil',
-        prescribedBy: 'Michael',
-        dosage: '10mg',
-        frequency: 'Daily',
-        stockStatus: 'Refill in 10 days'
-      },
-      {
-        name: 'Memantine',
-        prescribedBy: 'Michael',
-        dosage: '20mg',
-        frequency: 'Daily',
-        stockStatus: 'Just Refilled'
-      }
-    ];
-  }
+  
 
   /**
    * Calculate statistics
@@ -147,12 +140,36 @@ export class PatientMedicationsComponent implements OnInit {
   }
 
   /**
-   * Mark an intake as taken
+   * Check if patient can confirm intake based on autonomy level
    */
-  markIntakeAsTaken(itemId: number, intakeId: number): void {
-    // This feature would require a backend update
-    // to mark a specific intake as TAKEN
-    console.log('Marking intake as taken:', itemId, intakeId);
+  canPatientConfirm(plan: MedicationPlan): boolean {
+    return plan.autonomyLevel === MedicationAutonomyLevel.INDEPENDENT;
+  }
+
+  /**
+   * Confirm an intake (patient marks as taken)
+   */
+  confirmIntake(plan: MedicationPlan, intake: MedicationIntake): void {
+    if (!this.canPatientConfirm(plan)) {
+      alert('You cannot confirm this medication. Your autonomy level requires assistance.');
+      return;
+    }
+
+    if (!intake.id) {
+      console.error('Intake ID is missing');
+      return;
+    }
+
+    this.medicalService.confirmMedicationIntake(intake.id).subscribe({
+      next: (updated: MedicationIntake) => {
+        intake.status = IntakeStatus.TAKEN;
+        console.log('Intake confirmed:', updated);
+      },
+      error: (err: unknown) => {
+        console.error('Error confirming intake:', err);
+        alert('Failed to confirm medication intake. Please try again.');
+      }
+    });
   }
 
   /**
@@ -173,7 +190,8 @@ export class PatientMedicationsComponent implements OnInit {
     const classes: Record<PlanStatus, string> = {
       [PlanStatus.ACTIVE]: 'bg-green-100 text-green-800',
       [PlanStatus.SUSPENDED]: 'bg-yellow-100 text-yellow-800',
-      [PlanStatus.STOPPED]: 'bg-red-100 text-red-800'
+      [PlanStatus.STOPPED]: 'bg-red-100 text-red-800',
+      [PlanStatus.COMPLETED]: 'bg-emerald-100 text-emerald-800'
     };
     return classes[status];
   }

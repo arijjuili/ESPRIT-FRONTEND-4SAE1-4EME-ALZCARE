@@ -64,6 +64,14 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/caregiver/dashboard/caregiver-dashboard.component').then(m => m.CaregiverDashboardComponent)
+      },
+      {
+        path: 'patients',
+        loadComponent: () => import('./modules/caregiver/patients/caregiver-patients.component').then(m => m.CaregiverPatientsComponent)
+      },
+      {
+        path: 'medications',
+        loadComponent: () => import('./modules/caregiver/medications/caregiver-medications.component').then(m => m.CaregiverMedicationsComponent)
       }
     ]
   },
@@ -88,7 +96,33 @@ export const routes: Routes = [
       {
         path: 'prescriptions',
         loadComponent: () => import('./modules/doctor/prescriptions/doctor-prescriptions.component').then(m => m.DoctorPrescriptionsComponent)
-      }
+      },
+      {
+        path: 'patients',
+        loadComponent: () => import('./modules/doctor/patients/doctor-patients.component').then(m => m.DoctorPatientsComponent)
+      },
+      // {
+      //   path: 'patients/:id',
+      //   loadComponent: () => import('./modules/doctor/patients/patient-detail.component').then(m => m.PatientDetailComponent)
+      // },
+      {
+        path: 'patients/:id/prescriptions',
+        loadComponent: () => import('./modules/doctor/prescriptions/doctor-prescriptions.component').then(m => m.DoctorPrescriptionsComponent)
+      },
+      {
+        path: 'patients/:id/appointments',
+        loadComponent: () => import('./modules/doctor/appointments/doctor-appointments.component').then(m => m.DoctorAppointmentsComponent)
+      },
+      {
+        path: 'records',
+        loadComponent: () => import('./modules/doctor/records/doctor-records.component').then(m => m.DoctorRecordsComponent)
+      },
+      {
+      path: 'patients/:id/records',
+      loadComponent: () => import('./modules/doctor/records/doctor-records.component')
+        .then(m => m.DoctorRecordsComponent)
+    }
+      
     ]
   },
   {

@@ -1,15 +1,22 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, FormControl, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Observable, Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, takeUntil } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
+import { OpenFdaDrugService } from '../../../core/services/open-fda-drug.service';
+import { DrugSuggestionDTO } from '../../../core/models/drug-catalog.model';
 import {
   MedicationPlan,
   MedicationPlanCreateRequest,
   MedicationItem,
   MedicationItemCreateRequest,
   MedicationAutonomyLevel,
-  FrequencyType
+  FrequencyType,
+  RiskLevel
 } from '../../../core/models/medical-followup.model';
 import { ManagedUser } from '../../../core/models/user-management.model';
 
@@ -25,11 +32,11 @@ import { ManagedUser } from '../../../core/models/user-management.model';
 @Component({
   selector: 'app-doctor-prescriptions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './doctor-prescriptions.component.html',
   styleUrls: ['./doctor-prescriptions.component.scss']
 })
-export class DoctorPrescriptionsComponent implements OnInit {
+export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
   // Data
   allPrescriptions: MedicationPlan[] = [];
   filteredPrescriptions: MedicationPlan[] = [];
@@ -56,6 +63,17 @@ export class DoctorPrescriptionsComponent implements OnInit {
   // Enums for templates
   autonomyLevels = Object.values(MedicationAutonomyLevel);
   frequencyTypes = Object.values(FrequencyType);
+  riskLevels = Object.values(RiskLevel);
+
+  // Available intake times for buttons
+  availableTimes = [
+    { value: '08:00', label: 'Morning' },
+    { value: '12:00', label: 'Noon' },
+    { value: '14:00', label: 'Afternoon' },
+    { value: '18:00', label: 'Evening' },
+    { value: '22:00', label: 'Night' },
+    { value: '23:00', label: 'Bedtime' }
+  ];
 
   // Modal: New Prescription
   showNewPrescriptionModal = false;
@@ -68,7 +86,8 @@ export class DoctorPrescriptionsComponent implements OnInit {
     endDate: '',
     autonomyLevel: MedicationAutonomyLevel.ASSISTED,
     status: 'ACTIVE' as any,
-    version: 1
+    version: 1,
+    lastRiskLevel: RiskLevel.LOW
   };
   selectedPatient: ManagedUser | null = null;
   showPatientDropdown = false;
@@ -85,6 +104,16 @@ export class DoctorPrescriptionsComponent implements OnInit {
     lowThreshold: 5
   };
 
+  // Drug Autocomplete
+  drugSearchControl = new FormControl('');
+  drugSuggestions: DrugSuggestionDTO[] = [];
+  selectedDrug: DrugSuggestionDTO | null = null;
+  isSearchingDrugs = false;
+  drugSearchError: string | null = null;
+  showDrugDropdown = false;
+  private drugSearchSubscription?: Subscription;
+  private destroy$ = new Subject<void>();
+
   // Modal: Edit Prescription
   showEditPrescriptionModal = false;
   editingPlan: MedicationPlan | null = null;
@@ -95,15 +124,213 @@ export class DoctorPrescriptionsComponent implements OnInit {
   editingItem: MedicationItem | null = null;
   editItemData: Partial<MedicationItemCreateRequest> = {};
 
+  // Route parameter for pre-selected patient
+  routePatientId: string | null = null;
+  
+  // Replace mode: when true, creating a plan will stop the current active plan
+  isReplaceMode = false;
+
   constructor(
     private medicalService: MedicalFollowupService,
-    private userService: UserManagementService
+    private userService: UserManagementService,
+    private openFdaDrugService: OpenFdaDrugService,
+    private route: ActivatedRoute,
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.initializeDates();
     this.loadPatients();
     this.loadRecentPrescriptions();
+    
+    // Check for patient ID and query params in route
+    this.route.params.subscribe(params => {
+      this.routePatientId = params['id'] || null;
+      if (this.routePatientId) {
+        console.log('Patient ID from route:', this.routePatientId);
+        // Check query params for action
+        this.handleRouteQueryParams();
+      }
+    });
+    
+    // Fallback: Check for replace=true query param directly
+    this.route.queryParams.subscribe(queryParams => {
+      if (queryParams['replace'] === 'true') {
+        console.log('URL has replace=true, enabling replace mode');
+        this.isReplaceMode = true;
+      }
+    });
+  }
+
+  /**
+   * Handles query params for prescription actions
+   * (edit, add-medication, replace)
+   */
+  private handleRouteQueryParams(): void {
+    this.route.queryParams.subscribe(queryParams => {
+      const action = queryParams['action'];
+      this.currentAction = (action as any) || 'none';
+      const planId = queryParams['planId'];
+      
+      if (!action || !this.routePatientId) {
+        // No specific action, default behavior
+        this.preselectPatientFromRoute();
+        return;
+      }
+
+      console.log('Action from query params:', action, 'planId:', planId);
+
+      // Wait for patients and plans to be loaded
+      setTimeout(() => {
+        switch (action) {
+          case 'edit':
+            this.handleEditAction(planId);
+            break;
+          case 'add-medication':
+            this.handleAddMedicationAction(planId);
+            break;
+          case 'replace':
+            this.handleReplaceAction();
+            break;
+          default:
+            this.preselectPatientFromRoute();
+        }
+        
+        // Clean query params after processing
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true
+        });
+      }, 500); // Small delay to ensure data is loaded
+    });
+  }
+
+  /**
+   * Action: Edit the current plan
+   */
+  private handleEditAction(planId: string): void {
+    console.log('Handling EDIT action for plan:', planId);
+    // Find the plan in the list
+    const plan = this.allPrescriptions.find(p => p.id === Number(planId));
+    if (plan) {
+      this.selectedPlan = plan;
+      this.openEditPrescriptionModal();
+    } else {
+      // If plan is not yet loaded, just open creation
+      console.warn('Plan not found, opening new prescription modal');
+      this.preselectPatientFromRoute();
+    }
+  }
+
+  /**
+   * Action: Add a medication to the current plan
+   */
+ private handleAddMedicationAction(planId: string): void {
+  const plan = this.allPrescriptions.find(p => p.id === Number(planId));
+  if (plan) {
+    this.selectedPlan = plan;
+
+    // ✅ IMPORTANT: ensure "New Prescription" modal is not open
+    this.showNewPrescriptionModal = false;
+
+    this.openAddMedicationModal();
+  } else {
+    this.preselectPatientFromRoute();
+  }
+}
+
+  /**
+   * Action: Replace the treatment (new plan)
+   */
+  private handleReplaceAction(): void {
+    console.log('Handling REPLACE action');
+    // Enable replace mode - when creating, this will stop the old plan
+    this.isReplaceMode = true;
+    console.log('Replace mode enabled: isReplaceMode=', this.isReplaceMode);
+    // Open the creation modal with replacement indication
+    this.preselectPatientFromRoute();
+  }
+
+  /**
+   * Pre-select patient when coming from patient list
+   */currentAction: 'none' | 'add-medication' | 'edit' | 'replace' = 'none';
+  preselectPatientFromRoute(): void {
+    if (!this.routePatientId || this.patients.length === 0) {
+      return;
+    }
+    
+    const patient = this.patients.find(p => p.id === this.routePatientId);
+    if (patient) {
+      console.log('Found patient:', patient);
+      console.log('Patient properties:', {
+        id: patient.id,
+        fullName: patient.fullName,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        username: patient.username,
+        email: patient.email
+      });
+   // ✅ Open "New Prescription" only if we are not in add-medication
+if (this.currentAction !== 'add-medication') {
+  this.openNewPrescriptionModalInternal();
+} else {
+  this.showNewPrescriptionModal = false; // just in case
+}
+      
+      // Then set the patient data after modal is rendered
+      setTimeout(() => {
+        this.selectedPatient = patient;
+const keycloakId =
+  (patient as any).keycloakId ||
+  (patient as any).userId ||
+  (patient as any).externalId ||
+  patient.id; // fallback
+
+this.newPlan.patientId = keycloakId;        this.patientSearchQuery = this.getPatientDisplayName(patient);
+        console.log('Display name set to:', this.patientSearchQuery);
+        
+        // Force change detection to update the view
+        this.cdr.detectChanges();
+      }, 0);
+    } else {
+      console.warn('Patient not found for ID:', this.routePatientId);
+      console.log('Available patients:', this.patients.map(p => ({ id: p.id, name: p.fullName || p.username })));
+    }
+    
+  }
+
+  /**
+   * Internal method to open modal WITHOUT resetting isReplaceMode
+   */
+  private openNewPrescriptionModalInternal(): void {
+    this.resetPlanFormInternal();
+    this.showNewPrescriptionModal = true;
+    console.log('Modal opened, isReplaceMode=', this.isReplaceMode);
+  }
+
+  /**
+   * Reset form without touching isReplaceMode
+   */
+  private resetPlanFormInternal(): void {
+    const today = new Date();
+    this.newPlan = {
+      patientId: '',
+      doctorId: this.doctorId,
+      title: '',
+      notes: '',
+      startDate: today.toISOString().split('T')[0],
+      endDate: '',
+      autonomyLevel: MedicationAutonomyLevel.ASSISTED,
+      status: 'ACTIVE' as any,
+      version: 1,
+      lastRiskLevel: RiskLevel.LOW
+    };
+    this.selectedPatient = null;
+    this.patientSearchQuery = '';
+    this.showPatientDropdown = false;
+    this.filteredPatients = this.patients;
   }
 
   // ==================== INITIALIZATION ====================
@@ -118,6 +345,10 @@ export class DoctorPrescriptionsComponent implements OnInit {
       next: (patients) => {
         this.patients = patients;
         this.filteredPatients = patients;
+        // If we have a route patient ID, try to pre-select now
+        if (this.routePatientId) {
+          this.preselectPatientFromRoute();
+        }
       },
       error: (err) => {
         console.error('Error loading patients:', err);
@@ -131,11 +362,16 @@ export class DoctorPrescriptionsComponent implements OnInit {
    * Get display name for patient (full name only)
    */
   getPatientDisplayName(patient: ManagedUser): string {
-    return patient.fullName || 
-      (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
-      patient.username || 
-      patient.email ||
-      'Unknown';
+    if (!patient) return 'Unknown';
+    
+    const fullName = patient.fullName?.trim();
+    const firstLast = patient.firstName && patient.lastName 
+      ? `${patient.firstName} ${patient.lastName}`.trim() 
+      : '';
+    const username = patient.username?.trim();
+    const email = patient.email?.trim();
+    
+    return fullName || firstLast || username || email || 'Unknown';
   }
 
   // ==================== DATA LOADING ====================
@@ -272,12 +508,30 @@ export class DoctorPrescriptionsComponent implements OnInit {
    * Select a patient from the dropdown
    */
   selectPatient(patient: ManagedUser): void {
-    this.selectedPatient = patient;
-    this.newPlan.patientId = patient.id;
-    this.patientSearchQuery = this.getPatientDisplayName(patient);
-    this.showPatientDropdown = false;
-  }
+  console.log('[Doctor] selected patient object =', patient);
+  console.log('[Doctor] patient.id =', patient.id);
+  console.log('[Doctor] patient.email =', patient.email);
+  console.log('[Doctor] patient.username =', (patient as any).username);
+  console.log('[Doctor] patient.keycloakId =', (patient as any).keycloakId);
+  console.log('[Doctor] patient.userId =', (patient as any).userId);
+  console.log('[Doctor] patient.externalId =', (patient as any).externalId);
+  console.log('✅ [Doctor] patient object =', patient);
+  console.log('✅ [Doctor] patient.id =', patient.id);
 
+  this.selectedPatient = patient;
+
+  const keycloakId =
+  (patient as any).keycloakId ||
+  (patient as any).userId ||
+  (patient as any).externalId ||
+  patient.id; // fallback temporaire
+
+this.newPlan.patientId = keycloakId;
+console.log('[Doctor] NEW PLAN patientId sent =', this.newPlan.patientId);
+
+  this.patientSearchQuery = this.getPatientDisplayName(patient);
+  this.showPatientDropdown = false;
+}
   /**
    * Hide dropdown when clicking outside
    */
@@ -300,36 +554,124 @@ export class DoctorPrescriptionsComponent implements OnInit {
   // ==================== PRESCRIPTION CRUD ====================
 
   openNewPrescriptionModal(): void {
+    this.isReplaceMode = false; // Reset replace mode for normal creation
     this.resetPlanForm();
     this.showNewPrescriptionModal = true;
   }
 
   closeNewPrescriptionModal(): void {
     this.showNewPrescriptionModal = false;
+    this.isReplaceMode = false; // Reset replace mode when closing modal
     this.resetPlanForm();
   }
 
   createPrescription(): void {
+    console.log('✅ [Doctor] selectedPatient =', this.selectedPatient);
+  console.log('✅ [Doctor] newPlan.patientId BEFORE SEND =', this.newPlan.patientId);
+    console.log('SUBMIT clicked, isReplaceMode=', this.isReplaceMode);
+    
     if (!this.validatePlan()) {
+      console.log('Validation failed, aborting');
       return;
     }
 
     this.loading = true;
-    this.medicalService.createMedicationPlan(this.newPlan).subscribe({
-      next: (plan) => {
+    
+    // Use replace endpoint if in replace mode, otherwise use normal create
+    let request$: Observable<MedicationPlan>;
+    if (this.isReplaceMode) {
+      console.log('CALLING REPLACE API patientId:', this.newPlan.patientId, 'payload:', this.newPlan);
+      request$ = this.medicalService.replaceMedicationPlan(this.newPlan.patientId, this.newPlan);
+    } else {
+      console.log('CALLING CREATE API (normal mode)');
+      request$ = this.medicalService.createMedicationPlan(this.newPlan);
+    }
+    
+    request$.subscribe({
+      next: (plan: MedicationPlan) => {
         this.allPrescriptions.unshift(plan);
         this.updateDisplayedPrescriptions();
         this.selectedPlan = plan;
         this.closeNewPrescriptionModal();
         this.loading = false;
         
+        // If in replace mode, refresh the plans list to get updated statuses
+        if (this.isReplaceMode) {
+  const patientKeycloakId = this.newPlan.patientId; // important
+
+  this.isReplaceMode = false;
+
+  // 1) re-fetch uniquement les plans de CE patient
+  this.medicalService.getPatientMedicationPlans(patientKeycloakId).subscribe({
+    next: (plans) => {
+      const active = (plans || []).find(p => p.status === 'ACTIVE');
+
+      if (active) {
+        this.selectedPlan = { ...active }; // nouvelle référence
+      }
+
+      // 2) refresh la liste globale si tu veux refléter STOPPED/ACTIVE partout
+      this.reloadPlans();
+    },
+    error: () => {
+      // fallback
+      this.reloadPlans();
+    }
+  });
+
+  // garder ton nettoyage URL si tu veux
+  this.router.navigate([], {
+    relativeTo: this.route,
+    queryParams: { replace: null },
+    queryParamsHandling: 'merge'
+  });
+}
+        
         // Open add medication modal immediately
         this.openAddMedicationModal();
       },
-      error: (err) => {
-        this.error = 'Error creating prescription';
+      error: (err: any) => {
+        this.error = this.isReplaceMode 
+          ? 'Error replacing prescription' 
+          : 'Error creating prescription';
         this.loading = false;
-        console.error('Error creating plan:', err);
+        console.error('Error creating/replacing plan:', err);
+      }
+    });
+  }
+
+  /**
+   * Reload all plans and recompute active plan.
+   * Called after replace treatment to ensure old plan shows as STOPPED.
+   */
+  reloadPlans(): void {
+    console.log('reloadPlans() called, fetching fresh data...');
+    this.loading = true;
+    this.medicalService.getAllMedicationPlans().subscribe({
+      next: (plans) => {
+        console.log('reloadPlans() received', plans.length, 'plans');
+        this.allPrescriptions = this.sortByLastUpdated(plans);
+        this.updateDisplayedPrescriptions();
+        
+        // Recompute active plan from refreshed data
+const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;        console.log('reloadPlans() looking for ACTIVE plan for patient:', patientId);
+        if (patientId) {
+          const newActivePlan = this.allPrescriptions.find(p => 
+            p.patientId === patientId && p.status === 'ACTIVE'
+          );
+          if (newActivePlan) {
+            console.log('reloadPlans() found new ACTIVE plan:', newActivePlan.id, newActivePlan.title);
+            this.selectedPlan = newActivePlan;
+          } else {
+            console.log('reloadPlans() no ACTIVE plan found for patient');
+          }
+        }
+        
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error reloading plans:', err);
+        this.loading = false;
       }
     });
   }
@@ -344,7 +686,8 @@ export class DoctorPrescriptionsComponent implements OnInit {
       startDate: this.selectedPlan.startDate,
       endDate: this.selectedPlan.endDate,
       autonomyLevel: this.selectedPlan.autonomyLevel,
-      status: this.selectedPlan.status
+      status: this.selectedPlan.status,
+      lastRiskLevel: this.selectedPlan.lastRiskLevel
     };
     this.showEditPrescriptionModal = true;
   }
@@ -406,6 +749,10 @@ export class DoctorPrescriptionsComponent implements OnInit {
   openAddMedicationModal(): void {
     this.resetItemForm();
     this.showAddMedicationModal = true;
+    // Setup autocomplete after modal is rendered
+    setTimeout(() => {
+      this.setupDrugAutocomplete();
+    }, 0);
   }
 
   closeAddMedicationModal(): void {
@@ -547,7 +894,8 @@ export class DoctorPrescriptionsComponent implements OnInit {
       endDate: '',
       autonomyLevel: MedicationAutonomyLevel.ASSISTED,
       status: 'ACTIVE' as any,
-      version: 1
+      version: 1,
+      lastRiskLevel: RiskLevel.LOW
     };
     this.selectedPatient = null;
     this.patientSearchQuery = '';
@@ -565,6 +913,12 @@ export class DoctorPrescriptionsComponent implements OnInit {
       stockQuantity: 30,
       lowThreshold: 5
     };
+    // Reset drug autocomplete state
+    this.selectedDrug = null;
+    this.drugSuggestions = [];
+    this.showDrugDropdown = false;
+    this.drugSearchError = null;
+    this.drugSearchControl.setValue('', { emitEvent: false });
   }
 
   // ==================== FORMATTERS ====================
@@ -630,6 +984,118 @@ export class DoctorPrescriptionsComponent implements OnInit {
       hash = patientId.charCodeAt(i) + ((hash << 5) - hash);
     }
     return colors[Math.abs(hash) % colors.length];
+  }
+
+  // ==================== TIME SELECTION HELPERS ====================
+
+  /**
+   * Parse timesOfDay string to array for new item modal
+   */
+  getNewItemTimesArray(): string[] {
+    return this.parseTimesOfDay(this.newItem.timesOfDay);
+  }
+
+  /**
+   * Parse timesOfDay string to array for edit item modal
+   */
+  getEditItemTimesArray(): string[] {
+    return this.parseTimesOfDay(this.editItemData.timesOfDay || '');
+  }
+
+  /**
+   * Toggle time selection for new item
+   */
+  toggleNewItemTime(time: string): void {
+    const currentTimes = this.getNewItemTimesArray();
+    const index = currentTimes.indexOf(time);
+    
+    if (index === -1) {
+      currentTimes.push(time);
+      currentTimes.sort();
+    } else if (currentTimes.length > 1) {
+      currentTimes.splice(index, 1);
+    }
+    
+    this.newItem.timesOfDay = currentTimes.join(',');
+  }
+
+  /**
+   * Toggle time selection for edit item
+   */
+  toggleEditItemTime(time: string): void {
+    const currentTimes = this.getEditItemTimesArray();
+    const index = currentTimes.indexOf(time);
+    
+    if (index === -1) {
+      currentTimes.push(time);
+      currentTimes.sort();
+    } else if (currentTimes.length > 1) {
+      currentTimes.splice(index, 1);
+    }
+    
+    this.editItemData.timesOfDay = currentTimes.join(',');
+  }
+
+  /**
+   * Check if time is selected for new item
+   */
+  isNewItemTimeSelected(time: string): boolean {
+    return this.getNewItemTimesArray().includes(time);
+  }
+
+  /**
+   * Check if time is selected for edit item
+   */
+  isEditItemTimeSelected(time: string): boolean {
+    return this.getEditItemTimesArray().includes(time);
+  }
+
+  /**
+   * Parse timesOfDay string to array
+   */
+  private parseTimesOfDay(timesOfDay: string): string[] {
+    if (!timesOfDay) return ['08:00'];
+    
+    // If already in HH:mm format
+    if (timesOfDay.includes(':')) {
+      return timesOfDay.split(',').map(t => t.trim());
+    }
+    
+    // Convert named times to HH:mm
+    const timeMap: { [key: string]: string } = {
+      'MORNING': '08:00',
+      'NOON': '12:00',
+      'AFTERNOON': '14:00',
+      'EVENING': '18:00',
+      'NIGHT': '22:00',
+      'BEDTIME': '23:00'
+    };
+    
+    return timesOfDay.split(',').map(t => timeMap[t.trim()] || '08:00');
+  }
+
+  /**
+   * Get display label for time value
+   */
+  getTimeLabel(timeValue: string): string {
+    const time = this.availableTimes.find(t => t.value === timeValue);
+    return time ? time.label : timeValue;
+  }
+
+  /**
+   * Get selected times display for new item
+   */
+  getNewItemTimesDisplay(): string {
+    const times = this.getNewItemTimesArray();
+    return times.map(t => this.getTimeLabel(t)).join(', ');
+  }
+
+  /**
+   * Get selected times display for edit item
+   */
+  getEditItemTimesDisplay(): string {
+    const times = this.getEditItemTimesArray();
+    return times.map(t => this.getTimeLabel(t)).join(', ');
   }
 
   // ==================== COMPACT DISPLAY HELPERS ====================
@@ -700,5 +1166,132 @@ export class DoctorPrescriptionsComponent implements OnInit {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
     
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ==================== DRUG AUTOCOMPLETE ====================
+
+  /**
+   * Setup drug autocomplete with RxJS operators
+   * Called when opening the Add Medication modal
+   */
+  setupDrugAutocomplete(): void {
+    // Reset any existing subscription
+    this.drugSearchSubscription?.unsubscribe();
+    
+    // Reset state
+    this.drugSuggestions = [];
+    this.selectedDrug = null;
+    this.drugSearchError = null;
+    this.showDrugDropdown = false;
+    
+    // Initialize form control with current name value
+    this.drugSearchControl.setValue(this.newItem.name || '', { emitEvent: false });
+    
+    // Setup the search stream
+    this.drugSearchSubscription = this.drugSearchControl.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      debounceTime(300),
+      distinctUntilChanged(),
+      filter((q): q is string => q !== null && q.length >= 3),
+      switchMap(q => {
+        this.isSearchingDrugs = true;
+        this.drugSearchError = null;
+        this.showDrugDropdown = true;
+        this.cdr.detectChanges();
+        
+        return this.openFdaDrugService.search(q, 20).pipe(
+          catchError(error => {
+            // Handle CORS, 403, network errors
+            this.drugSearchError = 'Catalogue indisponible, saisie manuelle possible';
+            return of([]);
+          })
+        );
+      })
+    ).subscribe({
+      next: (suggestions) => {
+        this.drugSuggestions = suggestions;
+        this.isSearchingDrugs = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isSearchingDrugs = false;
+        this.drugSuggestions = [];
+        this.cdr.detectChanges();
+      }
+    });
+    
+    // Handle short queries (< 3 chars) - clear suggestions
+    this.drugSearchControl.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      filter((q): q is string => q !== null && q.length < 3 && q.length > 0)
+    ).subscribe(() => {
+      this.drugSuggestions = [];
+      this.showDrugDropdown = false;
+      this.cdr.detectChanges();
+    });
+    
+    // Handle empty query - clear everything
+    this.drugSearchControl.valueChanges.pipe(
+      takeUntil(this.destroy$),
+      filter(q => !q || q.length === 0)
+    ).subscribe(() => {
+      this.drugSuggestions = [];
+      this.selectedDrug = null;
+      this.showDrugDropdown = false;
+      this.newItem.name = '';
+      this.cdr.detectChanges();
+    });
+  }
+
+  /**
+   * Select a drug from the autocomplete dropdown
+   */
+  selectDrug(suggestion: DrugSuggestionDTO): void {
+    this.selectedDrug = suggestion;
+    this.newItem.name = suggestion.displayName;
+    this.drugSearchControl.setValue(suggestion.displayName, { emitEvent: false });
+    this.drugSuggestions = [];
+    this.showDrugDropdown = false;
+    this.drugSearchError = null;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Clear drug selection
+   */
+  clearDrugSelection(): void {
+    this.selectedDrug = null;
+    this.newItem.name = '';
+    this.drugSearchControl.setValue('');
+    this.drugSuggestions = [];
+    this.showDrugDropdown = false;
+  }
+
+  /**
+   * Hide drug dropdown when clicking outside
+   */
+  hideDrugDropdown(): void {
+    setTimeout(() => {
+      this.showDrugDropdown = false;
+      this.cdr.detectChanges();
+    }, 200);
+  }
+
+  /**
+   * Show drug dropdown if we have suggestions
+   */
+  showDrugDropdownIfNeeded(): void {
+    if (this.drugSuggestions.length > 0) {
+      this.showDrugDropdown = true;
+    }
+  }
+
+  /**
+   * Cleanup on component destroy
+   */
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.drugSearchSubscription?.unsubscribe();
   }
 }

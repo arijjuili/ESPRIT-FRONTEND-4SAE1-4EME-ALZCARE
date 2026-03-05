@@ -781,15 +781,15 @@ Authorization: Bearer <token>
 
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
-| `/medication/plans` | POST | Create medication plan | ✅ DOCTOR |
-| `/medication/plans/{id}` | GET | Get plan by ID | ✅ Any role |
-| `/medication/plans` | GET | Get plans by patient ID | ✅ Any role |
-| `/medication/plans/{id}` | PUT | Update plan | ✅ DOCTOR |
-| `/medication/plans/{id}` | DELETE | Delete plan | ✅ DOCTOR |
+| `/medications/plans` | POST | Create medication plan | ✅ DOCTOR |
+| `/medications/plans/{id}` | GET | Get plan by ID | ✅ Any role |
+| `/medications/plans` | GET | Get plans by patient ID | ✅ Any role |
+| `/medications/plans/{id}` | PUT | Update plan | ✅ DOCTOR |
+| `/medications/plans/{id}` | DELETE | Delete plan | ✅ DOCTOR |
 
 #### Create Medication Plan
 ```http
-POST /api/followup/medication/plans
+POST /api/followup/medications/plans
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -808,14 +808,14 @@ Content-Type: application/json
 
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
-| `/medication/plans/{planId}/items` | POST | Add item to plan | ✅ DOCTOR |
-| `/medication/plans/{planId}/items` | GET | Get items in plan | ✅ Any role |
-| `/medication/items/{id}` | PUT | Update item | ✅ DOCTOR |
-| `/medication/items/{id}` | DELETE | Delete item | ✅ DOCTOR |
+| `/medications/plans/{planId}/items` | POST | Add item to plan | ✅ DOCTOR |
+| `/medications/plans/{planId}/items` | GET | Get items in plan | ✅ Any role |
+| `/medications/items/{id}` | PUT | Update item | ✅ DOCTOR |
+| `/medications/items/{id}` | DELETE | Delete item | ✅ DOCTOR |
 
 #### Add Medication Item
 ```http
-POST /api/followup/medication/plans/1/items
+POST /api/followup/medications/plans/1/items
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -835,14 +835,14 @@ Content-Type: application/json
 
 | Endpoint | Method | Description | Auth Required |
 |----------|--------|-------------|---------------|
-| `/medication/items/{itemId}/intakes` | POST | Add intake schedule | ✅ DOCTOR/CAREGIVER |
-| `/medication/items/{itemId}/intakes` | GET | Get intakes for item | ✅ Any role |
-| `/medication/intakes/{id}` | PUT | Update intake status | ✅ Any role |
-| `/medication/intakes/{id}` | DELETE | Delete intake | ✅ DOCTOR |
+| `/medications/items/{itemId}/intakes` | POST | Add intake schedule | ✅ DOCTOR/CAREGIVER |
+| `/medications/items/{itemId}/intakes` | GET | Get intakes for item | ✅ Any role |
+| `/medications/intakes/{id}` | PUT | Update intake status | ✅ Any role |
+| `/medications/intakes/{id}` | DELETE | Delete intake | ✅ DOCTOR |
 
 #### Record Medication Intake
 ```http
-POST /api/followup/medication/items/1/intakes
+POST /api/followup/medications/items/1/intakes
 Authorization: Bearer <token>
 Content-Type: application/json
 

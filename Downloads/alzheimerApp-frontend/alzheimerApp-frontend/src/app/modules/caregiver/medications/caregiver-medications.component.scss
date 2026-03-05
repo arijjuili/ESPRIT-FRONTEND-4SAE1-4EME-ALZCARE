@@ -1,0 +1,67 @@
+// Caregiver Medications Component Styles
+// Uses Tailwind CSS classes primarily
+
+// Custom scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #10b981;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+// Table styles
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th {
+  white-space: nowrap;
+}
+
+// Badge styles
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-default {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+// Modal backdrop
+.modal-backdrop {
+  backdrop-filter: blur(4px);
+}

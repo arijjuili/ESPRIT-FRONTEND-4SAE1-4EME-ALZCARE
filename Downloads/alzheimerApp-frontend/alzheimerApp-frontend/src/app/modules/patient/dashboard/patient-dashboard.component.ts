@@ -5,17 +5,14 @@ import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
-import { Appointment, AppointmentStatus, MedicationPlan } from '../../../core/models/medical-followup.model';
+import {
+  Appointment,
+  MedicationPlan,
+  PlanStatus,
+  IntakeStatus,
+  MedicationIntake
+} from '../../../core/models/medical-followup.model';
 
-/**
- * Patient Dashboard - Dynamic Data
- * 
- * Displays real-time data for the patient:
- * - Upcoming appointments
- * - Current medications
- * - Daily tasks
- * - Health metrics
- */
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
@@ -25,23 +22,33 @@ import { Appointment, AppointmentStatus, MedicationPlan } from '../../../core/mo
 })
 export class PatientDashboardComponent implements OnInit {
   patientName = '';
-  patientId = '';
-  
+  patientId: string | null = null;
+
   // Data
   appointments: Appointment[] = [];
   medicationPlans: MedicationPlan[] = [];
   todayTasks: any[] = [];
-  
+
+  // ✅ any[] because we enrich with itemName/dosage
+  todaysIntakes: any[] = [];
+
+  // Toggle between Today and All medication views
+  selectedMedicationView: 'TODAY' | 'ALL' = 'TODAY';
+
+  // Enum for template
+  IntakeStatus = IntakeStatus;
+
   // Loading states
   loading = {
     appointments: true,
     medications: true,
-    tasks: true
+    tasks: true,
+    intakes: true
   };
-  
+
   // Error handling
   error: string | null = null;
-  
+
   completedTasksCount = 0;
 
   constructor(
@@ -51,12 +58,15 @@ export class PatientDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (currentUser) {
       this.patientName = currentUser.name || 'Patient';
       this.patientId = currentUser.id;
+      console.log('[PatientDashboard] Loaded patient:', this.patientId);
       this.loadDashboardData();
-      this.generateTodayTasks();
+    } else {
+      this.error = 'Please log in to view your dashboard';
+      this.loading = { appointments: false, medications: false, tasks: false, intakes: false };
     }
   }
 
@@ -64,7 +74,13 @@ export class PatientDashboardComponent implements OnInit {
    * Load all dashboard data
    */
   loadDashboardData(): void {
-    this.loading = { appointments: true, medications: true, tasks: true };
+    if (!this.patientId) {
+      this.error = 'Patient ID not available';
+      this.loading = { appointments: false, medications: false, tasks: false, intakes: false };
+      return;
+    }
+
+    this.loading = { appointments: true, medications: true, tasks: true, intakes: true };
     this.error = null;
 
     // Get date range (today to 30 days ahead for appointments)
@@ -75,85 +91,182 @@ export class PatientDashboardComponent implements OnInit {
     const fromDate = today.toISOString();
     const toDate = thirtyDaysLater.toISOString();
 
-    // Load appointments and medications in parallel
+    console.log('[PatientDashboard] patientId:', this.patientId);
+
     forkJoin({
-      appointments: this.medicalService.getPatientAppointments(this.patientId, fromDate, toDate).pipe(catchError(() => of([]))),
-      medicationPlans: this.medicalService.getPatientMedicationPlans(this.patientId).pipe(catchError(() => of([])))
+      appointments: this.medicalService
+        .getPatientAppointments(this.patientId, fromDate, toDate)
+        .pipe(catchError(() => of([]))),
+      medicationPlans: this.medicalService
+        .getPatientMedicationPlans(this.patientId)
+        .pipe(catchError(() => of([]))),
+      todaysIntakes: this.medicalService
+        .getTodaysMedicationIntakes(this.patientId)
+        .pipe(catchError(() => of([])))
     }).subscribe({
       next: (data) => {
         this.appointments = data.appointments;
         this.medicationPlans = data.medicationPlans;
-        this.loading = { appointments: false, medications: false, tasks: false };
+
+        // ✅ raw + enrich
+        this.todaysIntakes = this.enrichTodaysIntakes(data.todaysIntakes as MedicationIntake[]);
+
+        console.log(
+          '[PatientDashboard] Loaded',
+          data.appointments.length,
+          'appointments and',
+          data.medicationPlans.length,
+          'medication plans'
+        );
+        console.log('[PatientDashboard] Loaded', data.todaysIntakes.length, 'todays intakes');
+
+        this.generateTodayTasks();
+        this.loading = { appointments: false, medications: false, tasks: false, intakes: false };
       },
       error: (err) => {
         console.error('Error loading dashboard data:', err);
         this.error = 'Failed to load dashboard data';
-        this.loading = { appointments: false, medications: false, tasks: false };
+        this.loading = { appointments: false, medications: false, tasks: false, intakes: false };
       }
     });
   }
 
   /**
-   * Generate today's tasks based on medications and appointments
+   * ✅ Enrich intakes (/today) with medication name/dosage using plans data
+   * Join key: intake.id
+   */
+  private enrichTodaysIntakes(intakes: MedicationIntake[]): any[] {
+
+  const intakeIdToItem = new Map<number, any>();
+
+  this.medicationPlans.forEach(plan => {
+    plan.items?.forEach(item => {
+
+      item.intakes?.forEach(i => {
+
+        if (i.id !== undefined) {
+          intakeIdToItem.set(i.id, item);
+        }
+
+      });
+
+    });
+  });
+
+  return intakes.map(i => {
+
+    const item = i.id !== undefined ? intakeIdToItem.get(i.id) : null;
+
+    return {
+      ...i,
+      itemName: item?.name ?? 'Medication',
+      dosage: item?.dosage ?? ''
+    };
+
+  });
+
+}
+
+  /**
+   * Generate today's tasks based on today's intakes + appointments
    */
   generateTodayTasks(): void {
-    // This would typically come from a task service
-    // For now, generate sample tasks based on medications
-    this.todayTasks = [
-      {
-        id: '1',
-        title: 'Take Morning Medication',
-        description: 'Don\'t forget your prescribed medication',
-        completed: false,
-        dueDate: new Date()
-      },
-      {
-        id: '2',
-        title: 'Record Blood Pressure',
-        description: 'Check and log your vitals',
-        completed: false,
-        dueDate: new Date()
-      },
-      {
-        id: '3',
-        title: '30-Minute Walk',
-        description: 'Light exercise for better health',
-        completed: false,
-        dueDate: new Date()
-      }
-    ];
+    const tasks: any[] = [];
+
+    // ✅ 1) Tasks from today's intakes endpoint
+    this.todaysIntakes
+      .filter((intake: any) => intake.status === IntakeStatus.PENDING)
+      .forEach((intake: any) => {
+        const itemName = intake.itemName || 'Medication';
+        const dosage = intake.dosage || '';
+
+        tasks.push({
+          id: `med-${intake.id}`,
+          title: `Take ${itemName}`,
+          description: `${dosage} at ${this.formatTime(intake.scheduledAt)}`,
+          completed: false,
+          dueDate: new Date(intake.scheduledAt),
+          type: 'medication',
+          intakeId: intake.id
+        });
+      });
+
+    // ✅ 2) Appointments
+    this.appointments
+      .filter(appt => new Date(appt.startAt) > new Date())
+      .slice(0, 2)
+      .forEach(appt => {
+        tasks.push({
+          id: `appt-${appt.id}`,
+          title: `Appointment: ${appt.type}`,
+          description: `${appt.mode} • ${this.formatTime(appt.startAt)}`,
+          completed: false,
+          dueDate: new Date(appt.startAt),
+          type: 'appointment'
+        });
+      });
+
+    // ✅ 3) Default tasks only if no tasks
+    if (tasks.length === 0) {
+      tasks.push(
+        {
+          id: 'bp-1',
+          title: 'Record Blood Pressure',
+          description: 'Check and log your vitals',
+          completed: false,
+          dueDate: new Date(),
+          type: 'health'
+        },
+        {
+          id: 'walk-1',
+          title: '30-Minute Walk',
+          description: 'Light exercise for better health',
+          completed: false,
+          dueDate: new Date(),
+          type: 'health'
+        }
+      );
+    }
+
+    this.todayTasks = tasks.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
     this.updateCompletedCount();
   }
 
-  /**
-   * Toggle task completion
-   */
   toggleTask(taskId: string): void {
     const task = this.todayTasks.find(t => t.id === taskId);
     if (task) {
       task.completed = !task.completed;
+
+      if (task.type === 'medication' && task.completed && task.intakeId) {
+        this.markMedicationAsTaken(task);
+      }
+
       this.updateCompletedCount();
     }
   }
 
-  /**
-   * Get progress percentage
-   */
+  private markMedicationAsTaken(task: any): void {
+    const updateRequest = {
+      status: IntakeStatus.TAKEN,
+      confirmedAt: new Date().toISOString(),
+      notes: 'Confirmed via dashboard'
+    };
+
+    this.medicalService.updateMedicationIntake(task.intakeId, updateRequest).subscribe({
+      next: () => console.log('[PatientDashboard] Medication marked as taken:', task.title),
+      error: (err) => console.error('[PatientDashboard] Failed to mark medication as taken:', err)
+    });
+  }
+
   getProgressPercentage(): number {
     if (this.todayTasks.length === 0) return 0;
     return (this.completedTasksCount / this.todayTasks.length) * 100;
   }
 
-  /**
-   * Update completed tasks count
-   */
   private updateCompletedCount(): void {
     this.completedTasksCount = this.todayTasks.filter(t => t.completed).length;
   }
 
-  /**
-   * Get greeting based on time of day
-   */
   getGreeting(): string {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning! 🌅 Hope you had a good sleep.';
@@ -161,9 +274,6 @@ export class PatientDashboardComponent implements OnInit {
     return 'Good evening! 🌙 Relax and enjoy your evening.';
   }
 
-  /**
-   * Format appointment date for display
-   */
   formatAppointmentDate(dateStr: string): string {
     const date = new Date(dateStr);
     return date.toLocaleString('en-US', {
@@ -175,53 +285,94 @@ export class PatientDashboardComponent implements OnInit {
     });
   }
 
-  /**
-   * Get upcoming appointments (sorted by date)
-   */
+  formatTime(dateStr: string): string {
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  formatTimeOnly(dateStr: string): string {
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+  }
+
+  getStatusBadgeClass(status: IntakeStatus): string {
+    switch (status) {
+      case IntakeStatus.PENDING:
+        return 'bg-yellow-100 text-yellow-800';
+      case IntakeStatus.TAKEN:
+        return 'bg-green-100 text-green-800';
+      case IntakeStatus.MISSED:
+        return 'bg-red-100 text-red-800';
+      case IntakeStatus.REFUSED:
+        return 'bg-gray-100 text-gray-800';
+      case IntakeStatus.DELAYED:
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+
   getUpcomingAppointments(): Appointment[] {
     const now = new Date();
     return this.appointments
       .filter(appt => new Date(appt.startAt) >= now)
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-      .slice(0, 3); // Top 3 upcoming
+      .slice(0, 3);
   }
 
-  /**
-   * Get active medications from medication plans
-   */
   getActiveMedications(): any[] {
     const medications: any[] = [];
+
     this.medicationPlans
-      .filter(plan => plan.status === 'ACTIVE')
+      .filter(plan => plan.status === PlanStatus.ACTIVE)
       .forEach(plan => {
-        if (plan.items) {
-          plan.items.forEach(item => {
-            medications.push({
-              name: item.name,
-              dosage: item.dosage,
-              frequency: item.frequency,
-              prescribedBy: plan.doctorId ? 'Doctor' : 'Unknown'
-            });
+        plan.items?.forEach(item => {
+          medications.push({
+            id: item.id,
+            name: item.name,
+            dosage: item.dosage,
+            frequency: item.frequency,
+            prescribedBy: plan.doctorId ? 'Doctor' : 'Unknown',
+            isHighRisk: item.isHighRisk,
+            stockQuantity: item.stockQuantity,
+            lowThreshold: item.lowThreshold
           });
-        }
+        });
       });
-    return medications.length > 0 ? medications : this.getDefaultMedications();
+
+    return medications;
   }
 
-  /**
-   * Default medications if no data
-   */
-  getDefaultMedications(): any[] {
-    return [
-      { name: 'Donepezil', dosage: '10mg', frequency: 'Once daily', prescribedBy: 'Smith' },
-      { name: 'Memantine', dosage: '10mg', frequency: 'Twice daily', prescribedBy: 'Smith' }
-    ];
+  getTodayPendingMedications(): number {
+    let count = 0;
+    const today = new Date().toDateString();
+
+    this.medicationPlans
+      .filter(plan => plan.status === PlanStatus.ACTIVE)
+      .forEach(plan => {
+        plan.items?.forEach(item => {
+          item.intakes?.forEach(intake => {
+            const intakeDate = new Date(intake.scheduledAt).toDateString();
+            if (intakeDate === today && intake.status === IntakeStatus.PENDING) {
+              count++;
+            }
+          });
+        });
+      });
+
+    return count;
   }
 
-  /**
-   * Check if data is still loading
-   */
   isLoading(): boolean {
     return this.loading.appointments || this.loading.medications || this.loading.tasks;
+  }
+
+  refreshData(): void {
+    this.loadDashboardData();
   }
 }

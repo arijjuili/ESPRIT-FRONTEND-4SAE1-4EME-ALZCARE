@@ -50,13 +50,16 @@ export enum OutcomeType {
 export enum ValidatorRole {
   PATIENT = 'PATIENT',
   CAREGIVER = 'CAREGIVER',
-  BOTH = 'BOTH'
+  BOTH = 'BOTH',
+  SYSTEM = 'SYSTEM',
+  DOCTOR = 'DOCTOR'
 }
 
 export enum PlanStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
-  STOPPED = 'STOPPED'
+  STOPPED = 'STOPPED',
+  COMPLETED = 'COMPLETED'
 }
 
 export enum FrequencyType {
@@ -73,6 +76,15 @@ export enum IntakeStatus {
   REFUSED = 'REFUSED'
 }
 
+export enum PatientReportedStatus {
+  TAKEN_OK = 'TAKEN_OK',
+  TAKEN_WITH_SIDE_EFFECTS = 'TAKEN_WITH_SIDE_EFFECTS',
+  FORGOT = 'FORGOT',
+  REFUSED = 'REFUSED',
+  UNSURE = 'UNSURE',
+  UNAVAILABLE = 'UNAVAILABLE'
+}
+
 export enum MedicationAutonomyLevel {
   INDEPENDENT = 'INDEPENDENT',
   ASSISTED = 'ASSISTED',
@@ -82,8 +94,7 @@ export enum MedicationAutonomyLevel {
 export enum RiskLevel {
   LOW = 'LOW',
   MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL'
+  HIGH = 'HIGH'
 }
 
 // ==================== APPOINTMENT INTERFACES ====================
@@ -171,6 +182,8 @@ export interface MedicationPlanCreateRequest {
   autonomyLevel: MedicationAutonomyLevel;
   status: PlanStatus;
   version?: number;
+  lastRiskLevel?: RiskLevel;
+  lastRiskReason?: string;
 }
 
 export interface MedicationPlanUpdateRequest {
@@ -180,6 +193,8 @@ export interface MedicationPlanUpdateRequest {
   endDate?: string;
   autonomyLevel?: MedicationAutonomyLevel;
   status?: PlanStatus;
+  lastRiskLevel?: RiskLevel;
+  lastRiskReason?: string;
 }
 
 export interface MedicationItem {
@@ -221,12 +236,21 @@ export interface MedicationItemUpdateRequest {
 }
 
 export interface MedicationIntake {
-  id: number;
-  itemId: number;
+  id?: number;
+  itemId?: number;
   scheduledAt: string;
   status: IntakeStatus;
+  patientId?: string;
+  confirmedByUserId?: string;
   confirmedByRole?: ValidatorRole;
-  createdAt: string;
+  confirmedAt?: string;
+  patientReportedStatus?: PatientReportedStatus;
+  notes?: string;
+  reminderSent?: boolean;
+  reminderSentAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  item?: MedicationItem;
 }
 
 export interface MedicationIntakeCreateRequest {
@@ -238,7 +262,11 @@ export interface MedicationIntakeCreateRequest {
 export interface MedicationIntakeUpdateRequest {
   scheduledAt?: string;
   status?: IntakeStatus;
+  confirmedByUserId?: string;
   confirmedByRole?: ValidatorRole;
+  confirmedAt?: string;
+  patientReportedStatus?: PatientReportedStatus;
+  notes?: string;
 }
 
 // ==================== DASHBOARD STATS ====================
@@ -246,11 +274,13 @@ export interface MedicationIntakeUpdateRequest {
 export interface MedicationDashboardStats {
   totalPlans: number;
   activePlans: number;
-  totalItems: number;
-  highRiskItems: number;
-  pendingIntakes: number;
-  takenIntakes: number;
-  missedIntakes: number;
+  totalItems?: number;
+  highRiskItems?: number;
+  pendingIntakes?: number;
+  pendingIntakesToday?: number;
+  takenIntakes?: number;
+  missedIntakes?: number;
+  adherenceRate?: number;
 }
 
 export interface AppointmentDashboardStats {

@@ -290,13 +290,19 @@
      (click)="closeNewPrescriptionModal()">
   <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
+    <form (ngSubmit)="createPrescription()">
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center" [class.bg-orange-50]="isReplaceMode">
       <div>
-        <h2 class="text-2xl font-bold text-gray-800">New Prescription</h2>
-        <p class="text-gray-500 text-sm mt-1">Create a new medication plan for a patient</p>
+        <h2 class="text-2xl font-bold" [class.text-gray-800]="!isReplaceMode" [class.text-orange-800]="isReplaceMode">
+          {{ isReplaceMode ? '⚠️ Replace Treatment' : 'New Prescription' }}
+        </h2>
+        <p class="text-gray-500 text-sm mt-1">
+          {{ isReplaceMode ? 'The current active plan will be STOPPED and a new plan will be created.' : 'Create a new medication plan for a patient' }}
+        </p>
       </div>
       <button 
+        type="button"
         (click)="closeNewPrescriptionModal()"
         class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
         ✕
@@ -320,12 +326,14 @@
                 [value]="patientSearchQuery"
                 (input)="onPatientSearchInput($event)"
                 (blur)="hidePatientDropdown()"
-                (focus)="showPatientDropdown = true"
-                class="flex-1 outline-none bg-transparent"
-                placeholder="Search for a patient by name or email..."
+                (focus)="!routePatientId && (showPatientDropdown = true)"
+                [disabled]="routePatientId && selectedPatient"
+                [class.cursor-not-allowed]="routePatientId && selectedPatient"
+                class="flex-1 outline-none bg-transparent disabled:text-gray-700"
+                [placeholder]="routePatientId && selectedPatient ? 'Patient pré-sélectionné depuis la liste' : 'Search for a patient by name or email...'"
                 autocomplete="off">
               <button 
-                *ngIf="selectedPatient || patientSearchQuery"
+                *ngIf="(selectedPatient || patientSearchQuery) && !routePatientId"
                 (click)="clearPatientSelection()"
                 type="button"
                 class="text-gray-400 hover:text-gray-600 ml-2">
@@ -359,7 +367,8 @@
               No patients found
             </div>
           </div>
-          <p class="text-xs text-gray-500 mt-1">Type to search by name or email</p>
+          <p class="text-xs text-gray-500 mt-1" *ngIf="!routePatientId || !selectedPatient">Type to search by name or email</p>
+          <p class="text-xs text-green-600 mt-1" *ngIf="routePatientId && selectedPatient">✓ Patient pré-sélectionné depuis la liste</p>
         </div>
 
         <!-- Plan Title -->
@@ -370,6 +379,7 @@
           <input 
             type="text" 
             [(ngModel)]="newPlan.title"
+            [ngModelOptions]="{standalone: true}"
             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             placeholder="e.g., Alzheimer Treatment Phase 1">
         </div>
@@ -382,6 +392,7 @@
           <input 
             type="date" 
             [(ngModel)]="newPlan.startDate"
+            [ngModelOptions]="{standalone: true}"
             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
@@ -393,15 +404,16 @@
           <input 
             type="date" 
             [(ngModel)]="newPlan.endDate"
+            [ngModelOptions]="{standalone: true}"
             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Autonomy Level -->
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Autonomy Level
           </label>
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-3 gap-2">
             <label *ngFor="let level of autonomyLevels" 
                    class="cursor-pointer">
               <input 
@@ -410,11 +422,24 @@
                 [value]="level"
                 [(ngModel)]="newPlan.autonomyLevel"
                 class="sr-only peer">
-              <div class="border-2 border-gray-200 rounded-lg px-4 py-3 text-center hover:border-gray-300 peer-checked:border-primary-500 peer-checked:bg-primary-50 peer-checked:text-primary-700 transition">
+              <div class="border-2 border-gray-200 rounded-lg px-2 py-2 text-center hover:border-gray-300 peer-checked:border-primary-500 peer-checked:bg-primary-50 peer-checked:text-primary-700 transition text-sm">
                 <div class="font-medium">{{ level }}</div>
               </div>
             </label>
           </div>
+        </div>
+
+        <!-- Risk Level -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Risk Level
+          </label>
+          <select 
+            [(ngModel)]="newPlan.lastRiskLevel"
+            [ngModelOptions]="{standalone: true}"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            <option *ngFor="let level of riskLevels" [value]="level">{{ level }}</option>
+          </select>
         </div>
 
         <!-- Notes -->
@@ -424,6 +449,7 @@
           </label>
           <textarea 
             [(ngModel)]="newPlan.notes"
+            [ngModelOptions]="{standalone: true}"
             rows="3"
             class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
             placeholder="Special instructions, observations, or additional information...">
@@ -435,17 +461,23 @@
     <!-- Modal Footer -->
     <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
       <button 
+        type="button"
         (click)="closeNewPrescriptionModal()"
         class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
         Cancel
       </button>
       <button 
-        (click)="createPrescription()"
+        type="submit"
         [disabled]="loading || !newPlan.patientId || !newPlan.title || !newPlan.startDate"
-        class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-        {{ loading ? 'Creating...' : 'Create Prescription' }}
+        [class.bg-primary-600]="!isReplaceMode"
+        [class.hover:bg-primary-700]="!isReplaceMode"
+        [class.bg-orange-600]="isReplaceMode"
+        [class.hover:bg-orange-700]="isReplaceMode"
+        class="px-6 py-2 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+        {{ loading ? (isReplaceMode ? 'Replacing...' : 'Creating...') : (isReplaceMode ? 'Replace Treatment' : 'Create Prescription') }}
       </button>
     </div>
+    </form>
   </div>
 </div>
 
@@ -471,16 +503,72 @@
     <!-- Modal Body -->
     <div class="px-6 py-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Medication Name -->
-        <div class="md:col-span-2">
+        <!-- Medication Name with Autocomplete -->
+        <div class="md:col-span-2 relative">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Medication Name <span class="text-red-500">*</span>
           </label>
-          <input 
-            type="text" 
-            [(ngModel)]="newItem.name"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-            placeholder="e.g., Donepezil">
+          <div class="relative">
+            <input 
+              type="text" 
+              [formControl]="drugSearchControl"
+              (focus)="showDrugDropdownIfNeeded()"
+              (blur)="hideDrugDropdown()"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              placeholder="Type at least 3 characters to search (e.g., parac)..."
+              autocomplete="off">
+            
+            <!-- Loading spinner -->
+            <div *ngIf="isSearchingDrugs" class="absolute right-3 top-1/2 -translate-y-1/2">
+              <div class="inline-block animate-spin rounded-full h-4 w-4 border-2 border-primary-500 border-t-transparent"></div>
+            </div>
+            
+            <!-- Clear button -->
+            <button 
+              *ngIf="drugSearchControl.value && !isSearchingDrugs"
+              type="button"
+              (click)="clearDrugSelection()"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              ✕
+            </button>
+          </div>
+          
+          <!-- Error message -->
+          <div *ngIf="drugSearchError" class="mt-1 text-sm text-amber-600 flex items-center gap-1">
+            <span>⚠️</span>
+            <span>{{ drugSearchError }}</span>
+          </div>
+          
+          <!-- Selected drug info -->
+          <div *ngIf="selectedDrug" class="mt-2 text-sm text-green-600 flex items-center gap-1">
+            <span>✓</span>
+            <span>Selected from catalog: {{ selectedDrug.genericName }}</span>
+          </div>
+          
+          <!-- Autocomplete Dropdown -->
+          <div *ngIf="showDrugDropdown && drugSuggestions.length > 0" 
+               class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+            <div *ngFor="let suggestion of drugSuggestions" 
+                 (click)="selectDrug(suggestion)"
+                 class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors">
+              <div class="flex flex-col">
+                <span class="font-medium text-gray-900">{{ suggestion.displayName }}</span>
+                <span class="text-xs text-gray-500 mt-0.5">
+                  <span *ngIf="suggestion.dosageForm">{{ suggestion.dosageForm }}</span>
+                  <span *ngIf="suggestion.dosageForm && suggestion.route"> • </span>
+                  <span *ngIf="suggestion.route" class="text-gray-400">{{ suggestion.route }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- No results -->
+          <div *ngIf="showDrugDropdown && !isSearchingDrugs && drugSuggestions.length === 0 && drugSearchControl.value && drugSearchControl.value.length >= 3 && !drugSearchError"
+               class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+            No drugs found — You can enter manually
+          </div>
+          
+          <p class="text-xs text-gray-500 mt-1">Type at least 3 characters to search the FDA drug catalog</p>
         </div>
 
         <!-- Dosage -->
@@ -512,12 +600,23 @@
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Intake Times <span class="text-red-500">*</span>
           </label>
-          <input 
-            type="text" 
-            [(ngModel)]="newItem.timesOfDay"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-            placeholder="e.g., MORNING,EVENING or 08:00,20:00">
-          <p class="text-xs text-gray-500 mt-1">Separate multiple times with commas</p>
+          <div class="flex flex-wrap gap-2 mb-2">
+            <button 
+              *ngFor="let time of availableTimes"
+              type="button"
+              (click)="toggleNewItemTime(time.value)"
+              class="px-3 py-2 text-sm font-medium rounded-full border transition-all"
+              [class.bg-primary-600]="isNewItemTimeSelected(time.value)"
+              [class.text-white]="isNewItemTimeSelected(time.value)"
+              [class.border-primary-600]="isNewItemTimeSelected(time.value)"
+              [class.bg-white]="!isNewItemTimeSelected(time.value)"
+              [class.text-gray-600]="!isNewItemTimeSelected(time.value)"
+              [class.border-gray-300]="!isNewItemTimeSelected(time.value)"
+              [class.hover:border-primary-500]="!isNewItemTimeSelected(time.value)">
+              {{ time.label }}
+            </button>
+          </div>
+          <p class="text-xs text-gray-500">Selected: {{ getNewItemTimesDisplay() }}</p>
         </div>
 
         <!-- Stock Quantity -->
@@ -648,6 +747,16 @@
           </select>
         </div>
 
+        <!-- Risk Level -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Risk Level</label>
+          <select 
+            [(ngModel)]="editPlanData.lastRiskLevel"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            <option *ngFor="let level of riskLevels" [value]="level">{{ level }}</option>
+          </select>
+        </div>
+
         <!-- Notes -->
         <div class="md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
@@ -730,10 +839,23 @@
         <!-- Times of Day -->
         <div class="md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Intake Times</label>
-          <input 
-            type="text" 
-            [(ngModel)]="editItemData.timesOfDay"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+          <div class="flex flex-wrap gap-2 mb-2">
+            <button 
+              *ngFor="let time of availableTimes"
+              type="button"
+              (click)="toggleEditItemTime(time.value)"
+              class="px-3 py-2 text-sm font-medium rounded-full border transition-all"
+              [class.bg-primary-600]="isEditItemTimeSelected(time.value)"
+              [class.text-white]="isEditItemTimeSelected(time.value)"
+              [class.border-primary-600]="isEditItemTimeSelected(time.value)"
+              [class.bg-white]="!isEditItemTimeSelected(time.value)"
+              [class.text-gray-600]="!isEditItemTimeSelected(time.value)"
+              [class.border-gray-300]="!isEditItemTimeSelected(time.value)"
+              [class.hover:border-primary-500]="!isEditItemTimeSelected(time.value)">
+              {{ time.label }}
+            </button>
+          </div>
+          <p class="text-xs text-gray-500">Selected: {{ getEditItemTimesDisplay() }}</p>
         </div>
 
         <!-- Stock Quantity -->

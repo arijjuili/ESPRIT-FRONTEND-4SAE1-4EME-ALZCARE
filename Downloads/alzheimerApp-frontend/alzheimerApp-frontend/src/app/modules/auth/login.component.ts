@@ -21,7 +21,32 @@ export class LoginComponent {
     private authService: AuthService, 
     private router: Router,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    // Redirect if already authenticated
+    if (this.authService.isAuthenticated()) {
+      const user = this.authService.getCurrentUser();
+      if (user) {
+        this.redirectBasedOnRole(user.role);
+      }
+    }
+  }
+
+  private redirectBasedOnRole(role: string): void {
+    switch (role) {
+      case 'patient':
+        this.router.navigate(['/patient/dashboard']);
+        break;
+      case 'caregiver':
+        this.router.navigate(['/caregiver/dashboard']);
+        break;
+      case 'doctor':
+        this.router.navigate(['/doctor/dashboard']);
+        break;
+      case 'admin':
+        this.router.navigate(['/admin/dashboard']);
+        break;
+    }
+  }
 
   onLogin(): void {
     console.log('[Login] onLogin called');
@@ -39,20 +64,7 @@ export class LoginComponent {
       next: (user) => {
         console.log('[Login] Success, user role:', user.role);
         // Redirect based on role
-        switch (user.role) {
-          case 'patient':
-            this.router.navigate(['/patient/dashboard']);
-            break;
-          case 'caregiver':
-            this.router.navigate(['/caregiver/dashboard']);
-            break;
-          case 'doctor':
-            this.router.navigate(['/doctor/dashboard']);
-            break;
-          case 'admin':
-            this.router.navigate(['/admin/dashboard']);
-            break;
-        }
+        this.redirectBasedOnRole(user.role);
         this.loading = false;
       },
       error: (err) => {
