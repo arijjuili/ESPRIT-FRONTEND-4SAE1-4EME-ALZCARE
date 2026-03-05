@@ -7,6 +7,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
 import { Chart, registerables } from 'chart.js';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PdfExportService } from '../../../core/services/pdf-export.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { GameActivity, GamificationBadgeEvent, GameType } from '../../../core/models/api.model';
@@ -116,6 +117,7 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
+    private pdfExportService: PdfExportService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
     private router: Router
@@ -703,5 +705,12 @@ export class CaregiverGameAnalyticsComponent implements OnInit, OnDestroy {
       case 'down': return 'text-red-500';
       default: return 'text-gray-500';
     }
+  }
+
+  exportPdfReport(): void {
+    this.pdfExportService.exportElementAsPdf(
+      'caregiver-game-analytics-analysis',
+      'Caregiver Cognitive Game Analytics Report'
+    );
   }
 }

@@ -7,6 +7,7 @@ import { Chart, registerables } from 'chart.js';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { PdfExportService } from '../../../core/services/pdf-export.service';
 import { GameActivity } from '../../../core/models/api.model';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -99,7 +100,8 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     private router: Router,
     private apiService: ApiService,
     private authService: AuthService,
-    private patientService: PatientService
+    private patientService: PatientService,
+    private pdfExportService: PdfExportService
   ) {}
 
   ngOnInit(): void {
@@ -353,5 +355,12 @@ export class PatientAnalyticsComponent implements OnInit, OnDestroy {
     if (seconds < 60) return `${seconds}s`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  }
+
+  exportPdfReport(): void {
+    this.pdfExportService.exportElementAsPdf(
+      'patient-progress-analysis',
+      'Patient Progress Report'
+    );
   }
 }

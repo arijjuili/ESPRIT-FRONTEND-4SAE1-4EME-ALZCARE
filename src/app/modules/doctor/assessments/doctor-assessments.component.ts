@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PdfExportService } from '../../../core/services/pdf-export.service';
 import { HealthRecord, RecordType } from '../../../core/models/api.model';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { PatientService } from '../../../core/services/patient.service';
@@ -76,6 +77,7 @@ export class DoctorAssessmentsComponent implements OnInit {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
+    private pdfExportService: PdfExportService,
     private careTeamService: CareTeamService,
     private patientService: PatientService
   ) {}
@@ -854,5 +856,12 @@ export class DoctorAssessmentsComponent implements OnInit {
       start: this.formatDate(records[0].completedAt || records[0].date),
       end: this.formatDate(records[records.length - 1].completedAt || records[records.length - 1].date)
     };
+  }
+
+  exportPdfReport(): void {
+    this.pdfExportService.exportElementAsPdf(
+      'doctor-health-record-analytics',
+      'Doctor Health Record Command Center Report'
+    );
   }
 }

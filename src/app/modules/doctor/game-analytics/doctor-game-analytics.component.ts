@@ -6,6 +6,7 @@ import { ChartConfiguration, ChartData } from 'chart.js';
 import { Chart, registerables } from 'chart.js';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PdfExportService } from '../../../core/services/pdf-export.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { GameActivity } from '../../../core/models/api.model';
 import { forkJoin, of } from 'rxjs';
@@ -110,6 +111,7 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
+    private pdfExportService: PdfExportService,
     private patientService: PatientService,
     private router: Router
   ) {}
@@ -638,5 +640,12 @@ export class DoctorGameAnalyticsComponent implements OnInit, OnDestroy {
       case 'down': return 'text-red-500';
       default: return 'text-gray-500';
     }
+  }
+
+  exportPdfReport(): void {
+    this.pdfExportService.exportElementAsPdf(
+      'doctor-game-analytics-analysis',
+      'Doctor Cognitive Game Analytics Report'
+    );
   }
 }

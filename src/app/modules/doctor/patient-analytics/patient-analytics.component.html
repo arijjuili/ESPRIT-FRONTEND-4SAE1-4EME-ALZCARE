@@ -1,17 +1,21 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
   <!-- Header -->
   <div class="mb-8">
-    <div class="flex items-center gap-4 mb-2">
-      <a [routerLink]="backToAnalyticsRoute" class="p-2 rounded-lg bg-white shadow hover:shadow-md transition">
-        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-        </svg>
-      </a>
-      <h1 class="text-3xl font-bold text-gray-900">Patient Progress</h1>
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-2">
+      <div class="flex items-center gap-4">
+        <a [routerLink]="backToAnalyticsRoute" class="p-2 rounded-lg bg-white shadow hover:shadow-md transition">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">Patient Progress</h1>
+      </div>
+      <button
+        (click)="exportPdfReport()"
+        class="self-start rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-blue-700 hover:to-indigo-700">
+        Export PDF
+      </button>
     </div>
-    <p class="text-gray-600 ml-14" *ngIf="patient">
-      Detailed game analytics for {{ patient.firstName }} {{ patient.lastName }}
-    </p>
   </div>
 
   <!-- Loading -->
@@ -28,7 +32,11 @@
   </div>
 
   <!-- Content -->
-  <div *ngIf="!isLoading && !error && patient" class="space-y-6">
+  <div id="patient-progress-analysis" *ngIf="!isLoading && !error && patient" class="space-y-6">
+    <p class="text-gray-600">
+      Detailed game analytics for {{ patient.firstName }} {{ patient.lastName }}
+    </p>
+
     <!-- Overall Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-white rounded-2xl p-6 shadow-lg border border-blue-100">
