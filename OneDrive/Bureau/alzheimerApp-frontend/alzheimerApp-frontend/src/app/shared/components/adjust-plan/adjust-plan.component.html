@@ -1,0 +1,188 @@
+<!-- Overlay backdrop -->
+<div class="modal-overlay" (click)="onCancel()">
+  <!-- Modal container -->
+  <div 
+    class="modal-container" 
+    (click)="onModalClick($event)"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+  >
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-icon">
+        <span>✏️</span>
+      </div>
+      <div class="header-content">
+        <h2 id="modal-title" class="modal-title">Adjust Current Plan</h2>
+        <p class="modal-subtitle">
+          Modify plan from a specific effective date. Past intakes will remain unchanged.
+        </p>
+      </div>
+      <button 
+        class="btn-close" 
+        (click)="onCancel()"
+        aria-label="Close"
+        [disabled]="loading"
+      >
+        <span aria-hidden="true">✕</span>
+      </button>
+    </div>
+
+    <!-- Plan Info Summary -->
+    <div class="plan-summary" *ngIf="plan">
+      <div class="summary-item">
+        <span class="summary-label">Plan:</span>
+        <span class="summary-value">{{ plan.title }}</span>
+      </div>
+      <div class="summary-item" *ngIf="item">
+        <span class="summary-label">Medication:</span>
+        <span class="summary-value">{{ item.name }}</span>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-container" *ngIf="!result">
+      <!-- Effective Date -->
+      <div class="form-group">
+        <label for="effectiveDate" class="form-label">
+          Effective Date <span class="required">*</span>
+        </label>
+        <input 
+          type="date" 
+          id="effectiveDate"
+          class="form-input"
+          [value]="formatDateForInput(formData.effectiveDate)"
+          (change)="onEffectiveDateChange($any($event).target.value)"
+          [class.error]="getFieldError('effectiveDate')"
+        >
+        <p class="form-hint">Changes will apply from this date. Past intakes remain unchanged.</p>
+        <p class="error-message" *ngIf="getFieldError('effectiveDate')">
+          {{ getFieldError('effectiveDate') }}
+        </p>
+      </div>
+
+      <!-- Dosage -->
+      <div class="form-group">
+        <label for="dosage" class="form-label">Dosage</label>
+        <input 
+          type="text" 
+          id="dosage"
+          class="form-input"
+          [(ngModel)]="formData.dosage"
+          placeholder="e.g., 10mg"
+          [class.error]="getFieldError('dosage')"
+        >
+        <p class="error-message" *ngIf="getFieldError('dosage')">
+          {{ getFieldError('dosage') }}
+        </p>
+      </div>
+
+      <!-- Frequency -->
+      <div class="form-group">
+        <label for="frequency" class="form-label">Frequency</label>
+        <select 
+          id="frequency"
+          class="form-select"
+          [(ngModel)]="formData.frequency"
+        >
+          <option *ngFor="let freq of frequencyTypes" [value]="freq">
+            {{ freq }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Times of Day -->
+      <div class="form-group">
+        <label class="form-label">Intake Times</label>
+        <div class="time-options">
+          <button 
+            *ngFor="let time of availableTimes"
+            type="button"
+            class="time-chip"
+            [class.selected]="isTimeSelected(time.value)"
+            (click)="toggleTime(time.value)"
+          >
+            {{ time.label }}
+          </button>
+        </div>
+        <p class="form-hint">Selected: {{ getSelectedTimesDisplay() }}</p>
+        <p class="error-message" *ngIf="getFieldError('timesOfDay')">
+          {{ getFieldError('timesOfDay') }}
+        </p>
+      </div>
+
+      <!-- End Date -->
+      <div class="form-group">
+        <label for="endDate" class="form-label">End Date <span class="optional">(optional)</span></label>
+        <input 
+          type="date" 
+          id="endDate"
+          class="form-input"
+          [value]="formatDateForInput(formData.endDate)"
+          (change)="onEndDateChange($any($event).target.value)"
+          [class.error]="getFieldError('endDate')"
+        >
+        <p class="error-message" *ngIf="getFieldError('endDate')">
+          {{ getFieldError('endDate') }}
+        </p>
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label for="notes" class="form-label">Notes <span class="optional">(optional)</span></label>
+        <textarea 
+          id="notes"
+          class="form-textarea"
+          [(ngModel)]="formData.notes"
+          rows="3"
+          placeholder="Reason for adjustment or other notes..."
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Result Display -->
+    <div class="result-container" *ngIf="result">
+      <div class="result-icon" [class.success]="result.success" [class.error]="!result.success">
+        <span *ngIf="result.success">✓</span>
+        <span *ngIf="!result.success">✕</span>
+      </div>
+      <p class="result-message">{{ result.message }}</p>
+      <div class="result-details" *ngIf="result.success">
+        <div class="detail-item">
+          <span class="detail-label">Cancelled intakes:</span>
+          <span class="detail-value">{{ result.cancelledIntakes }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">New intakes:</span>
+          <span class="detail-value">{{ result.generatedIntakes }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button 
+        class="btn-cancel"
+        (click)="onCancel()"
+        [disabled]="loading"
+      >
+        Cancel
+      </button>
+      <button 
+        class="btn-confirm"
+        (click)="onConfirm()"
+        [disabled]="loading || result?.success"
+      >
+        <span *ngIf="!loading">Confirm Adjustment</span>
+        <span *ngIf="loading">Processing...</span>
+      </button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" *ngIf="loading">
+      <div class="spinner"></div>
+      <span>Applying adjustments...</span>
+    </div>
+  </div>
+</div>

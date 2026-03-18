@@ -1,0 +1,244 @@
+// Doctor Appointments Component Styles
+:host {
+  display: block;
+}
+
+// Appointment card hover effect
+.appointment-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+// Form input focus states
+input:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+// Modal animations
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Modal overlay
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+// Modal content
+.modal-content {
+  animation: slideInUp 0.3s ease-out;
+}
+
+// Patient dropdown scrollbar styling
+.patient-dropdown {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.8);
+  }
+}
+
+// Selected patient highlight
+.selected-patient {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+}
+
+// Loading spinner for patient search
+.patient-search-loading {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+// Caregiver info display
+.caregiver-info {
+  transition: all 0.2s ease;
+}
+
+// ==================== TELECONSULTATION STYLES ====================
+
+// Teleconsultation section container
+.teleconsultation-section {
+  background: linear-gradient(135deg, #f3e8ff 0%, #dbeafe 100%);
+  border: 1px solid #c4b5fd;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-top: 1rem;
+  
+  .teleconsultation-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    
+    h4 {
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0;
+    }
+  }
+  
+  .teleconsultation-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    
+    &.status-ready {
+      background-color: #dcfce7;
+      color: #15803d;
+    }
+    
+    &.status-pending {
+      background-color: #fef9c3;
+      color: #a16207;
+    }
+    
+    &.status-cancelled {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+    
+    &.status-completed {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+    }
+  }
+  
+  .meeting-url-box {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    
+    .url-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+    
+    .url-value {
+      font-family: monospace;
+      font-size: 0.875rem;
+      color: #374151;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  
+  .teleconsultation-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    
+    button {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      
+      &.btn-copy {
+        background-color: white;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        
+        &:hover {
+          background-color: #f9fafb;
+        }
+      }
+      
+      &.btn-join {
+        background-color: #9333ea;
+        color: white;
+        border: none;
+        
+        &:hover {
+          background-color: #7e22ce;
+        }
+        
+        &:disabled {
+          background-color: #d1d5db;
+          color: #9ca3af;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+
+// Mode badge styles
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  
+  &.mode-online {
+    background-color: #f3e8ff;
+    color: #7c3aed;
+    border-color: #ddd6fe;
+  }
+  
+  &.mode-onsite {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border-color: #bfdbfe;
+  }
+}
+
+// Status badge styles
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}

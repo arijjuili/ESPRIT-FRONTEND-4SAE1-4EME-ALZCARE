@@ -1,0 +1,14 @@
+aside {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+aside::-webkit-scrollbar {
+  width: 6px;
+}
+aside::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+aside::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}

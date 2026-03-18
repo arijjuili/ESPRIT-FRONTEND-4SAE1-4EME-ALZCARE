@@ -1,0 +1,510 @@
+<div class="max-w-7xl mx-auto px-4 py-8">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">📅 Appointment Management</h1>
+      <p class="text-gray-600 mt-1">Schedule and manage patient consultations</p>
+    </div>
+    <button 
+      (click)="openModal()"
+      class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold flex items-center gap-2">
+      <span>+</span>
+      <span>New Appointment</span>
+    </button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+    <p class="font-bold">Error</p>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-sm p-4 mb-6 flex flex-wrap gap-4 items-center">
+    <div class="flex items-center gap-2">
+      <label class="text-sm font-semibold text-gray-700">Status:</label>
+      <select 
+        [(ngModel)]="filterStatus"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500">
+        <option value="ALL">All</option>
+        <option *ngFor="let status of appointmentStatuses" [value]="status">{{ status }}</option>
+      </select>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <label class="text-sm font-semibold text-gray-700">From:</label>
+      <input 
+        type="datetime-local" 
+        [(ngModel)]="filterFrom"
+        (change)="loadAppointments()"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+
+    <div class="flex items-center gap-2">
+      <label class="text-sm font-semibold text-gray-700">To:</label>
+      <input 
+        type="datetime-local" 
+        [(ngModel)]="filterTo"
+        (change)="loadAppointments()"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+
+    <button 
+      (click)="loadAppointments()"
+      class="bg-primary-100 text-primary-700 px-4 py-2 rounded-lg hover:bg-primary-200 transition text-sm font-semibold ml-auto">
+      🔄 Refresh
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+    <p class="text-gray-600 mt-4">Loading appointments...</p>
+  </div>
+
+  <!-- Appointments List -->
+  <div *ngIf="!loading" class="space-y-4">
+    <!-- Stats Summary -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-lg shadow-sm p-4 text-center">
+        <p class="text-3xl font-bold text-primary-600">{{ appointments.length }}</p>
+        <p class="text-sm text-gray-600">Total</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-4 text-center">
+        <p class="text-3xl font-bold text-green-600">{{ confirmedCount }}</p>
+        <p class="text-sm text-gray-600">Confirmed</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-4 text-center">
+        <p class="text-3xl font-bold text-purple-600">{{ completedCount }}</p>
+        <p class="text-sm text-gray-600">Completed</p>
+      </div>
+      <div class="bg-white rounded-lg shadow-sm p-4 text-center">
+        <p class="text-3xl font-bold text-gray-400">{{ cancelledCount }}</p>
+        <p class="text-sm text-gray-600">Cancelled</p>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredAppointments.length === 0" class="text-center py-12 bg-white rounded-lg shadow-sm">
+      <p class="text-6xl mb-4">📅</p>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">No appointments found</h3>
+      <p class="text-gray-500">Create your first appointment by clicking the button above</p>
+    </div>
+
+    <!-- Appointment Cards -->
+    <div *ngFor="let appt of filteredAppointments" 
+         class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition border-l-4"
+         [class.border-green-500]="appt.status === 'CONFIRMED'"
+         [class.border-blue-500]="appt.status === 'REQUESTED' || appt.status === 'ACCEPTED'"
+         [class.border-purple-500]="appt.status === 'COMPLETED'"
+         [class.border-gray-300]="appt.status === 'CANCELLED'">
+      
+      <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+        <!-- Left: Main Info -->
+        <div class="flex-1">
+          <div class="flex items-center gap-3 mb-2 flex-wrap">
+            <span class="text-2xl">{{ getTypeIcon(appt.type) }}</span>
+            <h3 class="text-xl font-bold text-gray-800">{{ getPatientNameById(appt.patientId) }}</h3>
+            
+            <!-- Status Badge -->
+            <span 
+              class="px-3 py-1 rounded-full text-xs font-bold"
+              [class]="getStatusClass(appt.status)">
+              {{ appt.status }}
+            </span>
+            
+            <!-- Priority Badge -->
+            <span 
+              class="px-3 py-1 rounded-full text-xs font-bold"
+              [class]="getPriorityClass(appt.priority)">
+              {{ appt.priority }}
+            </span>
+            
+            <!-- Mode Badge (ONLINE/ONSITE) -->
+            <span 
+              class="px-3 py-1 rounded-full text-xs font-bold border"
+              [class]="getModeClass(appt.mode)">
+              {{ getModeIcon(appt.mode) }} {{ appt.mode }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4">
+            <div>
+              <p class="text-gray-500">Patient</p>
+              <p class="font-semibold text-gray-800">{{ getPatientNameById(appt.patientId) }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Type</p>
+              <p class="font-semibold text-gray-800">{{ appt.type }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Mode</p>
+              <p class="font-semibold text-gray-800">{{ appt.mode }}</p>
+            </div>
+            <div>
+              <p class="text-gray-500">Duration</p>
+              <p class="font-semibold text-gray-800">
+                {{ getDurationMinutes(appt.startAt, appt.endAt) }} min
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-4 bg-gray-50 rounded-lg p-3">
+            <div class="flex items-center gap-4">
+              <div class="text-center">
+                <p class="text-xs text-gray-500">Start</p>
+                <p class="font-bold text-gray-800">{{ formatDateDisplay(appt.startAt) }}</p>
+              </div>
+              <span class="text-gray-400">→</span>
+              <div class="text-center">
+                <p class="text-xs text-gray-500">End</p>
+                <p class="font-bold text-gray-800">{{ formatDateDisplay(appt.endAt) }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teleconsultation Section for ONLINE appointments -->
+          <div *ngIf="appt.mode === 'ONLINE'" class="mt-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">💻</span>
+              <h4 class="font-bold text-gray-800">Teleconsultation</h4>
+            </div>
+            
+            <!-- Teleconsultation Active (ONLINE + CONFIRMED + meetingUrl) -->
+            <div *ngIf="isTeleconsultationActive(appt); else teleconsultationNotActive" class="space-y-3">
+              <div class="flex items-center gap-2 text-green-700 bg-green-100 px-3 py-2 rounded-lg">
+                <span>✅</span>
+                <span class="font-semibold text-sm">Ready to join</span>
+              </div>
+              
+              <!-- Meeting URL Display -->
+              <div class="bg-white rounded-lg p-3 border border-gray-200">
+                <p class="text-xs text-gray-500 mb-1">Meeting Link</p>
+                <a [href]="appt.meetingUrl" target="_blank" rel="noopener noreferrer" 
+                   class="text-sm font-mono text-purple-600 hover:text-purple-800 hover:underline truncate block">
+                  {{ appt.meetingUrl }}
+                </a>
+              </div>
+              
+              <!-- Action Buttons -->
+              <div class="flex gap-2">
+                <button 
+                  type="button"
+                  (click)="copyMeetingUrl(appt.meetingUrl)"
+                  class="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-semibold flex items-center justify-center gap-2">
+                  <span>📋</span> Copy Link
+                </button>
+                <button 
+                  type="button"
+                  (click)="joinMeeting(appt.meetingUrl)"
+                  class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold flex items-center justify-center gap-2">
+                  <span>🎥</span> Join Meeting
+                </button>
+              </div>
+            </div>
+            
+            <!-- Template for non-active states -->
+            <ng-template #teleconsultationNotActive>
+              <!-- Teleconsultation Pending (ONLINE but REQUESTED) -->
+              <div *ngIf="isTeleconsultationPending(appt)" class="space-y-2">
+                <div class="flex items-center gap-2 text-yellow-700 bg-yellow-100 px-3 py-2 rounded-lg">
+                  <span>⏳</span>
+                  <span class="font-semibold text-sm">Waiting for confirmation</span>
+                </div>
+                <p class="text-xs text-gray-600">
+                  The meeting link will be automatically generated when you confirm this appointment.
+                </p>
+              </div>
+              
+              <!-- Teleconsultation Confirmed but no meetingUrl yet -->
+              <div *ngIf="appt.status === 'CONFIRMED' && !appt.meetingUrl" class="space-y-2">
+                <div class="flex items-center gap-2 text-blue-700 bg-blue-100 px-3 py-2 rounded-lg">
+                  <span>🔄</span>
+                  <span class="font-semibold text-sm">Generating meeting link...</span>
+                </div>
+                <p class="text-xs text-gray-600">
+                  The meeting link is being generated. Please refresh or click below to get the link.
+                </p>
+                <div class="flex gap-2">
+                  <button 
+                    type="button"
+                    (click)="loadAppointments()"
+                    class="flex-1 bg-white border border-purple-300 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 transition text-sm font-semibold">
+                    🔄 Refresh
+                  </button>
+                  <button 
+                    type="button"
+                    (click)="fetchMeetingUrl(appt.id)"
+                    class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold">
+                    🔗 Get Link
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Teleconsultation Cancelled -->
+              <div *ngIf="isAppointmentCancelled(appt)" class="space-y-2">
+                <div class="flex items-center gap-2 text-red-700 bg-red-100 px-3 py-2 rounded-lg">
+                  <span>❌</span>
+                  <span class="font-semibold text-sm">Appointment Cancelled</span>
+                </div>
+                <div *ngIf="appt.meetingUrl" class="bg-gray-100 rounded-lg p-3 border border-gray-200 opacity-60">
+                  <p class="text-xs text-gray-500 mb-1">Meeting Link (inactive)</p>
+                  <p class="text-sm font-mono text-gray-400 truncate line-through">{{ appt.meetingUrl }}</p>
+                </div>
+              </div>
+              
+              <!-- Teleconsultation Completed -->
+              <div *ngIf="appt.status === 'COMPLETED'" class="space-y-2">
+                <div class="flex items-center gap-2 text-blue-700 bg-blue-100 px-3 py-2 rounded-lg">
+                  <span>✓</span>
+                  <span class="font-semibold text-sm">Session Completed</span>
+                </div>
+                <div *ngIf="appt.meetingUrl" class="bg-gray-100 rounded-lg p-3 border border-gray-200 opacity-60">
+                  <p class="text-xs text-gray-500 mb-1">Meeting Link (expired)</p>
+                  <p class="text-sm font-mono text-gray-400 truncate">{{ appt.meetingUrl }}</p>
+                </div>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="flex flex-col gap-2 min-w-[150px]">
+          <button 
+            *ngIf="appt.status === 'REQUESTED' || appt.status === 'ACCEPTED'"
+            (click)="confirmAppointment(appt.id)"
+            class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold">
+            ✓ Confirm
+          </button>
+          
+          <button 
+            *ngIf="appt.status === 'CONFIRMED'"
+            (click)="completeAppointment(appt.id)"
+            class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold">
+            ✓ Complete
+          </button>
+          
+          <button 
+            *ngIf="appt.status !== 'CANCELLED' && appt.status !== 'COMPLETED'"
+            (click)="cancelAppointment(appt.id)"
+            class="w-full bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition text-sm font-semibold">
+            ✕ Cancel
+          </button>
+
+          <button 
+            class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition text-sm font-semibold">
+            📄 Details
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Dialog Overlay -->
+<div *ngIf="showModal" 
+     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     (click)="closeModal()">
+  <!-- Modal Content -->
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+       (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="bg-primary-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">📅 New Appointment</h2>
+      <button 
+        (click)="closeModal()"
+        class="text-white hover:text-gray-200 transition text-2xl leading-none">
+        ×
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6">
+      <!-- Doctor Info (Read-only) -->
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+            <span class="text-primary-600 text-lg">👨‍⚕️</span>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Doctor</p>
+            <p class="font-semibold text-gray-800">
+              {{ currentUser?.name || 'Current Doctor' }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Patient Selector (Searchable Autocomplete) -->
+        <div class="md:col-span-2 relative">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Patient <span class="text-red-500">*</span>
+          </label>
+          <div class="relative">
+            <input 
+              type="text" 
+              [value]="patientSearchQuery"
+              (input)="onPatientSearch($event)"
+              (focus)="!routePatientId && (showPatientDropdown = true)"
+              (blur)="hidePatientDropdown()"
+              [disabled]="routePatientId && selectedPatient"
+              class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-700"
+              [placeholder]="routePatientId && selectedPatient ? 'Patient pré-sélectionné depuis la liste' : 'Search patient by name, email, or ID...'"
+              autocomplete="off">
+            <span class="absolute left-3 top-3.5 text-gray-400">🔍</span>
+            
+            <!-- Clear button -->
+            <button 
+              *ngIf="selectedPatient && !routePatientId"
+              (click)="clearPatientSelection()"
+              class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
+              ✕
+            </button>
+
+            <!-- Loading indicator -->
+            <div *ngIf="loadingPatients" class="absolute right-3 top-3.5">
+              <div class="animate-spin h-5 w-5 border-2 border-gray-300 border-t-primary-500 rounded-full"></div>
+            </div>
+          </div>
+
+          <!-- Patient Dropdown -->
+          <div *ngIf="showPatientDropdown && filteredPatients.length > 0"
+               class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <div *ngFor="let patient of filteredPatients"
+                 (click)="selectPatient(patient)"
+                 class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-semibold text-gray-800">
+                    {{ patient.fullName || patient.firstName + ' ' + patient.lastName || patient.username }}
+                  </p>
+                  <p class="text-sm text-gray-500">{{ patient.email }}</p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- No results message -->
+          <div *ngIf="showPatientDropdown && patientSearchQuery && filteredPatients.length === 0 && !loadingPatients"
+               class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+            No patients found
+          </div>
+        </div>
+
+        <!-- Linked Caregiver (Auto-display, Read-only) -->
+        <div class="md:col-span-2">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Linked Caregiver</label>
+          <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 flex items-center gap-2">
+            <span *ngIf="linkedCaregiverName" class="text-green-600">👤</span>
+            <span *ngIf="!linkedCaregiverName" class="text-gray-400">👤</span>
+            <span [class]="linkedCaregiverName ? 'text-gray-800' : 'text-gray-400'">
+              {{ linkedCaregiverName || (selectedPatient ? 'No caregiver assigned' : 'Select a patient to view caregiver') }}
+            </span>
+          </div>
+          <p class="text-xs text-gray-500 mt-1" *ngIf="!routePatientId || !selectedPatient">
+            Caregiver is automatically linked from the patient's profile
+          </p>
+          <p class="text-xs text-green-600 mt-1" *ngIf="routePatientId && selectedPatient">
+            ✓ Patient pré-sélectionné depuis la liste
+          </p>
+        </div>
+
+        <!-- Type -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Consultation Type</label>
+          <select 
+            [(ngModel)]="newAppointment.type"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let type of appointmentTypes" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+
+        <!-- Priority -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+          <select 
+            [(ngModel)]="newAppointment.priority"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let priority of appointmentPriorities" [value]="priority">{{ priority }}</option>
+          </select>
+        </div>
+
+        <!-- Mode -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Mode</label>
+          <select 
+            [(ngModel)]="newAppointment.mode"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let mode of appointmentModes" [value]="mode">{{ mode }}</option>
+          </select>
+        </div>
+
+        <!-- Teleconsultation Info (if online) -->
+        <div *ngIf="newAppointment.mode === 'ONLINE'" class="md:col-span-2">
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl">💻</span>
+              <div>
+                <p class="font-semibold text-purple-900">Online Consultation</p>
+                <p class="text-sm text-purple-700 mt-1">
+                  A Jitsi meeting link will be automatically generated when you confirm this appointment.
+                  The patient will be able to join once the appointment is confirmed.
+                </p>
+              </div>
+            </div>
+          </div>
+          <!-- Hidden field for meetingUrl (will be set by backend) -->
+          <input type="hidden" [(ngModel)]="newAppointment.meetingUrl">
+        </div>
+
+        <!-- Start Date -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Start Date & Time <span class="text-red-500">*</span>
+          </label>
+          <input 
+            type="datetime-local" 
+            [(ngModel)]="newAppointment.startAt"
+            (change)="calculateEndDate()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+        </div>
+
+        <!-- Duration -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Duration (minutes)
+          </label>
+          <select 
+            [(ngModel)]="appointmentDuration"
+            (change)="onDurationChange()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option [value]="15">15 min</option>
+            <option [value]="30">30 min</option>
+            <option [value]="45">45 min</option>
+            <option [value]="60">1 hour</option>
+            <option [value]="90">1h 30min</option>
+            <option [value]="120">2 hours</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
+      <button 
+        (click)="createAppointment()"
+        [disabled]="loading || !selectedPatient"
+        class="flex-1 bg-success text-white py-3 rounded-lg hover:bg-opacity-90 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        {{ loading ? 'Creating...' : '✓ Create Appointment' }}
+      </button>
+      <button 
+        (click)="closeModal()"
+        class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,261 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
+  <!-- Header -->
+  <div class="mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">My Appointments</h1>
+    <p class="text-sm sm:text-base text-gray-500 mt-2">View and manage your medical consultations</p>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+    <p class="font-bold">Error</p>
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+    <p class="text-gray-600 mt-4">Loading your appointments...</p>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!loading && !error">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-primary-500">
+        <p class="text-3xl font-bold text-primary-600">{{ appointments.length }}</p>
+        <p class="text-sm text-gray-600">Total</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-green-500">
+        <p class="text-3xl font-bold text-green-600">{{ upcomingAppointments.length }}</p>
+        <p class="text-sm text-gray-600">Upcoming</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-purple-500">
+        <p class="text-3xl font-bold text-purple-600">{{ onlineAppointmentsCount }}</p>
+        <p class="text-sm text-gray-600">Online</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-gray-400">
+        <p class="text-3xl font-bold text-gray-500">{{ pastAppointments.length }}</p>
+        <p class="text-sm text-gray-600">Past</p>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+      <button 
+        (click)="setFilter('ALL')"
+        class="px-4 py-2 rounded-md text-sm font-medium transition"
+        [class.bg-white]="filterStatus === 'ALL'"
+        [class.shadow-sm]="filterStatus === 'ALL'"
+        [class.text-gray-900]="filterStatus === 'ALL'"
+        [class.text-gray-600]="filterStatus !== 'ALL'">
+        All ({{ appointments.length }})
+      </button>
+      <button 
+        (click)="setFilter('CONFIRMED')"
+        class="px-4 py-2 rounded-md text-sm font-medium transition"
+        [class.bg-white]="filterStatus === 'CONFIRMED'"
+        [class.shadow-sm]="filterStatus === 'CONFIRMED'"
+        [class.text-gray-900]="filterStatus === 'CONFIRMED'"
+        [class.text-gray-600]="filterStatus !== 'CONFIRMED'">
+        Confirmed
+      </button>
+      <button 
+        (click)="setFilter('REQUESTED')"
+        class="px-4 py-2 rounded-md text-sm font-medium transition"
+        [class.bg-white]="filterStatus === 'REQUESTED'"
+        [class.shadow-sm]="filterStatus === 'REQUESTED'"
+        [class.text-gray-900]="filterStatus === 'REQUESTED'"
+        [class.text-gray-600]="filterStatus !== 'REQUESTED'">
+        Pending
+      </button>
+      <button 
+        (click)="setFilter('CANCELLED')"
+        class="px-4 py-2 rounded-md text-sm font-medium transition"
+        [class.bg-white]="filterStatus === 'CANCELLED'"
+        [class.shadow-sm]="filterStatus === 'CANCELLED'"
+        [class.text-gray-900]="filterStatus === 'CANCELLED'"
+        [class.text-gray-600]="filterStatus !== 'CANCELLED'">
+        Cancelled
+      </button>
+    </div>
+
+    <!-- Appointments List -->
+    <div *ngIf="filteredAppointments.length > 0" class="space-y-4">
+      <div *ngFor="let appt of filteredAppointments" 
+           class="bg-white rounded-xl shadow-md p-4 sm:p-6 hover:shadow-lg transition border-l-4"
+           [class.border-green-500]="appt.status === 'CONFIRMED'"
+           [class.border-blue-500]="appt.status === 'REQUESTED' || appt.status === 'ACCEPTED'"
+           [class.border-purple-500]="appt.mode === 'ONLINE' && appt.status === 'CONFIRMED'"
+           [class.border-gray-300]="appt.status === 'CANCELLED'"
+           [class.opacity-60]="appt.status === 'CANCELLED'">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">{{ appt.type }}</h3>
+            <p class="text-gray-600 text-sm mt-1">{{ formatDate(appt.startAt) }}</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <!-- Mode Badge -->
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border"
+              [class.bg-purple-100]="appt.mode === 'ONLINE'"
+              [class.text-purple-700]="appt.mode === 'ONLINE'"
+              [class.border-purple-200]="appt.mode === 'ONLINE'"
+              [class.bg-blue-100]="appt.mode === 'ONSITE'"
+              [class.text-blue-700]="appt.mode === 'ONSITE'"
+              [class.border-blue-200]="appt.mode === 'ONSITE'">
+              {{ getModeIcon(appt.mode) }} {{ appt.mode }}
+            </span>
+            <!-- Status Badge -->
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border"
+              [class.bg-green-100]="appt.status === 'CONFIRMED'"
+              [class.text-green-700]="appt.status === 'CONFIRMED'"
+              [class.border-green-200]="appt.status === 'CONFIRMED'"
+              [class.bg-yellow-100]="appt.status === 'REQUESTED'"
+              [class.text-yellow-700]="appt.status === 'REQUESTED'"
+              [class.border-yellow-200]="appt.status === 'REQUESTED'"
+              [class.bg-gray-200]="appt.status === 'CANCELLED'"
+              [class.text-gray-600]="appt.status === 'CANCELLED'"
+              [class.border-gray-300]="appt.status === 'CANCELLED'"
+              [class.bg-blue-100]="appt.status === 'COMPLETED'"
+              [class.text-blue-700]="appt.status === 'COMPLETED'"
+              [class.border-blue-200]="appt.status === 'COMPLETED'">
+              {{ getStatusIcon(appt.status) }} {{ appt.status }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Time & Duration -->
+        <div class="flex items-center gap-6 mb-4 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-gray-400">🕐</span>
+            <span class="font-semibold text-gray-700">{{ formatTime(appt.startAt) }} - {{ formatTime(appt.endAt) }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-400">⏱️</span>
+            <span class="text-gray-600">{{ getDurationMinutes(appt.startAt, appt.endAt) }} min</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-400">⚡</span>
+            <span class="text-gray-600">{{ appt.priority }} priority</span>
+          </div>
+        </div>
+
+        <!-- Teleconsultation Section (ONLINE only) -->
+        <div *ngIf="appt.mode === 'ONLINE'" class="mt-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border border-purple-200">
+          <h4 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <span>💻</span> Teleconsultation
+          </h4>
+          
+          <!-- Ready to Join (CONFIRMED + has meetingUrl) -->
+          <div *ngIf="isTeleconsultationActive(appt); else teleconsultationNotReady" class="space-y-3">
+            <div class="flex items-center gap-2 text-green-700 bg-green-100 px-4 py-2 rounded-lg">
+              <span class="text-xl">✅</span>
+              <div>
+                <p class="font-semibold">Ready to join</p>
+                <p class="text-xs text-green-600">Your meeting is confirmed and ready</p>
+              </div>
+            </div>
+            
+            <!-- Meeting Link Display -->
+            <div class="bg-white rounded-lg p-3 border border-gray-200">
+              <p class="text-xs text-gray-500 mb-1">Meeting Link</p>
+              <a [href]="appt.meetingUrl" target="_blank" rel="noopener noreferrer" 
+                 class="text-sm font-mono text-purple-600 hover:text-purple-800 hover:underline truncate block">
+                {{ appt.meetingUrl }}
+              </a>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-2">
+              <button 
+                type="button"
+                (click)="copyMeetingUrl(appt.meetingUrl)"
+                class="flex-1 sm:flex-none bg-white border border-gray-300 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-50 transition font-semibold flex items-center justify-center gap-2">
+                <span>📋</span> Copy Link
+              </button>
+              <button 
+                type="button"
+                (click)="joinMeeting(appt.meetingUrl)"
+                class="flex-1 sm:flex-none bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold flex items-center justify-center gap-2">
+                <span>🎥</span> Join Meeting
+              </button>
+            </div>
+          </div>
+
+          <ng-template #teleconsultationNotReady>
+            <!-- Confirmed but waiting for meetingUrl -->
+            <div *ngIf="appt.status === 'CONFIRMED' && !appt.meetingUrl" class="space-y-2">
+              <div class="flex items-center gap-2 text-blue-700 bg-blue-100 px-4 py-2 rounded-lg">
+                <span class="text-xl">🔄</span>
+                <div>
+                  <p class="font-semibold">Preparing teleconsultation...</p>
+                  <p class="text-xs text-blue-600">The meeting link is being generated by your doctor</p>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  type="button"
+                  (click)="fetchMeetingUrl(appt.id)"
+                  class="flex-1 bg-white border border-purple-300 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50 transition text-sm font-semibold">
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+
+            <!-- Waiting for Confirmation -->
+            <div *ngIf="isTeleconsultationPending(appt)" class="space-y-2">
+              <div class="flex items-center gap-2 text-yellow-700 bg-yellow-100 px-4 py-2 rounded-lg">
+                <span class="text-xl">⏳</span>
+                <div>
+                  <p class="font-semibold">Waiting for confirmation</p>
+                  <p class="text-xs text-yellow-600">The doctor will confirm your appointment soon</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cancelled -->
+            <div *ngIf="isAppointmentCancelled(appt)" class="space-y-2">
+              <div class="flex items-center gap-2 text-red-700 bg-red-100 px-4 py-2 rounded-lg">
+                <span class="text-xl">❌</span>
+                <div>
+                  <p class="font-semibold">Appointment Cancelled</p>
+                  <p class="text-xs text-red-600">This teleconsultation has been cancelled</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Completed -->
+            <div *ngIf="appt.status === 'COMPLETED'" class="space-y-2">
+              <div class="flex items-center gap-2 text-blue-700 bg-blue-100 px-4 py-2 rounded-lg">
+                <span class="text-xl">✓</span>
+                <div>
+                  <p class="font-semibold">Session Completed</p>
+                  <p class="text-xs text-blue-600">Thank you for attending</p>
+                </div>
+              </div>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Onsite Info -->
+        <div *ngIf="appt.mode === 'ONSITE'" class="mt-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
+          <div class="flex items-center gap-2 text-blue-700">
+            <span class="text-xl">🏥</span>
+            <div>
+              <p class="font-semibold">In-Person Visit</p>
+              <p class="text-xs text-blue-600">Please arrive 15 minutes before your appointment</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredAppointments.length === 0" class="text-center py-12 bg-white rounded-xl shadow-md">
+      <p class="text-6xl mb-4">📅</p>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">No appointments found</h3>
+      <p class="text-gray-500">You don't have any {{ filterStatus !== 'ALL' ? filterStatus.toLowerCase() : '' }} appointments.</p>
+    </div>
+  </div>
+</div>

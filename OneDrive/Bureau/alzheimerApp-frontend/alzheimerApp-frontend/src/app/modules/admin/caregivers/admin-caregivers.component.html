@@ -1,0 +1,153 @@
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl lg:text-4xl font-bold text-gray-900">
+            <span class="bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+              Caregivers & Routines
+            </span>
+          </h1>
+          <p class="text-gray-600 mt-2 flex items-center gap-2">
+            <span>🤝</span>
+            <span>Manage caregiver assignments and daily routines</span>
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <button class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all">
+            <span class="mr-2">📋</span> Manage Routines
+          </button>
+          <button class="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all">
+            <span class="mr-2">➕</span> Add Caregiver
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div *ngFor="let stat of caregiverStats" 
+           class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-500 mb-1">{{ stat.label }}</p>
+            <p class="text-3xl font-bold text-gray-900">{{ stat.value }}</p>
+            <p class="text-xs text-gray-400 mt-2">{{ stat.change }}</p>
+          </div>
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+               [ngClass]="{
+                 'bg-emerald-100': stat.color === 'emerald' || stat.color === 'success',
+                 'bg-blue-100': stat.color === 'blue',
+                 'bg-violet-100': stat.color === 'violet'
+               }">
+            {{ stat.icon }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Caregivers List -->
+      <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <span>👨‍⚕️</span>
+            <span>Caregivers</span>
+          </h2>
+          <div class="flex gap-2">
+            <input type="text" placeholder="Search caregivers..." 
+                   class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-violet-500">
+            <button class="px-3 py-2 bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200">🔍</button>
+          </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="text-left text-xs font-medium text-gray-500 border-b border-gray-100">
+                <th class="pb-3">Caregiver</th>
+                <th class="pb-3">Status</th>
+                <th class="pb-3">Patients</th>
+                <th class="pb-3">Rating</th>
+                <th class="pb-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm">
+              <tr *ngFor="let caregiver of caregivers" class="border-b border-gray-50 last:border-0">
+                <td class="py-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-violet-100 text-violet-600 flex items-center justify-center font-bold">
+                      {{ caregiver.avatar || caregiver.name.charAt(0) }}
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-900">{{ caregiver.name }}</p>
+                      <p class="text-xs text-gray-500">{{ caregiver.email }}</p>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-4">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full" [ngClass]="getStatusDot(caregiver.status)"></span>
+                    <span class="px-2 py-1 text-xs font-medium rounded-full" [ngClass]="getStatusClass(caregiver.status)">
+                      {{ caregiver.status | titlecase }}
+                    </span>
+                  </div>
+                </td>
+                <td class="py-4">
+                  <span class="font-medium">{{ caregiver.patients }}</span>
+                  <span class="text-gray-500 text-xs"> assigned</span>
+                </td>
+                <td class="py-4">
+                  <div class="flex items-center gap-1">
+                    <span *ngFor="let star of getStarArray(caregiver.rating)" 
+                          class="text-sm"
+                          [class.text-amber-400]="star <= caregiver.rating"
+                          [class.text-gray-300]="star > caregiver.rating">★</span>
+                    <span class="text-xs text-gray-500 ml-1">{{ caregiver.rating }}</span>
+                  </div>
+                </td>
+                <td class="py-4">
+                  <button class="text-violet-600 hover:text-violet-700 font-medium text-sm">Edit</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Daily Routines -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <span>📋</span>
+            <span>Daily Routines</span>
+          </h2>
+          <button class="text-violet-600 hover:text-violet-700 text-sm font-medium">+ New</button>
+        </div>
+        
+        <div class="space-y-4">
+          <div *ngFor="let routine of routines" 
+               class="p-4 rounded-xl border border-gray-100 hover:border-violet-200 hover:shadow-md transition-all cursor-pointer">
+            <div class="flex items-start justify-between mb-2">
+              <h3 class="font-semibold text-gray-900">{{ routine.name }}</h3>
+              <span class="px-2 py-1 text-xs font-medium rounded-full"
+                    [ngClass]="routine.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'">
+                {{ routine.status | titlecase }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 mb-3">{{ routine.description }}</p>
+            <div class="flex items-center gap-4 text-xs text-gray-500">
+              <span>👥 {{ routine.patients }} patients</span>
+              <span>📋 {{ routine.tasks }} tasks</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

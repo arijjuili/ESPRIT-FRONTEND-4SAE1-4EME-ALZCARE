@@ -1,0 +1,148 @@
+// Doctor Prescriptions Component Styles
+:host {
+  display: block;
+}
+
+// Prescription Card Styles
+.prescription-card {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+  }
+  
+  &.selected {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6, 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// Legacy plan card (keep for compatibility)
+.plan-card {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateX(4px);
+    border-color: #3b82f6;
+  }
+}
+
+// Form input focus states
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+// Table row hover
+table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+// Modal animation
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Modal content animation
+.fixed inset-0 .bg-white {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+// Scrollbar styling for modal content
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+    border-radius: 3px;
+  }
+}
+
+// Radio button card selection style
+input[type="radio"]:checked + div {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+// Patient dropdown animation
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.absolute.z-10 {
+  animation: dropdownSlideIn 0.15s ease-out;
+}
+
+// Loading spinner animation
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Status badge styles
+.status-active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-suspended {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-stopped {
+  @apply bg-red-100 text-red-800;
+}
+
+// Avatar color variations
+.avatar-blue { @apply bg-blue-500; }
+.avatar-green { @apply bg-green-500; }
+.avatar-purple { @apply bg-purple-500; }
+.avatar-orange { @apply bg-orange-500; }
+.avatar-teal { @apply bg-teal-500; }
+.avatar-indigo { @apply bg-indigo-500; }
+.avatar-pink { @apply bg-pink-500; }
+.avatar-cyan { @apply bg-cyan-500; }
+
+// View mode toggle button styles
+.view-toggle-btn {
+  @apply px-3 py-1 text-xs font-medium rounded-md transition;
+  
+  &.active {
+    @apply bg-white text-primary-700 shadow-sm;
+  }
+  
+  &:not(.active) {
+    @apply text-gray-600 hover:text-gray-800;
+  }
+}

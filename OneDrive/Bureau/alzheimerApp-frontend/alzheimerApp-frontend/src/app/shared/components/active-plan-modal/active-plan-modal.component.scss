@@ -1,0 +1,641 @@
+// ========================================
+// Active Plan Modal Styles
+// ========================================
+
+// Variables
+$primary-color: #3b82f6;
+$primary-hover: #2563eb;
+$success-color: #10b981;
+$success-hover: #059669;
+$warning-color: #f59e0b;
+$warning-hover: #d97706;
+$danger-color: #ef4444;
+$danger-hover: #dc2626;
+
+$gray-50: #f9fafb;
+$gray-100: #f3f4f6;
+$gray-200: #e5e7eb;
+$gray-300: #d1d5db;
+$gray-400: #9ca3af;
+$gray-500: #6b7280;
+$gray-600: #4b5563;
+$gray-700: #374151;
+$gray-800: #1f2937;
+$gray-900: #111827;
+
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+$border-radius: 12px;
+$border-radius-lg: 16px;
+$transition-fast: 150ms ease;
+$transition-normal: 250ms ease;
+
+// ========================================
+// Modal Overlay
+// ========================================
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+// ========================================
+// Modal Container
+// ========================================
+.modal-container {
+  background: white;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-xl;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 300ms ease;
+
+  @media (max-width: 640px) {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// ========================================
+// Header
+// ========================================
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid $gray-200;
+}
+
+.header-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: $border-radius;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .icon-medication {
+    font-size: 1.5rem;
+  }
+}
+
+.header-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: $gray-900;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+}
+
+.modal-subtitle {
+  font-size: 0.875rem;
+  color: $gray-500;
+  margin: 0;
+}
+
+.btn-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: $gray-100;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $gray-500;
+  font-size: 1rem;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $gray-200;
+    color: $gray-700;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ========================================
+// Plan Info Card
+// ========================================
+.plan-info-card {
+  margin: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: $border-radius;
+}
+
+.plan-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.plan-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: $gray-800;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.plan-status {
+  flex-shrink: 0;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  border-radius: 9999px;
+
+  &.status-active {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  &.status-suspended {
+    background: #fef3c7;
+    color: #92400e;
+  }
+}
+
+.plan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: $gray-600;
+}
+
+.detail-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.detail-text {
+  line-height: 1.4;
+
+  &.note-text {
+    font-style: italic;
+    color: $gray-500;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+// ========================================
+// Action Options
+// ========================================
+.action-options {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.options-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $gray-700;
+  margin: 0 0 1rem 0;
+}
+
+.options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid $gray-200;
+  border-radius: $border-radius;
+  background: white;
+  cursor: pointer;
+  text-align: left;
+  transition: all $transition-fast;
+  width: 100%;
+
+  &:hover:not(:disabled) {
+    border-color: $primary-color;
+    background: $gray-50;
+    transform: translateX(4px);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.option-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+
+  .option-adjust & {
+    background: #dbeafe;
+  }
+
+  .option-add & {
+    background: #d1fae5;
+  }
+
+  .option-replace & {
+    background: #fee2e2;
+  }
+}
+
+.option-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.option-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: $gray-800;
+  margin: 0 0 0.25rem 0;
+}
+
+.option-description {
+  font-size: 0.8125rem;
+  color: $gray-500;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.option-arrow {
+  flex-shrink: 0;
+  color: $gray-400;
+  font-size: 1.25rem;
+  transition: color $transition-fast;
+
+  .option-card:hover & {
+    color: $primary-color;
+  }
+}
+
+// ========================================
+// Footer
+// ========================================
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid $gray-200;
+  background: $gray-50;
+  border-radius: 0 0 $border-radius-lg $border-radius-lg;
+}
+
+.btn-cancel {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $gray-600;
+  background: white;
+  border: 1px solid $gray-300;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $gray-50;
+    color: $gray-800;
+    border-color: $gray-400;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ========================================
+// Loading Overlay
+// ========================================
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: $border-radius-lg;
+
+  span {
+    font-size: 0.875rem;
+    color: $gray-600;
+  }
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid $gray-200;
+  border-top-color: $primary-color;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ========================================
+// Medications Section
+// ========================================
+.medications-toggle {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #bfdbfe;
+}
+
+.btn-toggle-medications {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: $primary-color;
+  background: white;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: #eff6ff;
+    border-color: $primary-color;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .toggle-icon {
+    font-size: 0.875rem;
+  }
+
+  .toggle-text {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+.spinner-small {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #bfdbfe;
+  border-top-color: $primary-color;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.medications-section {
+  margin-top: 1rem;
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.medications-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.875rem;
+
+  .error-icon {
+    flex-shrink: 0;
+  }
+}
+
+.medications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.medication-item {
+  padding: 0.875rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: #bfdbfe;
+    box-shadow: $shadow-sm;
+  }
+}
+
+.medication-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.375rem;
+}
+
+.medication-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: $gray-800;
+}
+
+.medication-risk {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.medication-details {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: $gray-600;
+  margin-bottom: 0.5rem;
+}
+
+.medication-dosage {
+  font-weight: 500;
+  color: $gray-700;
+}
+
+.detail-separator {
+  color: $gray-400;
+}
+
+.medication-frequency {
+  text-transform: capitalize;
+}
+
+.medication-times {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.times-label {
+  font-size: 0.75rem;
+  color: $gray-500;
+  margin-right: 0.25rem;
+}
+
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: $primary-color;
+  background: #eff6ff;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.medications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: $gray-500;
+
+  .empty-icon {
+    font-size: 1.5rem;
+    opacity: 0.7;
+  }
+
+  .empty-text {
+    font-size: 0.875rem;
+  }
+}
+
+// ========================================
+// Responsive Adjustments
+// ========================================
+@media (max-width: 480px) {
+  .modal-header {
+    padding: 1.25rem;
+  }
+
+  .header-icon {
+    width: 40px;
+    height: 40px;
+
+    .icon-medication {
+      font-size: 1.25rem;
+    }
+  }
+
+  .modal-title {
+    font-size: 1.125rem;
+  }
+
+  .plan-info-card {
+    margin: 1.25rem;
+    padding: 1rem;
+  }
+
+  .action-options {
+    padding: 0 1.25rem 1.25rem;
+  }
+
+  .option-card {
+    padding: 0.875rem;
+  }
+
+  .option-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+}
