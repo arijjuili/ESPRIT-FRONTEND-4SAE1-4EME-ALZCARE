@@ -128,9 +128,7 @@ export class PatientAssessmentComponent implements OnInit {
   }
 
   private pickScheduleRecord(records: HealthRecord[], preferredId?: string): HealthRecord | null {
-    const schedulable = records.filter(record =>
-      record.isActive === true && !record.completedAt
-    );
+    const schedulable = records.filter(record => record.isActive === true);
     if (preferredId) {
       const preferred = schedulable.find(record => record.id === preferredId);
       if (preferred) return preferred;

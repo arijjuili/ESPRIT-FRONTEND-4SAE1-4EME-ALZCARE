@@ -371,9 +371,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     this.isLoadingAssessment = true;
     this.apiService.getHealthRecords(patientId, undefined, RecordType.ASSESSMENT).subscribe({
       next: (records) => {
-        const schedules = records.filter(record =>
-          record.isActive === true && !record.completedAt
-        );
+        const schedules = records.filter(record => record.isActive === true);
         if (!schedules.length) {
           this.assessmentItems = [];
         } else {

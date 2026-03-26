@@ -489,12 +489,15 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   saveEdit(assessment: HealthRecord): void {
     const today = new Date();
-    const nextDue = new Date(today);
-    nextDue.setMonth(nextDue.getMonth() + this.editFrequencyMonths);
+    const todayStr = today.toISOString().slice(0, 10);
+    const isReactivating = assessment.isActive !== true && this.editIsActive === true;
+    const nextDueDate = isReactivating
+      ? todayStr
+      : (assessment.nextDueDate || assessment.date || todayStr);
 
     this.apiService.updateHealthRecord(assessment.id, {
       frequencyMonths: this.editFrequencyMonths,
-      nextDueDate: nextDue.toISOString().slice(0, 10),
+      nextDueDate,
       isActive: this.editIsActive,
       assessmentQuestions: this.editQuestions.filter((q: string) => q.trim().length)
     } as any).subscribe({
