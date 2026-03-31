@@ -166,7 +166,8 @@ export class DoctorAppointmentsComponent implements OnInit {
   initializeDateFilters(): void {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // End of day, otherwise appointments on the last day (e.g. 31st 09:30) fall outside the range.
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     
     this.filterFrom = this.formatDateTimeLocal(firstDay);
     this.filterTo = this.formatDateTimeLocal(lastDay);
@@ -420,18 +421,23 @@ export class DoctorAppointmentsComponent implements OnInit {
     // Set the doctor ID from logged-in user
     this.newAppointment.doctorId = this.doctorId;
 
-    // Ensure dates are in ISO format without timezone (for LocalDateTime compatibility)
-    const formatLocalDateTime = (dateStr: string): string => {
-      const date = new Date(dateStr);
-      // Format: YYYY-MM-DDTHH:mm:ss.sss (ISO format without Z)
-      return date.toISOString().replace('Z', '');
+    // NOTE: `datetime-local` already gives local time like "2026-03-31T09:30".
+    // Converting to `toISOString()` would shift to UTC and then sending it as LocalDateTime
+    // would store the wrong time in the backend.
+    const normalizeLocalDateTime = (value: string): string => {
+      if (!value) return value;
+      // Ensure seconds are present for LocalDateTime parsing.
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+        return `${value}:00`;
+      }
+      return value.replace(/Z$/, '');
     };
 
     const appointmentToSend = {
       ...this.newAppointment,
       status: 'REQUESTED',
-      startAt: formatLocalDateTime(this.newAppointment.startAt),
-      endAt: formatLocalDateTime(this.newAppointment.endAt)
+      startAt: normalizeLocalDateTime(this.newAppointment.startAt),
+      endAt: normalizeLocalDateTime(this.newAppointment.endAt)
     };
 
     // Debug log
@@ -487,7 +493,7 @@ export class DoctorAppointmentsComponent implements OnInit {
               this.appointments[index].mode === AppointmentMode.ONLINE &&
               !this.appointments[index].meetingUrl) {
             console.log('[DoctorAppointments] No meetingUrl after confirm, fetching specific appointment...');
-            this.reloadSingleAppointment(appointmentId);
+            this.fetchMeetingUrl(appointmentId);
           }
         }
         this.loading = false;
@@ -705,32 +711,66 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.loading = true;
     this.error = null;
     
-    this.medicalService.getAppointment(appointmentId).subscribe({
-      next: (appointment) => {
-        console.log('[DoctorAppointments] Fetched appointment:', appointment);
-        const index = this.appointments.findIndex(a => a.id === appointmentId);
-        
-        if (index !== -1) {
-          this.appointments[index] = { 
-            ...this.appointments[index], 
-            meetingUrl: appointment.meetingUrl 
-          };
-          this.appointments = [...this.appointments];
-          
-          if (appointment.meetingUrl) {
-            console.log('[DoctorAppointments] Updated with meetingUrl:', appointment.meetingUrl);
-          } else {
-            console.warn('[DoctorAppointments] No meetingUrl yet - appointment needs to be confirmed');
-          }
-        }
+    this.medicalService.getTeleconsultationLink(appointmentId, this.currentUser.id).subscribe({
+      next: ({ meetingUrl }) => {
+        console.log('[DoctorAppointments] Teleconsultation link response:', meetingUrl);
+        this.applyMeetingUrl(appointmentId, meetingUrl);
         this.loading = false;
       },
       error: (err) => {
-        console.error('[DoctorAppointments] Error fetching appointment:', err);
-        this.error = 'Failed to get meeting link. Please try refreshing.';
-        this.loading = false;
+        console.warn('[DoctorAppointments] Direct teleconsultation link fetch failed, retrying confirmation...', err);
+
+        this.medicalService.changeAppointmentStatus(appointmentId, AppointmentStatus.CONFIRMED).subscribe({
+          next: (updated) => {
+            console.log('[DoctorAppointments] Reconfirm response:', updated);
+            this.applyMeetingUrl(appointmentId, updated.meetingUrl);
+
+            if (updated.meetingUrl) {
+              this.loading = false;
+              return;
+            }
+
+            this.medicalService.getAppointment(appointmentId).subscribe({
+              next: (appointment) => {
+                console.log('[DoctorAppointments] Appointment after reconfirm:', appointment);
+                this.applyMeetingUrl(appointmentId, appointment.meetingUrl);
+                this.loading = false;
+              },
+              error: (reloadErr) => {
+                console.error('[DoctorAppointments] Error reloading appointment after reconfirm:', reloadErr);
+                this.error = 'Failed to get meeting link from backend. Please try again.';
+                this.loading = false;
+              }
+            });
+          },
+          error: (confirmErr) => {
+            console.error('[DoctorAppointments] Error fetching/reconfirming meeting link:', confirmErr);
+            this.error = 'Failed to get meeting link from backend. Please try again.';
+            this.loading = false;
+          }
+        });
       }
     });
+  }
+
+  private applyMeetingUrl(appointmentId: number, meetingUrl: string | null | undefined): void {
+    const index = this.appointments.findIndex(a => a.id === appointmentId);
+
+    if (index === -1) {
+      return;
+    }
+
+    this.appointments[index] = {
+      ...this.appointments[index],
+      meetingUrl: meetingUrl || undefined
+    };
+    this.appointments = [...this.appointments];
+
+    if (meetingUrl) {
+      console.log('[DoctorAppointments] Updated with meetingUrl:', meetingUrl);
+    } else {
+      console.warn('[DoctorAppointments] No meetingUrl yet - appointment needs to be confirmed');
+    }
   }
 
   /**

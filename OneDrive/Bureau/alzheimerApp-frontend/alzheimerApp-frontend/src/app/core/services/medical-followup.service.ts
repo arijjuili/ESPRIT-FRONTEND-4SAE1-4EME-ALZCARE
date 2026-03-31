@@ -228,6 +228,23 @@ export class MedicalFollowupService {
     );
   }
 
+  regenerateTeleconsultationLink(id: number, doctorId: string): Observable<{ meetingUrl: string }> {
+    const url = `${this.baseUrl}/appointments/${id}/teleconsultation/regenerate`;
+    const params = new HttpParams().set('doctorId', doctorId);
+
+    console.log('[MedicalFollowupService] Regenerating teleconsultation link:', { id, doctorId });
+
+    return this.http.post<any>(url, null, { params }).pipe(
+      map(response => ({
+        meetingUrl: response.meetingUrl || response.meetingLink || null
+      })),
+      catchError((error: HttpErrorResponse) => {
+        console.error('[MedicalFollowupService] Regenerate link ERROR:', error.status, error.message);
+        return throwError(() => error);
+      })
+    );
+  }
+
   // ==================== MEDICATION PLANS ====================
 
   /**

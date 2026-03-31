@@ -234,21 +234,21 @@ export class PatientAppointmentsComponent implements OnInit {
     this.error = null;
     
     // Récupérer l'appointment depuis le backend
-    this.medicalService.getAppointment(appointmentId).subscribe({
-      next: (appointment) => {
-        console.log('[PatientAppointments] Fetched appointment:', appointment);
+    this.medicalService.getTeleconsultationLink(appointmentId, this.patientId).subscribe({
+      next: ({ meetingUrl }) => {
+        console.log('[PatientAppointments] Teleconsultation link response:', meetingUrl);
         
         const index = this.appointments.findIndex(a => a.id === appointmentId);
         if (index !== -1) {
           // Mettre à jour l'appointment avec le meetingUrl du backend
           this.appointments[index] = { 
             ...this.appointments[index], 
-            meetingUrl: appointment.meetingUrl 
+            meetingUrl: meetingUrl || undefined
           };
           this.appointments = [...this.appointments];
           
-          if (appointment.meetingUrl) {
-            console.log('[PatientAppointments] Updated meetingUrl from backend:', appointment.meetingUrl);
+          if (meetingUrl) {
+            console.log('[PatientAppointments] Updated meetingUrl from backend:', meetingUrl);
           } else {
             console.warn('[PatientAppointments] No meetingUrl yet - doctor needs to confirm appointment');
             this.error = 'Meeting link not ready yet. Waiting for doctor confirmation.';
@@ -257,7 +257,7 @@ export class PatientAppointmentsComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        console.error('[PatientAppointments] ERROR fetching appointment:', err);
+        console.error('[PatientAppointments] ERROR fetching teleconsultation link:', err);
         this.error = 'Failed to get meeting link. Please try refreshing.';
         this.loading = false;
       }
