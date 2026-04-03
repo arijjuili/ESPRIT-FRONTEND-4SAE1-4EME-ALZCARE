@@ -437,6 +437,7 @@
           <label class="block text-sm font-semibold text-gray-700 mb-2">Mode</label>
           <select 
             [(ngModel)]="newAppointment.mode"
+            (change)="onModeChange()"
             class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
             <option *ngFor="let mode of appointmentModes" [value]="mode">{{ mode }}</option>
           </select>
@@ -472,34 +473,131 @@
             class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
         </div>
 
-        <!-- Duration -->
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-2">
-            Duration (minutes)
-          </label>
-          <select 
-            [(ngModel)]="appointmentDuration"
-            (change)="onDurationChange()"
-            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
-            <option [value]="15">15 min</option>
-            <option [value]="30">30 min</option>
-            <option [value]="45">45 min</option>
-            <option [value]="60">1 hour</option>
-            <option [value]="90">1h 30min</option>
-            <option [value]="120">2 hours</option>
-          </select>
-        </div>
+	        <!-- Duration -->
+	        <div>
+	          <label class="block text-sm font-semibold text-gray-700 mb-2">
+	            Duration (minutes)
+	          </label>
+	          <select 
+	            [(ngModel)]="appointmentDuration"
+	            (change)="onDurationChange()"
+	            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+	            <option [value]="15">15 min</option>
+	            <option [value]="30">30 min</option>
+	            <option [value]="45">45 min</option>
+	            <option [value]="60">1 hour</option>
+	            <option [value]="90">1h 30min</option>
+	            <option [value]="120">2 hours</option>
+	          </select>
+	        </div>
+
+	        <!-- Smart Scheduling (Conflict Resolution & Availability Control) -->
+	        <div class="md:col-span-2">
+	          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+	            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+	              <div>
+	                <p class="font-semibold text-gray-800">Smart Scheduling</p>
+	                <p class="text-xs text-gray-500 mt-1">
+	                  Detect conflicts (doctor, patient, caregiver) and propose compatible alternative slots.
+	                </p>
+	              </div>
+	              <button
+	                type="button"
+	                (click)="checkAvailability()"
+	                [disabled]="availabilityLoading || !selectedPatient || !newAppointment.startAt"
+	                class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+	                {{ availabilityLoading ? 'Checking...' : 'Check availability' }}
+	              </button>
+	            </div>
+
+	            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+	              <label class="flex items-center gap-2 text-sm text-gray-700">
+	                <input
+	                  type="checkbox"
+	                  [(ngModel)]="caregiverMustBeAvailable"
+	                  [disabled]="newAppointment.mode === 'ONLINE'"
+	                  (change)="onConstraintsChange()"
+	                  class="h-4 w-4">
+	                <span>Caregiver must be available</span>
+	              </label>
+
+	              <label class="flex items-center gap-2 text-sm text-gray-700">
+	                <input
+	                  type="checkbox"
+	                  [(ngModel)]="transportDependency"
+	                  [disabled]="newAppointment.mode === 'ONLINE' || !caregiverMustBeAvailable"
+	                  (change)="onConstraintsChange()"
+	                  class="h-4 w-4">
+	                <span>Transport dependency (adds {{ transportBufferMinutes }} min buffer)</span>
+	              </label>
+	            </div>
+
+	            <p class="text-xs text-gray-500 mt-2" *ngIf="linkedCaregiverId">
+	              Linked caregiver: <span class="font-mono">{{ linkedCaregiverId }}</span>
+	            </p>
+	            <p class="text-xs text-amber-700 mt-2" *ngIf="!linkedCaregiverId && caregiverMustBeAvailable && newAppointment.mode === 'ONSITE'">
+	              No caregiver linked. Onsite scheduling will be blocked until a caregiver is assigned.
+	            </p>
+	          </div>
+	        </div>
+
+	        <!-- Availability Results -->
+	        <div *ngIf="availabilityChecked" class="md:col-span-2 space-y-3">
+	          <div *ngIf="availabilityError" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
+	            <p class="font-bold">Availability check failed</p>
+	            <p>{{ availabilityError }}</p>
+	          </div>
+
+	          <div *ngIf="!availabilityError && availabilityConflicts.length === 0" class="bg-green-50 border border-green-200 text-green-800 p-4 rounded">
+	            <p class="font-semibold">✓ No conflicts detected for the selected slot.</p>
+	          </div>
+
+	          <div *ngIf="availabilityConflicts.length > 0" class="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded">
+	            <p class="font-semibold">Scheduling conflict detected</p>
+	            <div class="mt-2 space-y-2">
+	              <div *ngFor="let c of availabilityConflicts" class="text-sm">
+	                <span class="font-semibold">{{ c.party }}</span>:
+	                <span>{{ formatDateDisplay(c.withAppointment.startAt) }} - {{ formatDateDisplay(c.withAppointment.endAt) }}</span>
+	                <span class="text-amber-700" *ngIf="c.reason">({{ c.reason }})</span>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+
+	        <!-- Suggested Slots -->
+	        <div *ngIf="suggestedSlots.length > 0" class="md:col-span-2">
+	          <div class="bg-white border border-gray-200 rounded-lg p-4">
+	            <p class="font-semibold text-gray-800 mb-2">Suggested alternative time slots</p>
+	            <div class="space-y-2">
+	              <div *ngFor="let s of suggestedSlots" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+	                <div class="text-sm text-gray-800">
+	                  <span class="font-semibold">{{ formatDateDisplay(s.startAt) }}</span>
+	                  <span class="text-gray-500">({{ getDurationMinutes(s.startAt, s.endAt) }} min)</span>
+	                </div>
+	                <button
+	                  type="button"
+	                  (click)="applySuggestedSlot(s)"
+	                  class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold">
+	                  Choose slot
+	                </button>
+	              </div>
+	            </div>
+	            <p class="text-xs text-gray-500 mt-2">
+	              Choosing a slot updates the form. Click "Create Appointment" to confirm.
+	            </p>
+	          </div>
+	        </div>
       </div>
     </div>
 
     <!-- Modal Footer -->
-    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
-      <button 
-        (click)="createAppointment()"
-        [disabled]="loading || !selectedPatient"
-        class="flex-1 bg-success text-white py-3 rounded-lg hover:bg-opacity-90 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
-        {{ loading ? 'Creating...' : '✓ Create Appointment' }}
-      </button>
+	    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
+	      <button 
+	        (click)="createAppointment()"
+	        [disabled]="loading || availabilityLoading || !selectedPatient"
+	        class="flex-1 bg-success text-white py-3 rounded-lg hover:bg-opacity-90 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+	        {{ loading ? 'Creating...' : (availabilityLoading ? 'Checking...' : '✓ Create Appointment') }}
+	      </button>
       <button 
         (click)="closeModal()"
         class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">

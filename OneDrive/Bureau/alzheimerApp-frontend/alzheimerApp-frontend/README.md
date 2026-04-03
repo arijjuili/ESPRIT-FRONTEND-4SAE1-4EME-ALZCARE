@@ -98,6 +98,57 @@ The app supports role-based access control:
 
 The teleconsultation feature enables secure online video consultations between doctors and patients using Jitsi Meet.
 
+### Jitsi Teleconsultation API (How It Works)
+
+This project does **not** host Jitsi itself. We generate a **Jitsi room URL** in the backend and store it on the appointment.
+
+**Where the link lives**
+- Backend persists the link in `appointment.meetingUrl` (DB column `meeting_url`).
+- Frontend reads `meetingUrl` (and also accepts `meetingLink` for backward compatibility).
+
+**When the link is generated**
+- Only for appointments with:
+  - `mode = ONLINE`
+  - `status = CONFIRMED`
+- The backend generates a unique room name and builds the URL as:
+  - `${JITSI_BASE_URL}/${roomName}` (default base: `https://meet.jit.si`)
+
+**Backend endpoints used for teleconsultation**
+All routes are under the medical-followup microservice (aka `medical-followup-ms` / `medical-management` service):
+
+```http
+PATCH /api/v1/appointments/{id}/status?status=CONFIRMED
+  - Confirms an appointment.
+  - For ONLINE appointments, the backend generates & persists `meetingUrl`.
+
+GET /api/v1/appointments/{id}
+  - Returns the appointment details (including `meetingUrl` when available).
+
+GET /api/v1/appointments/{id}/teleconsultation/link?userId={patientOrDoctorId}
+  - Returns the meeting link payload.
+  - Response may include `meetingUrl` and/or `meetingLink`.
+```
+
+Optional (doctor-only) endpoint (if enabled in your running backend):
+
+```http
+POST /api/v1/appointments/{id}/teleconsultation/regenerate?doctorId={doctorId}
+  - Forces a new link to be generated and persisted.
+```
+
+**Backend configuration**
+These are defined in `medical-followup-ms` config:
+
+```text
+JITSI_BASE_URL=https://meet.jit.si
+TELECONSULTATION_ROOM_PREFIX=alzcare
+```
+
+**Frontend integration points**
+- API client: `src/app/core/services/medical-followup.service.ts`
+- Doctor UI: `src/app/modules/doctor/appointments/doctor-appointments.component.ts`
+- Patient UI: `src/app/modules/patient/appointments/patient-appointments.component.ts`
+
 ### Features
 
 | Feature | Doctor | Patient | Caregiver |

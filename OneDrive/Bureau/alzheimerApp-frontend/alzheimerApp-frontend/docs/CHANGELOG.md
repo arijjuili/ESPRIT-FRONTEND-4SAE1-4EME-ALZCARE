@@ -1,5 +1,34 @@
 # Changelog - CareHub
 
+## Session 14 (2026-04-01) - Smart Scheduling (Module 1.2)
+
+### Feature: Conflict Resolution & Availability Control (Doctor Appointments)
+**Goal:** Detect scheduling conflicts between doctor/patient/caregiver and propose compatible alternative time slots.  
+**Solution:** Implemented a lightweight scheduling engine and integrated it into the doctor appointment creation modal.
+
+**What was added**
+- Conflict detection for the selected slot across:
+  - Doctor appointments
+  - Patient appointments
+  - Caregiver appointments (when caregiver is linked and required)
+- Availability constraints:
+  - "Caregiver must be available" toggle (disabled for ONLINE)
+  - "Transport dependency" toggle (adds a configurable buffer to caregiver conflicts for ONSITE)
+  - Block ONSITE scheduling when caregiver is required but not linked to the patient
+- Automatic alternative slot suggestions within business hours (Mon-Fri, 09:00-17:00)
+- UI flow: doctor checks availability, reviews conflicts, picks a suggested slot, then confirms by creating the appointment
+
+**Files Changed:**
+- `src/app/core/services/appointment-scheduling.service.ts`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.ts`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.html`
+- `docs/CURRENT_TASK.md`
+
+### Known Environment Notes
+- `ng build` fails here with `spawn EPERM` (esbuild-wasm). Use `ng serve` / local machine for manual verification.
+
+---
+
 ## Session 13 (2026-02-17) - Profile Creation Bug Fixes
 
 ### Critical Fix: User Creation Profile Synchronization

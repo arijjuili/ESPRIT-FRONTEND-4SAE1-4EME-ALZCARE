@@ -2,11 +2,19 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ManagedUser, UserRole } from '../../../core/models/user-management.model';
 import { AuthUser } from '../../../core/models/user.model';
+import {
+  AppointmentSchedulingService,
+  AvailabilitySource,
+  SchedulingConflict,
+  SuggestedSlot
+} from '../../../core/services/appointment-scheduling.service';
 import {
   Appointment,
   AppointmentCreateRequest,
@@ -69,7 +77,20 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   // Linked caregiver info (display only)
   linkedCaregiverName: string | null = null;
+  linkedCaregiverId: string | null = null;
 
+  // Smart Scheduling (Module 1.2)
+  caregiverMustBeAvailable = true;
+  transportDependency = false;
+  transportBufferMinutes = 30;
+
+  // Availability / conflict resolution state
+  availabilityChecked = false;
+  availabilityLoading = false;
+  availabilityError: string | null = null;
+  availabilityConflicts: SchedulingConflict[] = [];
+  suggestedSlots: SuggestedSlot[] = [];
+  
   // Appointment duration in minutes (default: 30)
   appointmentDuration: number = 30;
 
@@ -87,13 +108,14 @@ export class DoctorAppointmentsComponent implements OnInit {
   // Route parameter for pre-selected patient
   routePatientId: string | null = null;
 
-  constructor(
-    private medicalService: MedicalFollowupService,
-    private userManagementService: UserManagementService,
-    private authService: AuthService,
-    private route: ActivatedRoute,
-    private cdr: ChangeDetectorRef
-  ) {}
+	  constructor(
+	    private medicalService: MedicalFollowupService,
+	    private userManagementService: UserManagementService,
+	    private authService: AuthService,
+	    private schedulingService: AppointmentSchedulingService,
+	    private route: ActivatedRoute,
+	    private cdr: ChangeDetectorRef
+	  ) {}
 
   ngOnInit(): void {
     this.loadCurrentUser();
@@ -203,9 +225,11 @@ export class DoctorAppointmentsComponent implements OnInit {
     const query = input.value;
     this.patientSearchQuery = query;
     this.showPatientDropdown = true;
-    this.selectedPatient = null;
-    this.newAppointment.patientId = '';
-    this.linkedCaregiverName = null;
+	    this.selectedPatient = null;
+	    this.newAppointment.patientId = '';
+	    this.linkedCaregiverName = null;
+	    this.linkedCaregiverId = null;
+	    this.resetAvailability();
 
     if (!query.trim()) {
       this.filteredPatients = this.patients;
@@ -232,11 +256,12 @@ export class DoctorAppointmentsComponent implements OnInit {
     const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
     this.newAppointment.patientId = keycloakId;
     console.log('[DoctorAppointments] Selected patient ID:', keycloakId);
-    this.patientSearchQuery = this.getPatientDisplayName(patient);
-    this.showPatientDropdown = false;
-    
-    // Load patient profile to get linked caregiver
-    this.loadPatientCaregiver(patient.id);
+	    this.patientSearchQuery = this.getPatientDisplayName(patient);
+	    this.showPatientDropdown = false;
+	    this.resetAvailability();
+	    
+	    // Load patient profile to get linked caregiver
+	    this.loadPatientCaregiver(patient.id);
   }
 
   /**
@@ -244,18 +269,23 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   loadPatientCaregiver(patientId: string): void {
     const patient = this.patients.find(p => p.id === patientId);
-    if (patient && (patient as any).caregiverId) {
-      const caregiverId = (patient as any).caregiverId;
-      // Try to find caregiver in loaded patients list
-      const caregiver = this.patients.find(p => p.id === caregiverId);
-      if (caregiver) {
-        this.linkedCaregiverName = caregiver.fullName || caregiver.username || 'Unknown';
-      } else {
-        this.linkedCaregiverName = 'Assigned (details unavailable)';
-      }
-    } else {
+    if (!patient) {
       this.linkedCaregiverName = null;
+      this.linkedCaregiverId = null;
+      return;
     }
+
+    const caregiverId = this.extractCaregiverId(patient);
+    this.linkedCaregiverId = caregiverId;
+
+    if (!caregiverId) {
+      this.linkedCaregiverName = null;
+      return;
+    }
+
+    // We may not have caregiver details here (patients list). Keep a useful fallback label.
+    const caregiver = this.patients.find(p => p.id === caregiverId);
+    this.linkedCaregiverName = caregiver?.fullName || caregiver?.username || `Assigned (${caregiverId})`;
   }
 
   /**
@@ -297,6 +327,7 @@ export class DoctorAppointmentsComponent implements OnInit {
       const startDate = new Date(this.newAppointment.startAt);
       const endDate = new Date(startDate.getTime() + this.appointmentDuration * 60000);
       this.newAppointment.endAt = this.formatDateTimeLocal(endDate);
+      this.resetAvailability();
     }
   }
 
@@ -305,6 +336,21 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   onDurationChange(): void {
     this.calculateEndDate();
+  }
+
+  onModeChange(): void {
+    // Transport/caregiver constraints are relevant mainly for onsite visits.
+    if (this.newAppointment.mode === AppointmentMode.ONLINE) {
+      this.transportDependency = false;
+      this.caregiverMustBeAvailable = false;
+    } else {
+      this.caregiverMustBeAvailable = true;
+    }
+    this.resetAvailability();
+  }
+
+  onConstraintsChange(): void {
+    this.resetAvailability();
   }
 
   /**
@@ -324,7 +370,9 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.patientSearchQuery = '';
     this.newAppointment.patientId = '';
     this.linkedCaregiverName = null;
+    this.linkedCaregiverId = null;
     this.filteredPatients = this.patients;
+    this.resetAvailability();
   }
 
   /**
@@ -421,16 +469,35 @@ export class DoctorAppointmentsComponent implements OnInit {
     // Set the doctor ID from logged-in user
     this.newAppointment.doctorId = this.doctorId;
 
-    // NOTE: `datetime-local` already gives local time like "2026-03-31T09:30".
-    // Converting to `toISOString()` would shift to UTC and then sending it as LocalDateTime
-    // would store the wrong time in the backend.
+    // Smart Scheduling Conflict Resolution (Module 1.2)
+    // If a conflict exists, we suggest alternatives and block creation until user chooses a compatible slot.
+    this.runAvailabilityCheck(() => this.performCreateAppointment());
+  }
+
+  checkAvailability(): void {
+    if (!this.validateAppointment()) {
+      return;
+    }
+    this.runAvailabilityCheck();
+  }
+
+  applySuggestedSlot(slot: SuggestedSlot): void {
+    const start = this.schedulingService.parseLocalDateTime(slot.startAt);
+    const end = this.schedulingService.parseLocalDateTime(slot.endAt);
+
+    if (!start || !end) {
+      this.availabilityError = 'Invalid suggested slot. Please try another one.';
+      return;
+    }
+
+    this.newAppointment.startAt = this.formatDateTimeLocal(start);
+    this.newAppointment.endAt = this.formatDateTimeLocal(end);
+    this.resetAvailability();
+  }
+
+  private performCreateAppointment(): void {
     const normalizeLocalDateTime = (value: string): string => {
-      if (!value) return value;
-      // Ensure seconds are present for LocalDateTime parsing.
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
-        return `${value}:00`;
-      }
-      return value.replace(/Z$/, '');
+      return this.schedulingService.normalizeLocalDateTime(value);
     };
 
     const appointmentToSend = {
@@ -440,14 +507,11 @@ export class DoctorAppointmentsComponent implements OnInit {
       endAt: normalizeLocalDateTime(this.newAppointment.endAt)
     };
 
-    // Debug log
-    console.log('Creating appointment:', JSON.stringify(appointmentToSend, null, 2));
-
     this.loading = true;
     this.medicalService.createAppointment(appointmentToSend).subscribe({
       next: (appointment) => {
         this.appointments.push(appointment);
-        this.appointments.sort((a, b) => 
+        this.appointments.sort((a, b) =>
           new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
         );
         this.closeModal();
@@ -457,6 +521,131 @@ export class DoctorAppointmentsComponent implements OnInit {
         this.error = 'Error creating appointment';
         this.loading = false;
         console.error('Error creating appointment:', err);
+      }
+    });
+  }
+
+  private runAvailabilityCheck(onAvailable?: () => void): void {
+    this.availabilityChecked = false;
+    this.availabilityLoading = true;
+    this.availabilityError = null;
+    this.availabilityConflicts = [];
+    this.suggestedSlots = [];
+
+    const startAt = this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt);
+    const endAt = this.schedulingService.normalizeLocalDateTime(this.newAppointment.endAt);
+
+    const startDate = this.schedulingService.parseLocalDateTime(startAt);
+    if (!startDate) {
+      this.availabilityLoading = false;
+      this.availabilityError = 'Invalid start date/time.';
+      return;
+    }
+
+    // Scan window for suggestions (two weeks from the selected day).
+    const scanFrom = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+    const scanTo = new Date(scanFrom.getTime());
+    scanTo.setDate(scanTo.getDate() + 14);
+    scanTo.setHours(23, 59, 59, 0);
+
+    const from = this.schedulingService.toLocalDateTimeString(scanFrom);
+    const to = this.schedulingService.toLocalDateTimeString(scanTo);
+
+    const caregiverId = this.caregiverMustBeAvailable ? this.linkedCaregiverId : null;
+
+    // Availability control: prevent unrealistic onsite scheduling without a linked caregiver when required.
+    if (this.caregiverMustBeAvailable && !caregiverId && this.newAppointment.mode === AppointmentMode.ONSITE) {
+      this.availabilityLoading = false;
+      this.availabilityChecked = true;
+      this.availabilityConflicts = [
+        {
+          party: 'CAREGIVER',
+          withAppointment: {
+            id: -1 as any,
+            patientId: this.newAppointment.patientId,
+            doctorId: Number(this.doctorId) as any,
+            type: this.newAppointment.type,
+            priority: this.newAppointment.priority,
+            mode: this.newAppointment.mode,
+            status: AppointmentStatus.REQUESTED,
+            startAt,
+            endAt,
+            createdAt: startAt,
+            updatedAt: startAt
+          },
+          reason: 'Caregiver is required but no caregiver is linked to this patient.'
+        }
+      ];
+      return;
+    }
+
+    const doctor$ = this.medicalService.getDoctorAppointments(this.doctorId, from, to).pipe(
+      catchError((err) => {
+        console.warn('[DoctorAppointments] Availability check: failed to load doctor appointments', err);
+        return of([] as Appointment[]);
+      })
+    );
+
+    const patient$ = this.medicalService.getPatientAppointments(this.newAppointment.patientId, from, to).pipe(
+      catchError((err) => {
+        console.warn('[DoctorAppointments] Availability check: failed to load patient appointments', err);
+        return of([] as Appointment[]);
+      })
+    );
+
+    const caregiver$ = caregiverId
+      ? this.medicalService.listAppointments({ caregiverId, from, to }).pipe(
+          catchError((err) => {
+            console.warn('[DoctorAppointments] Availability check: failed to load caregiver appointments', err);
+            return of([] as Appointment[]);
+          })
+        )
+      : of([] as Appointment[]);
+
+    forkJoin({ doctor: doctor$, patient: patient$, caregiver: caregiver$ }).subscribe({
+      next: ({ doctor, patient, caregiver }) => {
+        const sources: AvailabilitySource[] = [
+          { party: 'DOCTOR', appointments: doctor },
+          { party: 'PATIENT', appointments: patient }
+        ];
+
+        if (caregiverId) {
+          const caregiverBuffer =
+            this.newAppointment.mode === AppointmentMode.ONSITE && this.transportDependency
+              ? this.transportBufferMinutes
+              : 0;
+          sources.push({ party: 'CAREGIVER', appointments: caregiver, bufferMinutes: caregiverBuffer });
+        }
+
+        const conflicts = this.schedulingService.findConflicts(startAt, endAt, sources);
+        this.availabilityConflicts = conflicts;
+        this.availabilityChecked = true;
+
+        if (conflicts.length > 0) {
+          this.suggestedSlots = this.schedulingService.suggestSlots({
+            startSearchAt: startAt,
+            durationMinutes: this.appointmentDuration,
+            sources,
+            mode: this.newAppointment.mode,
+            maxSuggestions: 8,
+            daysToScan: 14,
+            stepMinutes: 15,
+            workingHours: { startHour: 9, endHour: 17 },
+            skipWeekends: true
+          });
+        }
+
+        this.availabilityLoading = false;
+
+        if (conflicts.length === 0 && onAvailable) {
+          onAvailable();
+        }
+      },
+      error: (err) => {
+        console.error('[DoctorAppointments] Availability check failed:', err);
+        this.availabilityLoading = false;
+        this.availabilityChecked = true;
+        this.availabilityError = 'Failed to check availability. Please try again.';
       }
     });
   }
@@ -595,7 +784,27 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.selectedPatient = null;
     this.filteredPatients = this.patients;
     this.linkedCaregiverName = null;
+    this.linkedCaregiverId = null;
     this.showPatientDropdown = false;
+
+    this.caregiverMustBeAvailable = true;
+    this.transportDependency = false;
+    this.resetAvailability();
+  }
+
+  private resetAvailability(): void {
+    this.availabilityChecked = false;
+    this.availabilityLoading = false;
+    this.availabilityError = null;
+    this.availabilityConflicts = [];
+    this.suggestedSlots = [];
+  }
+
+  private extractCaregiverId(patient: ManagedUser): string | null {
+    const anyPatient: any = patient as any;
+    const direct = anyPatient.caregiverId || anyPatient.caregiverUserId;
+    const inProfile = anyPatient.profile?.caregiverId || anyPatient.profile?.caregiverUserId;
+    return (direct || inProfile || null) as string | null;
   }
 
   /**
@@ -710,16 +919,18 @@ export class DoctorAppointmentsComponent implements OnInit {
     
     this.loading = true;
     this.error = null;
-    
-    this.medicalService.getTeleconsultationLink(appointmentId, this.currentUser.id).subscribe({
+
+    // 1) Preferred: regenerate endpoint (works even if appointment is already CONFIRMED).
+    this.medicalService.regenerateTeleconsultationLink(appointmentId, this.currentUser.id).subscribe({
       next: ({ meetingUrl }) => {
-        console.log('[DoctorAppointments] Teleconsultation link response:', meetingUrl);
+        console.log('[DoctorAppointments] Regenerate teleconsultation response:', meetingUrl);
         this.applyMeetingUrl(appointmentId, meetingUrl);
         this.loading = false;
       },
-      error: (err) => {
-        console.warn('[DoctorAppointments] Direct teleconsultation link fetch failed, retrying confirmation...', err);
+      error: (regenErr) => {
+        console.warn('[DoctorAppointments] Regenerate teleconsultation failed, retrying confirm + reload...', regenErr);
 
+        // 2) Fallback: (re)confirm to trigger generation, then reload the appointment details.
         this.medicalService.changeAppointmentStatus(appointmentId, AppointmentStatus.CONFIRMED).subscribe({
           next: (updated) => {
             console.log('[DoctorAppointments] Reconfirm response:', updated);
@@ -744,8 +955,8 @@ export class DoctorAppointmentsComponent implements OnInit {
             });
           },
           error: (confirmErr) => {
-            console.error('[DoctorAppointments] Error fetching/reconfirming meeting link:', confirmErr);
-            this.error = 'Failed to get meeting link from backend. Please try again.';
+            console.error('[DoctorAppointments] Error reconfirming appointment:', confirmErr);
+            this.error = 'Failed to generate meeting link from backend. Please try again.';
             this.loading = false;
           }
         });
