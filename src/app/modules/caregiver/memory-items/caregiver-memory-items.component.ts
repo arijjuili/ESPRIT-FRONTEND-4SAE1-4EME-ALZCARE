@@ -34,6 +34,7 @@ interface MemoryItemForm {
   persons: string[];
   questions: string[];
   correctAnswers: string[];
+  storybookSelected: boolean;
 }
 
 interface MemoryAttemptPoint {
@@ -100,7 +101,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     yearTaken: null,
     persons: [''],
     questions: [''],
-    correctAnswers: ['']
+    correctAnswers: [''],
+    storybookSelected: false
   };
 
   editForm: MemoryItemForm = {
@@ -113,7 +115,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     yearTaken: null,
     persons: [''],
     questions: [''],
-    correctAnswers: ['']
+    correctAnswers: [''],
+    storybookSelected: false
   };
 
   editingItem: MemoryItem | null = null;
@@ -133,6 +136,10 @@ export class CaregiverMemoryItemsComponent implements OnInit {
 
   get filteredMemoryItems(): MemoryItem[] {
     return this.getPageFilteredMemoryItems();
+  }
+
+  get storybookSelectedCount(): number {
+    return this.filteredMemoryItems.filter(item => item.storybookSelected).length;
   }
 
   private getPageFilteredMemoryItems(): MemoryItem[] {
@@ -191,6 +198,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       persons: this.cleanList(this.createForm.persons),
       questions: questionPayload.questions,
       correctAnswers: questionPayload.correctAnswers,
+      storybookSelected: this.createForm.storybookSelected,
       createdAt: new Date().toISOString()
     };
 
@@ -234,7 +242,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       yearTaken: item.yearTaken ?? null,
       persons: item.persons && item.persons.length > 0 ? [...item.persons] : [''],
       questions,
-      correctAnswers
+      correctAnswers,
+      storybookSelected: !!item.storybookSelected
     };
     this.editImageFileName = item.imageUrl ? 'Current image selected' : '';
   }
@@ -273,7 +282,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       yearTaken: this.editForm.yearTaken as number,
       persons: this.cleanList(this.editForm.persons),
       questions: questionPayload.questions,
-      correctAnswers: questionPayload.correctAnswers
+      correctAnswers: questionPayload.correctAnswers,
+      storybookSelected: this.editForm.storybookSelected
     };
 
     this.loading = true;
@@ -335,7 +345,8 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       yearTaken: null,
       persons: [''],
       questions: [''],
-      correctAnswers: ['']
+      correctAnswers: [''],
+      storybookSelected: false
     };
     this.createImageFileName = '';
     this.createSubmitted = false;
@@ -411,6 +422,26 @@ export class CaregiverMemoryItemsComponent implements OnInit {
     const form = target === 'create' ? this.createForm : this.editForm;
     form.questions.push('');
     form.correctAnswers.push('');
+  }
+
+  toggleStorybookSelection(item: MemoryItem): void {
+    this.error = '';
+    this.success = '';
+    this.apiService.updateMemoryItem(item.id, {
+      storybookSelected: !item.storybookSelected
+    }).subscribe({
+      next: (updated) => {
+        this.memoryItems = this.memoryItems.map(memoryItem => memoryItem.id === updated.id ? updated : memoryItem);
+        this.success = updated.storybookSelected
+          ? `"${updated.title}" added to Memory Storybook.`
+          : `"${updated.title}" removed from Memory Storybook.`;
+        this.recomputeAnalytics();
+      },
+      error: (err) => {
+        console.error('Failed to update storybook selection:', err);
+        this.error = err.error?.detail || 'Failed to update Memory Storybook selection';
+      }
+    });
   }
 
   removeQuestion(target: 'create' | 'edit', index: number): void {

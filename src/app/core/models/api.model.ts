@@ -283,6 +283,7 @@ export interface MemoryItem {
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
+  storybookSelected: boolean;
   createdAt: string;
 }
 
@@ -298,6 +299,7 @@ export interface MemoryItemCreateRequest {
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
+  storybookSelected?: boolean;
   createdAt: string;
 }
 
@@ -313,7 +315,58 @@ export interface MemoryItemUpdateRequest {
   persons?: string[];
   questions?: string[];
   correctAnswers?: string[];
+  storybookSelected?: boolean;
   createdAt?: string;
+}
+
+export interface MemoryConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface MemoryConversationRequest {
+  patientId: string;
+  prompt: string;
+  conversationHistory?: MemoryConversationTurn[];
+}
+
+export interface MemoryConversationCitation {
+  memoryItemId: string;
+  title: string;
+  memoryCategory?: string;
+  description?: string;
+  location?: string;
+  yearTaken?: number;
+  persons?: string[];
+}
+
+export interface MemoryConversationResponse {
+  answer: string;
+  provider: string;
+  citedItems: MemoryConversationCitation[];
+  suggestedPrompts: string[];
+}
+
+export interface MemoryStorybookRequest {
+  patientId: string;
+}
+
+export interface MemoryStoryScene {
+  memoryItemId: string;
+  headline: string;
+  storyText: string;
+  imageUrl?: string;
+  accent?: string;
+}
+
+export interface MemoryStorybookResponse {
+  title: string;
+  introduction: string;
+  closingMessage: string;
+  provider: string;
+  selectedCount: number;
+  generatedAt: string;
+  scenes: MemoryStoryScene[];
 }
 
 // Quiz Attempt Response

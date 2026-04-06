@@ -2,6 +2,69 @@
   display: block;
 }
 
+.storybook-shell {
+  background:
+    radial-gradient(circle at top right, rgba(251, 191, 36, 0.28), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(244, 114, 182, 0.22), transparent 32%),
+    linear-gradient(135deg, #fff9db 0%, #fff7ed 36%, #f0fdfa 100%);
+}
+
+.storybook-card {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, #f97316 0%, #fb7185 48%, #06b6d4 100%);
+}
+
+.storybook-card[data-accent='meadow'] {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #10b981 0%, #14b8a6 46%, #38bdf8 100%);
+}
+
+.storybook-card[data-accent='twilight'] {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #6366f1 0%, #8b5cf6 44%, #ec4899 100%);
+}
+
+.storybook-card[data-accent='coral'] {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #f43f5e 0%, #fb7185 44%, #f59e0b 100%);
+}
+
+.storybook-card[data-accent='sky'] {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #0ea5e9 0%, #22c55e 44%, #facc15 100%);
+}
+
+.memory-guide-shell {
+  background:
+    radial-gradient(circle at top right, rgba(244, 114, 182, 0.28), transparent 36%),
+    radial-gradient(circle at bottom left, rgba(45, 212, 191, 0.26), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, #f8fdff 52%, #eefcf9 100%);
+}
+
+.memory-guide-header {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.24), transparent 30%),
+    linear-gradient(135deg, #0ea5e9 0%, #14b8a6 45%, #f97316 100%);
+}
+
+.memory-guide-body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.9)),
+    linear-gradient(180deg, rgba(236, 254, 255, 0.72) 0%, rgba(255, 247, 237, 0.68) 100%);
+}
+
+.memory-guide-answer {
+  border: 1px solid rgba(186, 230, 253, 0.9);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.82)),
+    linear-gradient(135deg, rgba(224, 242, 254, 0.92) 0%, rgba(236, 253, 245, 0.9) 100%);
+}
+
 .voice-orb {
   position: relative;
   display: inline-flex;

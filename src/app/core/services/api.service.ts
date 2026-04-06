@@ -19,6 +19,10 @@ import {
   HealthRecordCreateRequest,
   AssessmentSubmissionRequest,
   MemoryItem,
+  MemoryConversationRequest,
+  MemoryConversationResponse,
+  MemoryStorybookRequest,
+  MemoryStorybookResponse,
   MemoryItemCreateRequest,
   MemoryItemUpdateRequest,
   GameCatalogItem,
@@ -343,6 +347,17 @@ export class ApiService {
    */
   deleteMemoryItem(id: string): Observable<void> {
     return this.http.delete<void>(`${this.cognitiveBaseUrl}/memory-items/${id}`);
+  }
+
+  /**
+   * Ask the memory conversation assistant using stored memory items as context
+   */
+  askMemoryConversation(request: MemoryConversationRequest): Observable<MemoryConversationResponse> {
+    return this.http.post<MemoryConversationResponse>(`${this.cognitiveBaseUrl}/memory-items/conversation`, request);
+  }
+
+  generateMemoryStorybook(request: MemoryStorybookRequest): Observable<MemoryStorybookResponse> {
+    return this.http.post<MemoryStorybookResponse>(`${this.cognitiveBaseUrl}/memory-items/storybook`, request);
   }
 
   // ==================== QUIZ ATTEMPTS ====================
