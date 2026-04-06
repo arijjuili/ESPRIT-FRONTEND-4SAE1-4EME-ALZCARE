@@ -6,6 +6,8 @@ import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
   CaregiverAssignment,
@@ -29,6 +31,10 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
   caregiverId!: string;
   caregiverName = '';
   assignments: CaregiverAssignment[] = [];
+  /** patient userId -> display name from identity (assignments often omit patientFirstName/LastName) */
+  patientNamesByUserId: Record<string, string> = {};
+  /** caregiver Keycloak userId -> display name from identity API */
+  caregiverNamesByUserId: Record<string, string> = {};
   allPatientCaregivers: Map<string, CaregiverAssignment[]> = new Map();
 
   activeTab: TabType = 'create';
@@ -57,6 +63,8 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private careTeamService: CareTeamService,
+    private patientService: PatientService,
+    private apiService: ApiService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {
@@ -101,14 +109,101 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
           this.toastService.error('Failed to load your assignments');
           return of([]);
         }),
-        switchMap(assignments => {
-          this.assignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-          return this.loadAllHandovers();
+        switchMap((assignments) => {
+          this.assignments = assignments.filter((a) => a.status === AssignmentStatus.ACTIVE);
+          return this.loadPatientDisplayNames().pipe(switchMap(() => this.loadAllHandovers()));
         })
       )
       .subscribe(() => {
         this.loading = false;
       });
+  }
+
+  /**
+   * Native <option> cannot contain HTML; labels must be plain text.
+   * Prefer identity profile when care-team does not send patient names.
+   */
+  private loadPatientDisplayNames() {
+    const ids = [...new Set(this.assignments.map((a) => a.patientId).filter(Boolean))];
+    if (ids.length === 0) {
+      this.patientNamesByUserId = {};
+      return of(void 0);
+    }
+    return forkJoin(
+      ids.map((id) =>
+        this.patientService.getPatientById(id).pipe(
+          map((p) => {
+            const n = `${p.firstName || ''} ${p.lastName || ''}`.trim();
+            return { id, name: n || this.shortPatientLabel(id) };
+          }),
+          catchError(() => of({ id, name: this.shortPatientLabel(id) }))
+        )
+      )
+    ).pipe(
+      map((rows) => {
+        this.patientNamesByUserId = Object.fromEntries(rows.map((r) => [r.id, r.name]));
+      }),
+      map(() => void 0)
+    );
+  }
+
+  private shortPatientLabel(id: string): string {
+    return id.length > 12 ? `Patient ${id.slice(0, 8)}…` : `Patient ${id}`;
+  }
+
+  private shortCaregiverLabel(id: string): string {
+    return id.length > 12 ? `Caregiver ${id.slice(0, 8)}…` : `Caregiver ${id}`;
+  }
+
+  /** Load caregiver display names from identity (care-team rows often omit first/last name). */
+  private fetchAndMergeCaregiverNames(userIds: (string | null | undefined)[]): void {
+    const ids = [
+      ...new Set(
+        userIds.filter((id): id is string => !!id && String(id).trim().length > 0 && !this.caregiverNamesByUserId[id])
+      )
+    ];
+    if (ids.length === 0) {
+      return;
+    }
+    forkJoin(
+      ids.map((id) =>
+        this.apiService.getCaregiverByUserId(id).pipe(
+          map((p) => ({
+            id,
+            name: `${p.firstName || ''} ${p.lastName || ''}`.trim() || this.shortCaregiverLabel(id)
+          })),
+          catchError(() => of({ id, name: this.shortCaregiverLabel(id) }))
+        )
+      )
+    )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((rows) => {
+        for (const r of rows) {
+          this.caregiverNamesByUserId[r.id] = r.name;
+        }
+      });
+  }
+
+  /** Single line for <select> options (no nested tags). */
+  getPatientSelectLabel(assignment: CaregiverAssignment): string {
+    const fromAssignment = [assignment.patientFirstName, assignment.patientLastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const fromIdentity = (this.patientNamesByUserId[assignment.patientId] || '').trim();
+    const name = (fromIdentity || fromAssignment || this.shortPatientLabel(assignment.patientId)).trim();
+    return `${name} — your role: ${this.getRoleLabel(assignment.role)}`;
+  }
+
+  getCaregiverSelectLabel(c: CaregiverAssignment): string {
+    const cid = (c.caregiverId && String(c.caregiverId).trim()) || '';
+    const fromAssignment = [c.caregiverFirstName, c.caregiverLastName].filter(Boolean).join(' ').trim();
+    const fromIdentity = (cid ? this.caregiverNamesByUserId[cid] : '')?.trim() || '';
+    const who =
+      fromIdentity ||
+      fromAssignment ||
+      (cid ? this.shortCaregiverLabel(cid) : 'Unknown caregiver');
+    return `${who} (${this.getRoleLabel(c.role)})`;
   }
 
   loadAllHandovers() {
@@ -127,10 +222,11 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
 
     return forkJoin(handoverObservables).pipe(
       takeUntil(this.destroy$),
-      map(results => {
-        // Flatten all handovers
+      map((results) => {
         this.allHandovers = results.flat();
         this.categorizeHandovers();
+        const ids = this.allHandovers.flatMap((h) => [h.fromCaregiverId, h.toCaregiverId]);
+        this.fetchAndMergeCaregiverNames(ids);
         return this.allHandovers;
       })
     );
@@ -161,10 +257,17 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
           return of([]);
         })
       )
-      .subscribe(caregivers => {
-        // Filter out current caregiver
-        const otherCaregivers = caregivers.filter(c => c.caregiverId !== this.caregiverId);
+      .subscribe((caregivers) => {
+        const st = (s: unknown) => String(s ?? '').toUpperCase();
+        // Only accepted teammates (ACTIVE + linked Keycloak user). Pending invites have no caregiverId.
+        const otherCaregivers = caregivers.filter(
+          (c) =>
+            !!c.caregiverId &&
+            String(c.caregiverId).trim() !== String(this.caregiverId).trim() &&
+            st(c.status) === 'ACTIVE'
+        );
         this.allPatientCaregivers.set(patientId, otherCaregivers);
+        this.fetchAndMergeCaregiverNames(otherCaregivers.map((c) => c.caregiverId));
       });
   }
 
@@ -241,26 +344,36 @@ export class CaregiverHandoverComponent implements OnInit, OnDestroy {
   }
 
   getPatientName(patientId: string): string {
-    const assignment = this.assignments.find(a => a.patientId === patientId);
+    const cached = (this.patientNamesByUserId[patientId] || '').trim();
+    if (cached) {
+      return cached;
+    }
+    const assignment = this.assignments.find((a) => a.patientId === patientId);
     if (assignment?.patientFirstName) {
       return `${assignment.patientFirstName} ${assignment.patientLastName || ''}`.trim();
     }
-    const handover = this.allHandovers.find(h => h.patientId === patientId);
+    const handover = this.allHandovers.find((h) => h.patientId === patientId);
     if (handover?.patientFirstName) {
       return `${handover.patientFirstName} ${handover.patientLastName || ''}`.trim();
     }
-    return `Patient ${patientId}`;
+    return this.shortPatientLabel(patientId);
   }
 
   getCaregiverName(caregiverId: string, type: 'from' | 'to'): string {
-    const handover = this.allHandovers.find(h => 
-      type === 'from' ? h.fromCaregiverId === caregiverId : h.toCaregiverId === caregiverId
+    const fromIdentity = (this.caregiverNamesByUserId[caregiverId] || '').trim();
+    if (fromIdentity) {
+      return fromIdentity;
+    }
+    const handover = this.allHandovers.find(
+      (h) => (type === 'from' ? h.fromCaregiverId === caregiverId : h.toCaregiverId === caregiverId)
     );
     if (handover) {
       const name = type === 'from' ? handover.fromCaregiverFirstName : handover.toCaregiverFirstName;
-      if (name) return name;
+      if (name) {
+        return name;
+      }
     }
-    return `Caregiver ${caregiverId}`;
+    return this.shortCaregiverLabel(caregiverId);
   }
 
   getRoleBadgeClass(role: CaregiverRole | undefined): string {

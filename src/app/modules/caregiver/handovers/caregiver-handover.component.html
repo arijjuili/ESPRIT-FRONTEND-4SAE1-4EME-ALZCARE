@@ -81,8 +81,7 @@
             [class.border-rose-300]="handoverForm.get('patientId')?.touched && handoverForm.get('patientId')?.invalid">
             <option value="">-- Select a patient --</option>
             <option *ngFor="let assignment of assignments" [value]="assignment.patientId">
-              {{ assignment.patientFirstName }} {{ assignment.patientLastName }}
-              <span class="text-gray-500">({{ getRoleLabel(assignment.role) }})</span>
+              {{ getPatientSelectLabel(assignment) }}
             </option>
           </select>
           <p *ngIf="handoverForm.get('patientId')?.touched && handoverForm.get('patientId')?.invalid" 
@@ -105,12 +104,15 @@
             <option value="">-- Select a caregiver --</option>
             <option *ngFor="let caregiver of getPatientCaregivers(handoverForm.get('patientId')?.value)" 
                     [value]="caregiver.caregiverId">
-              {{ caregiver.caregiverFirstName }} {{ caregiver.caregiverLastName }}
-              <span class="text-gray-500">({{ getRoleLabel(caregiver.role) }})</span>
+              {{ getCaregiverSelectLabel(caregiver) }}
             </option>
           </select>
           <p *ngIf="!handoverForm.get('patientId')?.value" class="mt-1 text-sm text-gray-500">
             Select a patient first to see available caregivers
+          </p>
+          <p *ngIf="handoverForm.get('patientId')?.value && getPatientCaregivers(handoverForm.get('patientId')?.value).length === 0"
+             class="mt-1 text-sm text-amber-700">
+            No other active caregivers with accounts on this patient. Open invites cannot receive a handover until they accept.
           </p>
           <p *ngIf="handoverForm.get('patientId')?.value && handoverForm.get('toCaregiverId')?.touched && handoverForm.get('toCaregiverId')?.invalid" 
              class="mt-1 text-sm text-rose-600">

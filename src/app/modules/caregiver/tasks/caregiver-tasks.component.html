@@ -46,7 +46,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
             <option value="">All Patients</option>
             <option *ngFor="let assignment of assignments" [value]="assignment.patientId">
-              {{ assignment.patientFirstName }} {{ assignment.patientLastName }}
+              {{ getPatientName(assignment.patientId) }}
             </option>
           </select>
         </div>

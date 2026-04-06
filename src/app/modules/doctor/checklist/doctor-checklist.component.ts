@@ -2,16 +2,23 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import { catchError, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import {
+  AssignmentStatus,
+  CaregiverAssignment,
   ChecklistItem,
   ChecklistPriority,
   ChecklistCategory,
   ChecklistStatus,
   DoctorAssignment,
+  ChecklistGroupDto,
   CreateChecklistItemRequest,
   AssignChecklistItemRequest
 } from '../../../core/models/care-team.model';
@@ -27,12 +34,26 @@ export class DoctorChecklistComponent implements OnInit {
   doctorId: string | null = null;
   selectedPatientId: string | null = null;
   doctorAssignments: DoctorAssignment[] = [];
+  /** Keycloak userId -> name from identity (care-team rarely sends patientFirstName/LastName) */
+  patientProfilesByUserId: Record<string, { firstName: string; lastName: string }> = {};
   checklistItems: ChecklistItem[] = [];
   filteredChecklist: ChecklistItem[] = [];
-  
+  /** list | grouped — module 3.2 */
+  viewMode: 'list' | 'grouped' = 'list';
+  groupedChecklists: ChecklistGroupDto[] = [];
+  loadingGrouped = false;
+
   loading = false;
   loadingChecklist = false;
   loadingPatients = false;
+  generatingDaily = false;
+  /** Active caregivers for the patient selected in the create-task form */
+  patientCaregiversForForm: CaregiverAssignment[] = [];
+  loadingCaregiversForForm = false;
+
+  /** Generate daily checklist (patient + date) */
+  generatePatientId: string | null = null;
+  generateChecklistDate = this.getTodayDate();
   
   // Filters
   filterStatus: string = 'ALL';
@@ -66,6 +87,8 @@ export class DoctorChecklistComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private careTeamService: CareTeamService,
+    private patientService: PatientService,
+    private authService: AuthService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {
@@ -81,55 +104,141 @@ export class DoctorChecklistComponent implements OnInit {
 
   ngOnInit(): void {
     // Check for patientId in query params
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe((params) => {
       const patientId = params['patientId'];
       if (patientId) {
         this.selectedPatientId = patientId;
         this.checklistForm.patchValue({ patientId: this.selectedPatientId });
         this.showCreateForm = true;
+        this.loadCaregiversForPatient(patientId);
       }
     });
+
+    this.checklistForm
+      .get('patientId')
+      ?.valueChanges.pipe(distinctUntilChanged())
+      .subscribe((pid) => this.loadCaregiversForPatient(pid));
 
     // Load doctor's patients and checklist
     this.loadDoctorData();
   }
 
-  loadDoctorData(): void {
-    // In real implementation, get doctorId from auth service
-    // For now, we'll load all checklist items without filtering by doctor
-    this.loadDoctorPatients();
-    this.loadAllChecklistItems();
-  }
-
-  loadDoctorPatients(): void {
-    this.loadingPatients = true;
-    // Get current user from auth service would go here
-    // For now, we'll use a placeholder
-    const currentUser = { id: '1' }; // Placeholder
-    this.doctorId = currentUser.id;
-    
-    this.careTeamService.getDoctorPatients(this.doctorId).subscribe({
-      next: (assignments) => {
-        this.doctorAssignments = assignments.filter(a => a.status === 'ACTIVE');
-        this.loadingPatients = false;
+  /**
+   * Optional “Assign to”: caregivers on this patient’s care team (care-team API).
+   */
+  private loadCaregiversForPatient(patientId: string | null): void {
+    this.patientCaregiversForForm = [];
+    this.checklistForm.get('assignedCaregiverId')?.setValue(null, { emitEvent: false });
+    if (!patientId) {
+      this.loadingCaregiversForForm = false;
+      return;
+    }
+    this.loadingCaregiversForForm = true;
+    this.careTeamService.getPatientCaregivers(patientId).subscribe({
+      next: (list) => {
+        this.patientCaregiversForForm = list.filter((a) => a.status === AssignmentStatus.ACTIVE);
+        this.loadingCaregiversForForm = false;
       },
-      error: (error) => {
-        console.error('Error loading doctor patients:', error);
-        this.toastService.error('Failed to load patients', 'Error');
-        this.loadingPatients = false;
+      error: () => {
+        this.patientCaregiversForForm = [];
+        this.loadingCaregiversForForm = false;
       }
     });
   }
 
+  getCaregiverOptionLabel(c: CaregiverAssignment): string {
+    const name =
+      c.caregiverFirstName || c.caregiverLastName
+        ? `${c.caregiverFirstName || ''} ${c.caregiverLastName || ''}`.trim()
+        : c.caregiverId
+          ? `Caregiver ${c.caregiverId.slice(0, 8)}…`
+          : 'Pending invite';
+    return `${name} (${c.role})`;
+  }
+
+  loadDoctorData(): void {
+    this.loadDoctorPatients();
+  }
+
+  loadDoctorPatients(): void {
+    this.loadingPatients = true;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) {
+      this.toastService.error('Not signed in as a doctor', 'Error');
+      this.loadingPatients = false;
+      return;
+    }
+    this.doctorId = uid;
+    this.patientProfilesByUserId = {};
+
+    this.careTeamService
+      .getDoctorPatients(this.doctorId)
+      .pipe(
+        switchMap((assignments) => {
+          const active = assignments.filter((a) => a.status === 'ACTIVE');
+          const ids = [...new Set(active.map((a) => a.patientId))];
+          if (ids.length === 0) {
+            return of({ active, rows: [] as { id: string; profile: PatientProfileResponse | null }[] });
+          }
+          return forkJoin(
+            ids.map((id) =>
+              this.patientService.getPatientById(id).pipe(
+                map((profile) => ({ id, profile })),
+                catchError(() => of({ id, profile: null as PatientProfileResponse | null }))
+              )
+            )
+          ).pipe(map((rows) => ({ active, rows })));
+        })
+      )
+      .subscribe({
+        next: ({ active, rows }) => {
+          for (const row of rows) {
+            if (row.profile?.firstName != null || row.profile?.lastName != null) {
+              this.patientProfilesByUserId[row.id] = {
+                firstName: row.profile.firstName || '',
+                lastName: row.profile.lastName || ''
+              };
+            }
+          }
+          const hasDirectoryProfile = (patientId: string): boolean => {
+            const p = this.patientProfilesByUserId[patientId];
+            return !!(p && (p.firstName?.trim() || p.lastName?.trim()));
+          };
+          this.doctorAssignments = active.filter((a) => hasDirectoryProfile(a.patientId));
+          if (!this.generatePatientId && this.doctorAssignments.length > 0) {
+            this.generatePatientId = this.doctorAssignments[0].patientId;
+          }
+          this.loadingPatients = false;
+          this.loadAllChecklistItems();
+          if (this.viewMode === 'grouped') {
+            this.loadGroupedChecklists();
+          }
+        },
+        error: (error) => {
+          console.error('Error loading doctor patients:', error);
+          this.toastService.error('Failed to load patients', 'Error');
+          this.doctorAssignments = [];
+          this.loadingPatients = false;
+        }
+      });
+  }
+
   loadAllChecklistItems(): void {
     this.loadingChecklist = true;
-    this.careTeamService.getChecklistItems().subscribe({
+    if (!this.doctorId) {
+      this.loadingChecklist = false;
+      return;
+    }
+    this.careTeamService.getChecklistItems({ doctorId: this.doctorId }).subscribe({
       next: (items) => {
-        this.checklistItems = items.sort((a, b) => {
-          // Sort by date descending, then by priority
+        const validPatientIds = new Set(Object.keys(this.patientProfilesByUserId));
+        const visible =
+          validPatientIds.size === 0
+            ? []
+            : items.filter((i) => validPatientIds.has(String(i.patientId)));
+        this.checklistItems = visible.sort((a, b) => {
           const dateCompare = new Date(b.date).getTime() - new Date(a.date).getTime();
           if (dateCompare !== 0) return dateCompare;
-          
           const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
           return priorityOrder[a.priority] - priorityOrder[b.priority];
         });
@@ -157,14 +266,77 @@ export class DoctorChecklistComponent implements OnInit {
     this.applyFilters();
   }
 
+  setViewMode(mode: 'list' | 'grouped'): void {
+    this.viewMode = mode;
+    if (mode === 'grouped') {
+      this.loadGroupedChecklists();
+    }
+  }
+
+  loadGroupedChecklists(): void {
+    if (!this.doctorId) return;
+    this.loadingGrouped = true;
+    this.careTeamService.getDoctorChecklistsGrouped(this.doctorId).subscribe({
+      next: (groups) => {
+        const validPatientIds = new Set(Object.keys(this.patientProfilesByUserId));
+        this.groupedChecklists =
+          validPatientIds.size === 0
+            ? []
+            : groups.filter((g) => validPatientIds.has(String(g.patientId)));
+        this.loadingGrouped = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.toastService.error('Could not load grouped checklists');
+        this.loadingGrouped = false;
+      }
+    });
+  }
+
+  runGenerateDailyChecklist(): void {
+    if (!this.doctorId || !this.generatePatientId) {
+      this.toastService.warning('Select a patient first');
+      return;
+    }
+    this.generatingDaily = true;
+    this.careTeamService
+      .generateDailyChecklist({
+        doctorId: this.doctorId,
+        patientId: this.generatePatientId,
+        date: this.generateChecklistDate
+      })
+      .subscribe({
+        next: () => {
+          this.toastService.success('Daily checklist generated');
+          this.loadAllChecklistItems();
+          if (this.viewMode === 'grouped') {
+            this.loadGroupedChecklists();
+          }
+          this.generatingDaily = false;
+        },
+        error: (err) => {
+          this.toastService.error(err.error?.message || 'Generate failed');
+          this.generatingDaily = false;
+        }
+      });
+  }
+
   getTodayDate(): string {
     return new Date().toISOString().split('T')[0];
   }
 
   getPatientFullName(patientId: string): string {
-    const assignment = this.doctorAssignments.find(a => a.patientId === patientId);
+    const prof = this.patientProfilesByUserId[patientId];
+    if (prof) {
+      const full = `${prof.firstName || ''} ${prof.lastName || ''}`.trim();
+      if (full.length > 0) return full;
+    }
+    const assignment = this.doctorAssignments.find((a) => a.patientId === patientId);
     if (assignment?.patientFirstName && assignment?.patientLastName) {
       return `${assignment.patientFirstName} ${assignment.patientLastName}`;
+    }
+    if (assignment?.patientFirstName) {
+      return assignment.patientFirstName;
     }
     return `Patient #${patientId}`;
   }
@@ -237,6 +409,12 @@ export class DoctorChecklistComponent implements OnInit {
       // Restore selected patient if from query param
       if (this.selectedPatientId) {
         this.checklistForm.patchValue({ patientId: this.selectedPatientId });
+      }
+      this.patientCaregiversForForm = [];
+    } else {
+      const pid = this.checklistForm.get('patientId')?.value;
+      if (pid) {
+        this.loadCaregiversForPatient(pid);
       }
     }
   }
