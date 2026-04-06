@@ -351,7 +351,7 @@
         <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8 mt-4 sm:mt-6">
           <h2 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
           <div class="space-y-3">
-            <button class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
+            <button *ngIf="false" class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
               <span class="text-xl">📅</span>
               <span class="font-medium text-gray-700">Book Appointment</span>
             </button>
@@ -359,6 +359,18 @@
               <span class="text-xl">📊</span>
               <span class="font-medium text-gray-700">Record Vitals</span>
             </button>
+            <app-appointment-request-card
+              *ngIf="patientId"
+              [patientId]="patientId"
+              [patientName]="patientName"
+              [existingAppointments]="appointments"
+              requesterRole="PATIENT"
+              buttonTone="patient"
+              buttonLabel="Request Appointment"
+              title="Request a doctor appointment"
+              description="Send a request from your dashboard with the same appointment fields used by the doctor scheduler."
+              (requestCreated)="handleAppointmentRequestCreated($event)">
+            </app-appointment-request-card>
             <button routerLink="/patient/medications" class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
               <span class="text-xl">💊</span>
               <span class="font-medium text-gray-700">View Medications</span>

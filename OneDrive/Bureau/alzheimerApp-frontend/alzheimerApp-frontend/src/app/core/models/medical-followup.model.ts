@@ -127,6 +127,7 @@ export interface AppointmentCreateRequest {
   mode: AppointmentMode;
   startAt: string;
   endAt: string;
+  status?: AppointmentStatus;
   meetingUrl?: string;
 }
 

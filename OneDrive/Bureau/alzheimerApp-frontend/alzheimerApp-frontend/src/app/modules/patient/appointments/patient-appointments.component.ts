@@ -139,7 +139,8 @@ export class PatientAppointmentsComponent implements OnInit {
 
   isTeleconsultationPending(appointment: Appointment): boolean {
     return appointment.mode === AppointmentMode.ONLINE && 
-           appointment.status === AppointmentStatus.REQUESTED;
+           (appointment.status === AppointmentStatus.REQUESTED ||
+            appointment.status === AppointmentStatus.ACCEPTED);
   }
 
   isAppointmentCancelled(appointment: Appointment): boolean {

@@ -1,15 +1,20 @@
 
-<div class="patients-container">
-  <!-- Header -->
-  <div class="page-header">
-    <div class="header-title">
-      <h1>Patient List</h1>
-      <p class="subtitle">Manage your patients and access their medical records</p>
-    </div>
-    <button class="btn-refresh" (click)="refresh()" title="Rafraîchir">
-      🔄
-    </button>
-  </div>
+<div class="doctor-patients">
+  <div class="patients-container">
+    <!-- Header -->
+    <header class="dash-hero page-header">
+      <div class="dash-hero__text header-title">
+        <p class="dash-hero__eyebrow">Doctor</p>
+        <h1 class="dash-hero__title">Patient List</h1>
+        <p class="dash-hero__subtitle subtitle">Manage your patients and access their medical records</p>
+      </div>
+      <div class="dash-hero__actions">
+        <button class="dash-hero__refresh btn-refresh" (click)="refresh()" title="Rafraîchir" type="button">
+          <span aria-hidden="true">🔄</span>
+          <span class="btn-refresh__text">Refresh</span>
+        </button>
+      </div>
+    </header>
 
   <!-- Error Message -->
   <div *ngIf="error" class="alert alert-error">
@@ -26,9 +31,9 @@
     <p>Loading patients...</p>
   </div>
 
-  <div *ngIf="!loading" class="content-wrapper">
+    <div *ngIf="!loading" class="content-wrapper">
     <!-- Filters Section -->
-    <div class="filters-section">
+      <div class="panel filters-section">
       <!-- Search Bar -->
       <div class="filter-group search-group">
         <label for="search">Search</label>
@@ -88,28 +93,29 @@
     </div>
 
     <!-- Results Summary -->
-    <div class="results-summary">
-      <p>
-        <strong>{{ filteredPatients.length }}</strong> patient(s) found
-      </p>
-      
-      <!-- Page Size Selector -->
-      <div class="page-size-selector">
-        <label for="pageSize">Show:</label>
-        <select 
-          id="pageSize" 
-          [(ngModel)]="pageSize"
-          (ngModelChange)="onPageSizeChange($event)"
-        >
-          <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
-        </select>
-        <span>per page</span>
-      </div>
-    </div>
+      <div class="panel table-panel">
+        <div class="table-panel__header results-summary">
+          <p class="results-summary__count">
+            <strong>{{ filteredPatients.length }}</strong> patient(s) found
+          </p>
 
-    <!-- Patients Table -->
-    <div class="table-container">
-      <table class="patients-table">
+          <!-- Page Size Selector -->
+          <div class="page-size-selector">
+            <label for="pageSize">Show:</label>
+            <select
+              id="pageSize"
+              [(ngModel)]="pageSize"
+              (ngModelChange)="onPageSizeChange($event)"
+            >
+              <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+            </select>
+            <span>per page</span>
+          </div>
+        </div>
+
+        <!-- Patients Table -->
+        <div class="table-container">
+          <table class="patients-table">
         <thead>
           <tr>
             <th 
@@ -220,30 +226,32 @@
             </td>
           </tr>
         </tbody>
-      </table>
+          </table>
 
-      <!-- Empty State -->
-      <div *ngIf="filteredPatients.length === 0" class="empty-state">
-        <div class="empty-icon">👥</div>
-        <h3>No patients found</h3>
-        <p *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'">
-          Try adjusting your filters to see more results.
-        </p>
-        <p *ngIf="!searchQuery && autonomyFilter === 'ALL' && riskFilter === 'ALL'">
-          No patients are registered in the system.
-        </p>
-        <button 
-          *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'"
-          class="btn-reset"
-          (click)="resetFilters()"
-        >
-          Reset filters
-        </button>
+          <!-- Empty State -->
+          <div *ngIf="filteredPatients.length === 0" class="empty-state">
+            <div class="empty-icon">👥</div>
+            <h3>No patients found</h3>
+            <p *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'">
+              Try adjusting your filters to see more results.
+            </p>
+            <p *ngIf="!searchQuery && autonomyFilter === 'ALL' && riskFilter === 'ALL'">
+              No patients are registered in the system.
+            </p>
+            <button
+              *ngIf="searchQuery || autonomyFilter !== 'ALL' || riskFilter !== 'ALL'"
+              class="btn-reset"
+              (click)="resetFilters()"
+              type="button"
+            >
+              Reset filters
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
 
     <!-- Pagination -->
-    <div *ngIf="filteredPatients.length > 0" class="pagination-container">
+      <div *ngIf="filteredPatients.length > 0" class="panel pagination-container">
       <div class="pagination-info">
         Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> to 
         <strong>{{ Math.min(currentPage * pageSize, filteredPatients.length) }}</strong> 
@@ -280,6 +288,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- Active Plan Modal -->

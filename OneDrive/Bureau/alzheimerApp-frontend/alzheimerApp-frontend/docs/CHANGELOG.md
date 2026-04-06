@@ -1,5 +1,83 @@
 # Changelog - CareHub
 
+## Session 16 (2026-04-06) - Patient & Caregiver Appointment Request Entry Points
+
+### Feature: Dashboard Request Flow for Medical Appointments
+**Goal:** Let the patient or caregiver start the appointment lifecycle directly from their dashboards so the doctor receives the request in the existing appointment workspace.  
+**Solution:** Added a shared request modal for patient/caregiver dashboards, aligned teleconsultation pending states with the `REQUESTED -> ACCEPTED -> CONFIRMED` flow, and completed the doctor-side accept/reject actions for incoming requests.
+
+**What was added**
+- Shared appointment request entry point:
+  - New reusable `appointment-request-card` component with the same core appointment fields used by the doctor flow (`type`, `priority`, `mode`, `startAt`, `duration`)
+  - Requests are created with `REQUESTED` status and sent to the already-linked doctor when history exists
+  - Temporary fallback routing remains available for `doctor@doctor.com`
+- Patient dashboard:
+  - Quick action to request an appointment directly from the dashboard
+  - Newly created requests are appended locally so the patient sees the request immediately
+- Caregiver dashboard:
+  - Per-patient request action from the patient cards
+  - Dashboard now prefers caregiver-linked backend patients before falling back to local mock data
+- Doctor lifecycle completion:
+  - Doctor appointments now expose explicit `Accept` and `Reject` actions for `REQUESTED` appointments
+  - `Confirm` is now reserved for already accepted appointments
+- Teleconsultation alignment:
+  - `ACCEPTED` online appointments remain in the “waiting for confirmation” state for patient/caregiver views until the final confirmation generates the meeting link
+
+**Files Changed**
+- `src/app/core/models/medical-followup.model.ts`
+- `src/app/shared/components/appointment-request-card.component.ts`
+- `src/app/shared/components/appointment-request-card.component.html`
+- `src/app/modules/patient/dashboard/patient-dashboard.component.ts`
+- `src/app/modules/patient/dashboard/patient-dashboard.component.html`
+- `src/app/modules/patient/appointments/patient-appointments.component.ts`
+- `src/app/modules/caregiver/dashboard/caregiver-dashboard.component.ts`
+- `src/app/modules/caregiver/dashboard/caregiver-dashboard.component.html`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.ts`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.html`
+- `docs/CURRENT_TASK.md`
+
+### Verification Notes
+- `npx tsc --noEmit` still fails only on the pre-existing errors in `src/app/modules/patient/dashboard/patient-dashboard-redesign.component.ts`.
+- Manual browser verification of the new patient/caregiver request flow is still pending.
+
+---
+
+## Session 15 (2026-04-04) - Appointment Lifecycle & Medical Priority Management
+
+### Feature: Doctor Appointment Lifecycle Completion (Module 1.2)
+**Goal:** Support the full appointment lifecycle from request to completion while honoring urgent medical priority rules.  
+**Solution:** Extended the scheduling engine and doctor workflow so urgent visits can override routine ones, while doctors can accept, reject, reschedule, confirm, complete, or cancel appointments from the UI.
+
+**What was added**
+- Scheduling priority analysis:
+  - Conflicts are now classified as `BLOCKING` vs `PREEMPTIBLE`
+  - Emergency / critical appointments can preempt routine consultations
+  - Suggested slots now keep urgent-priority context when applicable
+- Doctor appointments lifecycle:
+  - Request actions: `Accept`, `Reject`, `Reschedule`
+  - Scheduled actions: `Confirm`, `Complete`, `Cancel`
+  - Rescheduling reuses the creation modal and re-runs smart availability checks
+- Doctor dashboard alignment:
+  - Requested appointments are now accepted from the dashboard instead of being directly confirmed
+- UI feedback:
+  - Success banners after lifecycle actions
+  - Explicit urgent override warnings showing impacted routine appointments
+
+**Files Changed**
+- `src/app/core/services/appointment-scheduling.service.ts`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.ts`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.html`
+- `src/app/modules/doctor/appointments/doctor-appointments.component.scss`
+- `src/app/modules/doctor/dashboard/doctor-dashboard.component.ts`
+- `src/app/modules/doctor/dashboard/doctor-dashboard.component.html`
+- `docs/CURRENT_TASK.md`
+
+### Verification Notes
+- `npx tsc --noEmit` now fails only on pre-existing issues in `src/app/modules/patient/dashboard/patient-dashboard-redesign.component.ts`.
+- Manual browser verification of the full doctor lifecycle flow is still pending.
+
+---
+
 ## Session 14 (2026-04-01) - Smart Scheduling (Module 1.2)
 
 ### Feature: Conflict Resolution & Availability Control (Doctor Appointments)

@@ -18,6 +18,7 @@ import {
 import {
   Appointment,
   AppointmentCreateRequest,
+  AppointmentUpdateRequest,
   AppointmentStatus,
   AppointmentType,
   AppointmentPriority,
@@ -48,11 +49,14 @@ export class DoctorAppointmentsComponent implements OnInit {
   appointments: Appointment[] = [];
   loading = false;
   error: string | null = null;
+  successMessage: string | null = null;
 
   // Filtres
   filterStatus: string = 'ALL';
   filterFrom: string = '';
   filterTo: string = '';
+  filterDay: string = ''; // YYYY-MM-DD (UI helper)
+  hideClosed: boolean = false; // UI-only: hide CANCELLED + COMPLETED from the visible list
 
   // Logged-in doctor
   currentUser: AuthUser | null = null;
@@ -66,6 +70,9 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   // Modal Dialog state
   showModal = false;
+  modalMode: 'create' | 'reschedule' = 'create';
+  editingAppointmentId: number | null = null;
+  editingAppointmentStatus: AppointmentStatus | null = null;
 
   // Patient Search
   patientSearchQuery = '';
@@ -89,7 +96,11 @@ export class DoctorAppointmentsComponent implements OnInit {
   availabilityLoading = false;
   availabilityError: string | null = null;
   availabilityConflicts: SchedulingConflict[] = [];
+  blockingConflicts: SchedulingConflict[] = [];
+  preemptibleConflicts: SchedulingConflict[] = [];
+  allowPriorityOverride = false;
   suggestedSlots: SuggestedSlot[] = [];
+  activeActionId: number | null = null;
   
   // Appointment duration in minutes (default: 30)
   appointmentDuration: number = 30;
@@ -193,6 +204,39 @@ export class DoctorAppointmentsComponent implements OnInit {
     
     this.filterFrom = this.formatDateTimeLocal(firstDay);
     this.filterTo = this.formatDateTimeLocal(lastDay);
+    this.filterDay = '';
+  }
+
+  /**
+   * Quick filter by day (sets From/To to the selected day boundaries).
+   */
+  applyDayFilter(day: string): void {
+    if (!day) return;
+
+    const [yyyy, mm, dd] = day.split('-').map(v => Number(v));
+    if (!yyyy || !mm || !dd) return;
+
+    const start = new Date(yyyy, mm - 1, dd, 0, 0, 0);
+    const end = new Date(yyyy, mm - 1, dd, 23, 59, 59);
+
+    this.filterDay = day;
+    this.filterFrom = this.formatDateTimeLocal(start);
+    this.filterTo = this.formatDateTimeLocal(end);
+    this.loadAppointments();
+  }
+
+  setDayToToday(): void {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    this.applyDayFilter(`${yyyy}-${mm}-${dd}`);
+  }
+
+  clearDayFilter(): void {
+    this.filterDay = '';
+    this.initializeDateFilters();
+    this.loadAppointments();
   }
 
   /**
@@ -304,11 +348,22 @@ export class DoctorAppointmentsComponent implements OnInit {
     return fullName || firstLast || username || email || 'Unknown';
   }
 
+  private findPatientByAnyId(patientId: string): ManagedUser | undefined {
+    return this.patients.find(patient => {
+      const candidate = patient as ManagedUser & { userId?: string; keycloakId?: string };
+      return (
+        patient.id === patientId ||
+        candidate.userId === patientId ||
+        candidate.keycloakId === patientId
+      );
+    });
+  }
+
   /**
    * Get patient name by ID from loaded patients list
    */
   getPatientNameById(patientId: string): string {
-    const patient = this.patients.find(p => p.id === patientId);
+    const patient = this.findPatientByAnyId(patientId);
     if (patient) {
       return patient.fullName || 
         (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
@@ -379,8 +434,50 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Open modal dialog
    */
   openModal(): void {
+    this.modalMode = 'create';
+    this.successMessage = null;
     this.showModal = true;
     this.resetForm();
+  }
+
+  openRescheduleModal(appointment: Appointment): void {
+    const patient = this.findPatientByAnyId(appointment.patientId) || null;
+    const startDate = this.schedulingService.parseLocalDateTime(
+      this.schedulingService.normalizeLocalDateTime(appointment.startAt)
+    );
+    const endDate = this.schedulingService.parseLocalDateTime(
+      this.schedulingService.normalizeLocalDateTime(appointment.endAt)
+    );
+
+    this.modalMode = 'reschedule';
+    this.successMessage = null;
+    this.showModal = true;
+    this.resetForm();
+    this.editingAppointmentId = appointment.id;
+    this.editingAppointmentStatus = appointment.status;
+    this.selectedPatient = patient;
+    this.patientSearchQuery = patient ? this.getPatientDisplayName(patient) : this.getPatientNameById(appointment.patientId);
+    this.newAppointment = {
+      patientId: appointment.patientId,
+      doctorId: this.doctorId,
+      caregiverId: appointment.caregiverId ? String(appointment.caregiverId) : undefined,
+      type: appointment.type,
+      priority: appointment.priority,
+      mode: appointment.mode,
+      startAt: startDate ? this.formatDateTimeLocal(startDate) : this.schedulingService.normalizeLocalDateTime(appointment.startAt).slice(0, 16),
+      endAt: endDate ? this.formatDateTimeLocal(endDate) : this.schedulingService.normalizeLocalDateTime(appointment.endAt).slice(0, 16),
+      meetingUrl: appointment.meetingUrl
+    };
+
+    if (startDate && endDate) {
+      this.appointmentDuration = this.getDurationMinutes(appointment.startAt, appointment.endAt);
+    }
+
+    if (patient) {
+      this.loadPatientCaregiver(patient.id);
+    }
+
+    this.onModeChange();
   }
 
   /**
@@ -411,9 +508,7 @@ export class DoctorAppointmentsComponent implements OnInit {
             console.log(`[DoctorAppointments] Online appointment ${appt.id}: status=${appt.status}, meetingUrl=${appt.meetingUrl}`);
           }
         });
-        this.appointments = appointments.sort((a, b) => 
-          new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
-        );
+        this.appointments = appointments.sort((a, b) => this.compareAppointments(a, b));
         this.loading = false;
       },
       error: (err) => {
@@ -428,10 +523,74 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Filter appointments by status
    */
   get filteredAppointments(): Appointment[] {
-    if (this.filterStatus === 'ALL') {
-      return this.appointments;
+    let list = this.appointments;
+
+    if (this.filterStatus !== 'ALL') {
+      list = list.filter(a => a.status === this.filterStatus);
     }
-    return this.appointments.filter(a => a.status === this.filterStatus);
+
+    if (this.hideClosed) {
+      list = list.filter(a => a.status !== AppointmentStatus.CANCELLED && a.status !== AppointmentStatus.COMPLETED);
+    }
+
+    return list;
+  }
+
+  /**
+   * Group visible appointments by day for a cleaner list display.
+   */
+  get appointmentsByDay(): Array<{ dayKey: string; dayLabel: string; items: Appointment[] }> {
+    const visible = this.filteredAppointments;
+
+    if (this.filterStatus === AppointmentStatus.REQUESTED) {
+      const urgent = visible
+        .filter(appt => this.schedulingService.isUrgentAppointment(appt))
+        .slice()
+        .sort((a, b) => this.compareAppointments(a, b));
+
+      const routine = visible
+        .filter(appt => !this.schedulingService.isUrgentAppointment(appt));
+
+      const dayGroups = this.groupAppointmentsByDay(routine);
+
+      const urgentGroup = urgent.length > 0
+        ? [{
+            dayKey: 'URGENT',
+            dayLabel: 'Urgent requests',
+            items: urgent
+          }]
+        : [];
+
+      return [...urgentGroup, ...dayGroups];
+    }
+
+    return this.groupAppointmentsByDay(visible);
+  }
+
+  private groupAppointmentsByDay(list: Appointment[]): Array<{ dayKey: string; dayLabel: string; items: Appointment[] }> {
+    const groups = new Map<string, Appointment[]>();
+
+    for (const appt of list) {
+      const date = new Date(appt.startAt);
+      if (Number.isNaN(date.getTime())) continue;
+
+      const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const bucket = groups.get(dayKey) || [];
+      bucket.push(appt);
+      groups.set(dayKey, bucket);
+    }
+
+    const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+    return keys.map(dayKey => {
+      const items = (groups.get(dayKey) || []).slice().sort((a, b) => this.compareAppointments(a, b));
+      const dayLabel = new Date(`${dayKey}T00:00:00`).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      return { dayKey, dayLabel, items };
+    });
   }
 
   /**
@@ -447,6 +606,22 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   get cancelledCount(): number {
     return this.appointments.filter(a => a.status === AppointmentStatus.CANCELLED).length;
+  }
+
+  private compareAppointments(a: Appointment, b: Appointment): number {
+    const urgentRankA = this.schedulingService.isUrgentAppointment(a) ? 1 : 0;
+    const urgentRankB = this.schedulingService.isUrgentAppointment(b) ? 1 : 0;
+
+    if (urgentRankA !== urgentRankB) {
+      return urgentRankB - urgentRankA; // urgent first
+    }
+
+    const timeDelta = new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
+    if (timeDelta !== 0) {
+      return timeDelta;
+    }
+
+    return this.schedulingService.getPriorityRank(b.priority) - this.schedulingService.getPriorityRank(a.priority);
   }
 
   /**
@@ -471,7 +646,14 @@ export class DoctorAppointmentsComponent implements OnInit {
 
     // Smart Scheduling Conflict Resolution (Module 1.2)
     // If a conflict exists, we suggest alternatives and block creation until user chooses a compatible slot.
-    this.runAvailabilityCheck(() => this.performCreateAppointment());
+    this.runAvailabilityCheck(() => {
+      if (this.modalMode === 'reschedule') {
+        this.performRescheduleAppointment();
+        return;
+      }
+
+      this.performCreateAppointment();
+    });
   }
 
   checkAvailability(): void {
@@ -496,24 +678,23 @@ export class DoctorAppointmentsComponent implements OnInit {
   }
 
   private performCreateAppointment(): void {
-    const normalizeLocalDateTime = (value: string): string => {
-      return this.schedulingService.normalizeLocalDateTime(value);
-    };
-
     const appointmentToSend = {
       ...this.newAppointment,
-      status: 'REQUESTED',
-      startAt: normalizeLocalDateTime(this.newAppointment.startAt),
-      endAt: normalizeLocalDateTime(this.newAppointment.endAt)
+      // Doctor-created appointments are immediately scheduled (no "accept" needed).
+      status: AppointmentStatus.CONFIRMED,
+      startAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt),
+      endAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.endAt)
     };
 
     this.loading = true;
+    this.error = null;
     this.medicalService.createAppointment(appointmentToSend).subscribe({
       next: (appointment) => {
         this.appointments.push(appointment);
-        this.appointments.sort((a, b) =>
-          new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
-        );
+        this.appointments.sort((a, b) => this.compareAppointments(a, b));
+        this.successMessage = this.allowPriorityOverride
+          ? `Urgent appointment created. ${this.preemptibleConflicts.length} routine conflict(s) should be rescheduled.`
+          : 'Appointment created successfully.';
         this.closeModal();
         this.loading = false;
       },
@@ -525,11 +706,88 @@ export class DoctorAppointmentsComponent implements OnInit {
     });
   }
 
+  private performRescheduleAppointment(): void {
+    if (!this.editingAppointmentId) {
+      this.error = 'Unable to reschedule this appointment.';
+      return;
+    }
+
+    const appointmentId = this.editingAppointmentId;
+
+    const updatePayload: AppointmentUpdateRequest = {
+      type: this.newAppointment.type,
+      priority: this.newAppointment.priority,
+      mode: this.newAppointment.mode,
+      startAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt),
+      endAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.endAt),
+      meetingUrl: this.newAppointment.meetingUrl
+    };
+
+    this.loading = true;
+    this.error = null;
+
+    this.medicalService.updateAppointment(appointmentId, updatePayload).subscribe({
+      next: (updatedAppointment) => {
+        const finalizeReschedule = (appointment: Appointment, message: string) => {
+          const index = this.appointments.findIndex(item => item.id === appointment.id);
+          if (index !== -1) {
+            this.appointments[index] = {
+              ...this.appointments[index],
+              ...appointment,
+              meetingUrl: appointment.meetingUrl || this.appointments[index].meetingUrl
+            };
+            this.appointments = [...this.appointments].sort((a, b) => this.compareAppointments(a, b));
+          }
+
+          this.successMessage = message;
+          this.closeModal();
+          this.loading = false;
+        };
+
+        if (this.editingAppointmentStatus === AppointmentStatus.REQUESTED) {
+          this.medicalService.changeAppointmentStatus(appointmentId, AppointmentStatus.ACCEPTED).subscribe({
+            next: (acceptedAppointment) => {
+              finalizeReschedule(
+                { ...updatedAppointment, ...acceptedAppointment },
+                this.allowPriorityOverride
+                  ? `Urgent appointment rescheduled and accepted. ${this.preemptibleConflicts.length} routine conflict(s) should be reviewed.`
+                  : 'Appointment rescheduled and accepted.'
+              );
+            },
+            error: (statusErr) => {
+              console.error('Error marking rescheduled appointment as accepted:', statusErr);
+              finalizeReschedule(
+                updatedAppointment,
+                'Appointment rescheduled, but status could not be updated to ACCEPTED automatically.'
+              );
+            }
+          });
+          return;
+        }
+
+        finalizeReschedule(
+          updatedAppointment,
+          this.allowPriorityOverride
+            ? `Urgent appointment rescheduled. ${this.preemptibleConflicts.length} routine conflict(s) should be reviewed.`
+            : 'Appointment rescheduled successfully.'
+        );
+      },
+      error: (err) => {
+        this.error = 'Error rescheduling appointment';
+        this.loading = false;
+        console.error('Error rescheduling appointment:', err);
+      }
+    });
+  }
+
   private runAvailabilityCheck(onAvailable?: () => void): void {
     this.availabilityChecked = false;
     this.availabilityLoading = true;
     this.availabilityError = null;
     this.availabilityConflicts = [];
+    this.blockingConflicts = [];
+    this.preemptibleConflicts = [];
+    this.allowPriorityOverride = false;
     this.suggestedSlots = [];
 
     const startAt = this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt);
@@ -573,9 +831,11 @@ export class DoctorAppointmentsComponent implements OnInit {
             createdAt: startAt,
             updatedAt: startAt
           },
-          reason: 'Caregiver is required but no caregiver is linked to this patient.'
+          reason: 'Caregiver is required but no caregiver is linked to this patient.',
+          severity: 'BLOCKING'
         }
       ];
+      this.blockingConflicts = [...this.availabilityConflicts];
       return;
     }
 
@@ -617,15 +877,29 @@ export class DoctorAppointmentsComponent implements OnInit {
           sources.push({ party: 'CAREGIVER', appointments: caregiver, bufferMinutes: caregiverBuffer });
         }
 
-        const conflicts = this.schedulingService.findConflicts(startAt, endAt, sources);
-        this.availabilityConflicts = conflicts;
+        const analysis = this.schedulingService.analyzeConflicts(
+          {
+            startAt,
+            endAt,
+            type: this.newAppointment.type,
+            priority: this.newAppointment.priority
+          },
+          sources
+        );
+
+        this.availabilityConflicts = analysis.conflicts;
+        this.blockingConflicts = analysis.blockingConflicts;
+        this.preemptibleConflicts = analysis.preemptibleConflicts;
+        this.allowPriorityOverride = analysis.hasPriorityOverride;
         this.availabilityChecked = true;
 
-        if (conflicts.length > 0) {
+        if (analysis.blockingConflicts.length > 0) {
           this.suggestedSlots = this.schedulingService.suggestSlots({
             startSearchAt: startAt,
             durationMinutes: this.appointmentDuration,
             sources,
+            type: this.newAppointment.type,
+            priority: this.newAppointment.priority,
             mode: this.newAppointment.mode,
             maxSuggestions: 8,
             daysToScan: 14,
@@ -637,7 +911,7 @@ export class DoctorAppointmentsComponent implements OnInit {
 
         this.availabilityLoading = false;
 
-        if (conflicts.length === 0 && onAvailable) {
+        if (analysis.canProceed && onAvailable) {
           onAvailable();
         }
       },
@@ -654,8 +928,10 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Change appointment status
    * Le backend génère automatiquement le meetingUrl quand un RDV ONLINE est CONFIRMÉ
    */
-  updateStatus(appointmentId: number, status: AppointmentStatus): void {
+  updateStatus(appointmentId: number, status: AppointmentStatus, successMessage?: string): void {
     this.loading = true;
+    this.error = null;
+    this.activeActionId = appointmentId;
     console.log('[DoctorAppointments] Updating status to', status, 'for appointment', appointmentId);
     
     this.medicalService.changeAppointmentStatus(appointmentId, status).subscribe({
@@ -685,14 +961,21 @@ export class DoctorAppointmentsComponent implements OnInit {
             this.fetchMeetingUrl(appointmentId);
           }
         }
+        this.successMessage = successMessage || `Appointment marked as ${status.toLowerCase()}.`;
         this.loading = false;
+        this.activeActionId = null;
       },
       error: (err) => {
         this.loading = false;
+        this.activeActionId = null;
         console.error('Error updating status:', err);
         this.error = 'Failed to update appointment status. Please try again.';
       }
     });
+  }
+
+  acceptAppointment(appointmentId: number): void {
+    this.updateStatus(appointmentId, AppointmentStatus.ACCEPTED, 'Appointment request accepted.');
   }
 
   /**
@@ -700,7 +983,7 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   cancelAppointment(appointmentId: number): void {
     if (confirm('Are you sure you want to cancel this appointment?')) {
-      this.updateStatus(appointmentId, AppointmentStatus.CANCELLED);
+      this.updateStatus(appointmentId, AppointmentStatus.CANCELLED, 'Appointment cancelled.');
     }
   }
 
@@ -708,14 +991,14 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Confirm an appointment
    */
   confirmAppointment(appointmentId: number): void {
-    this.updateStatus(appointmentId, AppointmentStatus.CONFIRMED);
+    this.updateStatus(appointmentId, AppointmentStatus.CONFIRMED, 'Appointment confirmed.');
   }
 
   /**
    * Mark an appointment as completed
    */
   completeAppointment(appointmentId: number): void {
-    this.updateStatus(appointmentId, AppointmentStatus.COMPLETED);
+    this.updateStatus(appointmentId, AppointmentStatus.COMPLETED, 'Appointment completed.');
   }
 
   /**
@@ -763,13 +1046,75 @@ export class DoctorAppointmentsComponent implements OnInit {
       alert('Please set start date and time');
       return false;
     }
+    if (!this.newAppointment.endAt) {
+      alert('Please set an appointment end date and time');
+      return false;
+    }
     return true;
+  }
+
+  onTypeChange(): void {
+    if (this.newAppointment.type === AppointmentType.EMERGENCY) {
+      this.newAppointment.priority = AppointmentPriority.CRITICAL;
+    }
+
+    this.resetAvailability();
+  }
+
+  get modalTitle(): string {
+    return this.modalMode === 'reschedule' ? 'Reschedule Appointment' : 'New Appointment';
+  }
+
+  get modalSubmitLabel(): string {
+    if (this.loading) {
+      return this.modalMode === 'reschedule' ? 'Saving...' : 'Creating...';
+    }
+
+    if (this.availabilityLoading) {
+      return 'Checking...';
+    }
+
+    return this.modalMode === 'reschedule' ? 'Save Reschedule' : 'Create Appointment';
+  }
+
+  isUrgentSelection(): boolean {
+    return this.schedulingService.isUrgentAppointment(this.newAppointment);
+  }
+
+  canAccept(appointment: Appointment): boolean {
+    return appointment.status === AppointmentStatus.REQUESTED;
+  }
+
+  canConfirm(appointment: Appointment): boolean {
+    return appointment.status === AppointmentStatus.ACCEPTED;
+  }
+
+  canComplete(appointment: Appointment): boolean {
+    return appointment.status === AppointmentStatus.CONFIRMED;
+  }
+
+  canCancel(appointment: Appointment): boolean {
+    return appointment.status !== AppointmentStatus.CANCELLED &&
+      appointment.status !== AppointmentStatus.COMPLETED &&
+      appointment.status !== AppointmentStatus.REJECTED;
+  }
+
+  canReschedule(appointment: Appointment): boolean {
+    return appointment.status !== AppointmentStatus.CANCELLED &&
+      appointment.status !== AppointmentStatus.COMPLETED &&
+      appointment.status !== AppointmentStatus.REJECTED;
+  }
+
+  isActionLoading(appointmentId: number): boolean {
+    return this.activeActionId === appointmentId;
   }
 
   /**
    * Reset form
    */
   resetForm(): void {
+    this.editingAppointmentId = null;
+    this.editingAppointmentStatus = null;
     this.appointmentDuration = 30;
     this.newAppointment = {
       patientId: '',
@@ -797,6 +1142,9 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.availabilityLoading = false;
     this.availabilityError = null;
     this.availabilityConflicts = [];
+    this.blockingConflicts = [];
+    this.preemptibleConflicts = [];
+    this.allowPriorityOverride = false;
     this.suggestedSlots = [];
   }
 
@@ -859,6 +1207,10 @@ export class DoctorAppointmentsComponent implements OnInit {
       [AppointmentPriority.CRITICAL]: 'bg-red-100 text-red-700'
     };
     return classes[priority];
+  }
+
+  getPriorityLabel(priority: AppointmentPriority): string {
+    return priority === AppointmentPriority.CRITICAL ? 'URGENT' : priority;
   }
 
   /**
@@ -989,7 +1341,8 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   isTeleconsultationPending(appointment: Appointment): boolean {
     return appointment.mode === AppointmentMode.ONLINE && 
-           appointment.status === AppointmentStatus.REQUESTED;
+           (appointment.status === AppointmentStatus.REQUESTED ||
+            appointment.status === AppointmentStatus.ACCEPTED);
   }
 
   /**

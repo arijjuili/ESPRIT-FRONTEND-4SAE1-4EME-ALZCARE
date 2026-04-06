@@ -1,13 +1,14 @@
-<div class="max-w-7xl mx-auto px-4 py-8">
+<div class="prescriptions-page max-w-7xl mx-auto px-4 py-8">
   <!-- Header -->
-  <div class="flex justify-between items-center mb-8">
-    <div>
-      <h1 class="text-3xl font-bold text-gray-800">💊 Prescription Management</h1>
-      <p class="text-gray-600 mt-1">Create and manage patient medication plans</p>
+  <div class="prescriptions-hero flex justify-between items-center mb-8">
+    <div class="prescriptions-hero__text">
+      <p class="prescriptions-hero__eyebrow">Doctor</p>
+      <h1 class="prescriptions-hero__title text-3xl font-bold text-gray-800">💊 Prescription Management</h1>
+      <p class="prescriptions-hero__subtitle text-gray-600 mt-1">Create and manage patient medication plans</p>
     </div>
     <button 
       (click)="openNewPrescriptionModal()"
-      class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold flex items-center gap-2">
+      class="prescriptions-hero__action bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold flex items-center gap-2">
       <span>+</span>
       <span>New Prescription</span>
     </button>
@@ -23,14 +24,14 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Plans List -->
     <div class="lg:col-span-1">
-      <div class="bg-white rounded-lg shadow-md p-5">
+      <div class="prescriptions-panel prescriptions-panel--list bg-white rounded-lg shadow-md p-5">
         <!-- Header with Toggle -->
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-bold text-gray-800">Prescriptions</h2>
-          <div class="flex bg-gray-100 rounded-lg p-1">
+        <div class="prescriptions-panel__header flex justify-between items-center mb-4">
+          <h2 class="prescriptions-panel__title text-lg font-bold text-gray-800">Prescriptions</h2>
+          <div class="view-toggle flex bg-gray-100 rounded-lg p-1">
             <button 
               (click)="setViewMode('recent')"
-              class="px-3 py-1 text-xs font-medium rounded-md transition"
+              class="view-toggle-btn px-3 py-1 text-xs font-medium rounded-md transition"
               [class.bg-white]="viewMode === 'recent'"
               [class.text-primary-700]="viewMode === 'recent'"
               [class.shadow-sm]="viewMode === 'recent'"
@@ -50,19 +51,19 @@
         </div>
         
         <!-- Search -->
-        <div class="mb-4">
-          <div class="relative">
+        <div class="prescriptions-search mb-4">
+          <div class="prescriptions-search__field relative">
             <input 
               type="text" 
               [value]="searchQuery"
               (input)="onSearchInput($event)"
               (keydown)="onSearchKeydown($event)"
-              class="w-full border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              class="prescriptions-search__input w-full border border-gray-200 rounded-lg px-4 py-2 pr-10 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               placeholder="Search prescriptions...">
             <button 
               *ngIf="searchQuery"
               (click)="clearSearch()"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              class="prescriptions-search__clear absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               ✕
             </button>
           </div>
@@ -140,7 +141,7 @@
     <!-- Plan Details -->
     <div class="lg:col-span-2">
       <!-- Empty State -->
-      <div *ngIf="!selectedPlan" class="bg-white rounded-lg shadow-md p-12 text-center">
+      <div *ngIf="!selectedPlan" class="prescriptions-panel prescriptions-empty bg-white rounded-lg shadow-md p-12 text-center">
         <p class="text-6xl mb-4">💊</p>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">Select a prescription</h3>
         <p class="text-gray-500">Click on a prescription in the list to view details</p>
@@ -149,10 +150,10 @@
       <!-- Selected Plan Details -->
       <div *ngIf="selectedPlan" class="space-y-6">
         <!-- Plan Header -->
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="prescriptions-panel prescriptions-detail bg-white rounded-lg shadow-md p-6">
           <div class="flex justify-between items-start">
             <div class="flex items-start gap-4">
-              <div class="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
+              <div class="prescriptions-detail__avatar w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
                    [class]="getAvatarColor(selectedPlan.patientId)">
                 {{ getInitials(selectedPlan.patientId) }}
               </div>
@@ -177,15 +178,15 @@
                 </div>
               </div>
             </div>
-            <div class="flex gap-2">
+            <div class="prescriptions-detail__actions flex gap-2">
               <button 
                 (click)="openEditPrescriptionModal()"
-                class="px-4 py-2 text-primary-600 hover:bg-primary-50 rounded-lg transition font-medium">
+                class="detail-action-btn px-4 py-2 text-primary-600 hover:bg-primary-50 rounded-lg transition font-medium">
                 ✏️ Edit
               </button>
               <button 
                 (click)="deletePlan()"
-                class="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
+                class="detail-action-btn detail-action-btn--danger px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition font-medium">
                 🗑️ Delete
               </button>
             </div>
@@ -211,19 +212,19 @@
         </div>
 
         <!-- Medications List -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <div class="flex justify-between items-center mb-4">
+        <div class="prescriptions-panel medications-panel bg-white rounded-lg shadow-md p-6">
+          <div class="medications-panel__header flex justify-between items-center mb-4">
             <h3 class="text-xl font-bold text-gray-800">💊 Medications</h3>
             <button 
               (click)="openAddMedicationModal()"
-              class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold">
+              class="medications-panel__action bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold">
               + Add Medication
             </button>
           </div>
 
           <!-- Medications Table -->
-          <div *ngIf="selectedPlan.items && selectedPlan.items.length > 0" class="overflow-x-auto">
-            <table class="w-full">
+          <div *ngIf="selectedPlan.items && selectedPlan.items.length > 0" class="medications-table-wrap overflow-x-auto">
+            <table class="medications-table w-full">
               <thead class="bg-gray-50">
                 <tr>
                   <th class="text-left p-3 text-sm font-bold text-gray-700">Medication</th>
@@ -258,12 +259,12 @@
                   <td class="p-3">
                     <button 
                       (click)="openEditMedicationModal(item)"
-                      class="text-primary-600 hover:text-primary-800 text-sm font-semibold mr-3">
+                      class="medication-inline-btn text-primary-600 hover:text-primary-800 text-sm font-semibold mr-3">
                       ✏️
                     </button>
                     <button 
                       (click)="deleteItem(item.id)"
-                      class="text-red-600 hover:text-red-800 text-sm font-semibold">
+                      class="medication-inline-btn medication-inline-btn--danger text-red-600 hover:text-red-800 text-sm font-semibold">
                       🗑️
                     </button>
                   </td>
@@ -286,13 +287,13 @@
 
 <!-- ==================== MODAL: New Prescription ==================== -->
 <div *ngIf="showNewPrescriptionModal" 
-     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
      (click)="closeNewPrescriptionModal()">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+  <div class="modal-card modal-card--wide bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
     <form (ngSubmit)="createPrescription()">
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center" [class.bg-orange-50]="isReplaceMode">
+    <div class="modal-card__header px-6 py-4 border-b border-gray-200 flex justify-between items-center" [class.bg-orange-50]="isReplaceMode">
       <div>
         <h2 class="text-2xl font-bold" [class.text-gray-800]="!isReplaceMode" [class.text-orange-800]="isReplaceMode">
           {{ isReplaceMode ? '⚠️ Replace Treatment' : 'New Prescription' }}
@@ -304,21 +305,21 @@
       <button 
         type="button"
         (click)="closeNewPrescriptionModal()"
-        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+        class="modal-card__close text-gray-400 hover:text-gray-600 text-2xl leading-none">
         ✕
       </button>
     </div>
 
     <!-- Modal Body -->
-    <div class="px-6 py-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="modal-card__body px-6 py-6">
+      <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Patient Search & Select -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Patient <span class="text-red-500">*</span>
           </label>
           <div class="relative">
-            <div class="flex items-center border border-gray-300 rounded-lg px-4 py-2 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500"
+            <div class="patient-picker flex items-center border border-gray-300 rounded-lg px-4 py-2 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500"
                  [class.bg-gray-50]="selectedPatient">
               <span *ngIf="selectedPatient" class="mr-2">👤</span>
               <input 
@@ -343,7 +344,7 @@
             
             <!-- Patient Dropdown -->
             <div *ngIf="showPatientDropdown && filteredPatients.length > 0" 
-                 class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                 class="patient-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               <div *ngFor="let patient of filteredPatients" 
                    (click)="selectPatient(patient)"
                    class="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0">
@@ -363,7 +364,7 @@
             
             <!-- No Results -->
             <div *ngIf="showPatientDropdown && patientSearchQuery && filteredPatients.length === 0"
-                 class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+                 class="patient-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
               No patients found
             </div>
           </div>
@@ -372,7 +373,7 @@
         </div>
 
         <!-- Plan Title -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Plan Title <span class="text-red-500">*</span>
           </label>
@@ -380,12 +381,12 @@
             type="text" 
             [(ngModel)]="newPlan.title"
             [ngModelOptions]="{standalone: true}"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             placeholder="e.g., Alzheimer Treatment Phase 1">
         </div>
 
         <!-- Start Date -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Start Date <span class="text-red-500">*</span>
           </label>
@@ -393,11 +394,11 @@
             type="date" 
             [(ngModel)]="newPlan.startDate"
             [ngModelOptions]="{standalone: true}"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- End Date -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             End Date <span class="text-gray-400 font-normal">(optional)</span>
           </label>
@@ -405,15 +406,15 @@
             type="date" 
             [(ngModel)]="newPlan.endDate"
             [ngModelOptions]="{standalone: true}"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Autonomy Level -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Autonomy Level
           </label>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="choice-grid grid grid-cols-3 gap-2">
             <label *ngFor="let level of autonomyLevels" 
                    class="cursor-pointer">
               <input 
@@ -422,7 +423,7 @@
                 [value]="level"
                 [(ngModel)]="newPlan.autonomyLevel"
                 class="sr-only peer">
-              <div class="border-2 border-gray-200 rounded-lg px-2 py-2 text-center hover:border-gray-300 peer-checked:border-primary-500 peer-checked:bg-primary-50 peer-checked:text-primary-700 transition text-sm">
+              <div class="choice-pill border-2 border-gray-200 rounded-lg px-2 py-2 text-center hover:border-gray-300 peer-checked:border-primary-500 peer-checked:bg-primary-50 peer-checked:text-primary-700 transition text-sm">
                 <div class="font-medium">{{ level }}</div>
               </div>
             </label>
@@ -430,20 +431,20 @@
         </div>
 
         <!-- Risk Level -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Risk Level
           </label>
           <select 
             [(ngModel)]="newPlan.lastRiskLevel"
             [ngModelOptions]="{standalone: true}"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option *ngFor="let level of riskLevels" [value]="level">{{ level }}</option>
           </select>
         </div>
 
         <!-- Notes -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Notes <span class="text-gray-400 font-normal">(optional)</span>
           </label>
@@ -451,7 +452,7 @@
             [(ngModel)]="newPlan.notes"
             [ngModelOptions]="{standalone: true}"
             rows="3"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+            class="form-control form-control--textarea w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
             placeholder="Special instructions, observations, or additional information...">
           </textarea>
         </div>
@@ -459,11 +460,11 @@
     </div>
 
     <!-- Modal Footer -->
-    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+    <div class="modal-card__footer px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
       <button 
         type="button"
         (click)="closeNewPrescriptionModal()"
-        class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
+        class="modal-btn modal-btn--secondary px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
         Cancel
       </button>
       <button 
@@ -473,7 +474,7 @@
         [class.hover:bg-primary-700]="!isReplaceMode"
         [class.bg-orange-600]="isReplaceMode"
         [class.hover:bg-orange-700]="isReplaceMode"
-        class="px-6 py-2 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+        class="modal-btn modal-btn--primary px-6 py-2 text-white rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
         {{ loading ? (isReplaceMode ? 'Replacing...' : 'Creating...') : (isReplaceMode ? 'Replace Treatment' : 'Create Prescription') }}
       </button>
     </div>
@@ -483,28 +484,28 @@
 
 <!-- ==================== MODAL: Add Medication ==================== -->
 <div *ngIf="showAddMedicationModal" 
-     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
      (click)="closeAddMedicationModal()">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+  <div class="modal-card bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div class="modal-card__header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
       <div>
         <h2 class="text-2xl font-bold text-gray-800">Add Medication</h2>
         <p class="text-gray-500 text-sm mt-1">Add a medication to {{ selectedPlan?.title }}</p>
       </div>
       <button 
         (click)="closeAddMedicationModal()"
-        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+        class="modal-card__close text-gray-400 hover:text-gray-600 text-2xl leading-none">
         ✕
       </button>
     </div>
 
     <!-- Modal Body -->
-    <div class="px-6 py-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="modal-card__body px-6 py-6">
+      <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Medication Name with Autocomplete -->
-        <div class="md:col-span-2 relative">
+        <div class="form-field md:col-span-2 relative">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Medication Name <span class="text-red-500">*</span>
           </label>
@@ -514,7 +515,7 @@
               [formControl]="drugSearchControl"
               (focus)="showDrugDropdownIfNeeded()"
               (blur)="hideDrugDropdown()"
-              class="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
               placeholder="Type at least 3 characters to search (e.g., parac)..."
               autocomplete="off">
             
@@ -547,7 +548,7 @@
           
           <!-- Autocomplete Dropdown -->
           <div *ngIf="showDrugDropdown && drugSuggestions.length > 0" 
-               class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+               class="patient-dropdown absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
             <div *ngFor="let suggestion of drugSuggestions" 
                  (click)="selectDrug(suggestion)"
                  class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 transition-colors">
@@ -564,7 +565,7 @@
           
           <!-- No results -->
           <div *ngIf="showDrugDropdown && !isSearchingDrugs && drugSuggestions.length === 0 && drugSearchControl.value && drugSearchControl.value.length >= 3 && !drugSearchError"
-               class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+               class="patient-dropdown absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
             No drugs found — You can enter manually
           </div>
           
@@ -572,40 +573,40 @@
         </div>
 
         <!-- Dosage -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Dosage <span class="text-red-500">*</span>
           </label>
           <input 
             type="text" 
             [(ngModel)]="newItem.dosage"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
             placeholder="e.g., 10mg">
         </div>
 
         <!-- Frequency -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Frequency
           </label>
           <select 
             [(ngModel)]="newItem.frequency"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option *ngFor="let freq of frequencyTypes" [value]="freq">{{ freq }}</option>
           </select>
         </div>
 
         <!-- Times of Day -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Intake Times <span class="text-red-500">*</span>
           </label>
-          <div class="flex flex-wrap gap-2 mb-2">
+          <div class="time-chip-group flex flex-wrap gap-2 mb-2">
             <button 
               *ngFor="let time of availableTimes"
               type="button"
               (click)="toggleNewItemTime(time.value)"
-              class="px-3 py-2 text-sm font-medium rounded-full border transition-all"
+              class="time-chip px-3 py-2 text-sm font-medium rounded-full border transition-all"
               [class.bg-primary-600]="isNewItemTimeSelected(time.value)"
               [class.text-white]="isNewItemTimeSelected(time.value)"
               [class.border-primary-600]="isNewItemTimeSelected(time.value)"
@@ -620,7 +621,7 @@
         </div>
 
         <!-- Stock Quantity -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Initial Stock
           </label>
@@ -628,11 +629,11 @@
             type="number" 
             [(ngModel)]="newItem.stockQuantity"
             min="0"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Low Threshold -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">
             Alert Threshold
           </label>
@@ -640,12 +641,12 @@
             type="number" 
             [(ngModel)]="newItem.lowThreshold"
             min="0"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- High Risk Checkbox -->
         <div class="md:col-span-2">
-          <label class="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+          <label class="risk-toggle flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
             <input 
               type="checkbox" 
               [(ngModel)]="newItem.isHighRisk"
@@ -660,16 +661,16 @@
     </div>
 
     <!-- Modal Footer -->
-    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+    <div class="modal-card__footer px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
       <button 
         (click)="closeAddMedicationModal()"
-        class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
+        class="modal-btn modal-btn--secondary px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
         Cancel
       </button>
       <button 
         (click)="addMedication()"
         [disabled]="loading || !newItem.name.trim() || !newItem.dosage.trim() || !newItem.timesOfDay.trim()"
-        class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+        class="modal-btn modal-btn--primary px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
         {{ loading ? 'Adding...' : 'Add Medication' }}
       </button>
     </div>
@@ -678,69 +679,69 @@
 
 <!-- ==================== MODAL: Edit Prescription ==================== -->
 <div *ngIf="showEditPrescriptionModal" 
-     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
      (click)="closeEditPrescriptionModal()">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+  <div class="modal-card modal-card--wide bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div class="modal-card__header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
       <div>
         <h2 class="text-2xl font-bold text-gray-800">Edit Prescription</h2>
         <p class="text-gray-500 text-sm mt-1">Update prescription details</p>
       </div>
       <button 
         (click)="closeEditPrescriptionModal()"
-        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+        class="modal-card__close text-gray-400 hover:text-gray-600 text-2xl leading-none">
         ✕
       </button>
     </div>
 
     <!-- Modal Body -->
-    <div class="px-6 py-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="modal-card__body px-6 py-6">
+      <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Plan Title -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Plan Title</label>
           <input 
             type="text" 
             [(ngModel)]="editPlanData.title"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Start Date -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
           <input 
             type="date" 
             [(ngModel)]="editPlanData.startDate"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- End Date -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">End Date</label>
           <input 
             type="date" 
             [(ngModel)]="editPlanData.endDate"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Autonomy Level -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Autonomy Level</label>
           <select 
             [(ngModel)]="editPlanData.autonomyLevel"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option *ngFor="let level of autonomyLevels" [value]="level">{{ level }}</option>
           </select>
         </div>
 
         <!-- Status -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
           <select 
             [(ngModel)]="editPlanData.status"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option value="ACTIVE">ACTIVE</option>
             <option value="SUSPENDED">SUSPENDED</option>
             <option value="STOPPED">STOPPED</option>
@@ -748,38 +749,38 @@
         </div>
 
         <!-- Risk Level -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Risk Level</label>
           <select 
             [(ngModel)]="editPlanData.lastRiskLevel"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option *ngFor="let level of riskLevels" [value]="level">{{ level }}</option>
           </select>
         </div>
 
         <!-- Notes -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
           <textarea 
             [(ngModel)]="editPlanData.notes"
             rows="3"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none">
+            class="form-control form-control--textarea w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none">
           </textarea>
         </div>
       </div>
     </div>
 
     <!-- Modal Footer -->
-    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+    <div class="modal-card__footer px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
       <button 
         (click)="closeEditPrescriptionModal()"
-        class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
+        class="modal-btn modal-btn--secondary px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
         Cancel
       </button>
       <button 
         (click)="updatePrescription()"
         [disabled]="loading"
-        class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50">
+        class="modal-btn modal-btn--primary px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50">
         {{ loading ? 'Saving...' : 'Save Changes' }}
       </button>
     </div>
@@ -788,63 +789,63 @@
 
 <!-- ==================== MODAL: Edit Medication ==================== -->
 <div *ngIf="showEditMedicationModal" 
-     class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
      (click)="closeEditMedicationModal()">
-  <div class="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+  <div class="modal-card bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+    <div class="modal-card__header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
       <div>
         <h2 class="text-2xl font-bold text-gray-800">Edit Medication</h2>
         <p class="text-gray-500 text-sm mt-1">Update medication details</p>
       </div>
       <button 
         (click)="closeEditMedicationModal()"
-        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">
+        class="modal-card__close text-gray-400 hover:text-gray-600 text-2xl leading-none">
         ✕
       </button>
     </div>
 
     <!-- Modal Body -->
-    <div class="px-6 py-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="modal-card__body px-6 py-6">
+      <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Medication Name -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Medication Name</label>
           <input 
             type="text" 
             [(ngModel)]="editItemData.name"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Dosage -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Dosage</label>
           <input 
             type="text" 
             [(ngModel)]="editItemData.dosage"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Frequency -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Frequency</label>
           <select 
             [(ngModel)]="editItemData.frequency"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white">
             <option *ngFor="let freq of frequencyTypes" [value]="freq">{{ freq }}</option>
           </select>
         </div>
 
         <!-- Times of Day -->
-        <div class="md:col-span-2">
+        <div class="form-field md:col-span-2">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Intake Times</label>
-          <div class="flex flex-wrap gap-2 mb-2">
+          <div class="time-chip-group flex flex-wrap gap-2 mb-2">
             <button 
               *ngFor="let time of availableTimes"
               type="button"
               (click)="toggleEditItemTime(time.value)"
-              class="px-3 py-2 text-sm font-medium rounded-full border transition-all"
+              class="time-chip px-3 py-2 text-sm font-medium rounded-full border transition-all"
               [class.bg-primary-600]="isEditItemTimeSelected(time.value)"
               [class.text-white]="isEditItemTimeSelected(time.value)"
               [class.border-primary-600]="isEditItemTimeSelected(time.value)"
@@ -859,28 +860,28 @@
         </div>
 
         <!-- Stock Quantity -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Stock Quantity</label>
           <input 
             type="number" 
             [(ngModel)]="editItemData.stockQuantity"
             min="0"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- Low Threshold -->
-        <div>
+        <div class="form-field">
           <label class="block text-sm font-semibold text-gray-700 mb-2">Alert Threshold</label>
           <input 
             type="number" 
             [(ngModel)]="editItemData.lowThreshold"
             min="0"
-            class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
+            class="form-control w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">
         </div>
 
         <!-- High Risk Checkbox -->
         <div class="md:col-span-2">
-          <label class="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+          <label class="risk-toggle flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
             <input 
               type="checkbox" 
               [(ngModel)]="editItemData.isHighRisk"
@@ -894,16 +895,16 @@
     </div>
 
     <!-- Modal Footer -->
-    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
+    <div class="modal-card__footer px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end gap-3">
       <button 
         (click)="closeEditMedicationModal()"
-        class="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
+        class="modal-btn modal-btn--secondary px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium">
         Cancel
       </button>
       <button 
         (click)="updateMedication()"
         [disabled]="loading"
-        class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50">
+        class="modal-btn modal-btn--primary px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50">
         {{ loading ? 'Saving...' : 'Save Changes' }}
       </button>
     </div>

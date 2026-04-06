@@ -6,15 +6,17 @@ import { MedicalFollowupService } from '../../../core/services/medical-followup.
 import { UserManagementService } from '../../../core/services/user-management.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import { CareTask } from '../../../core/models/user.model';
 import { Appointment, AppointmentMode, AppointmentStatus } from '../../../core/models/medical-followup.model';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { ManagedUser } from '../../../core/models/user-management.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, StatCardComponent, AlertCardComponent],
+  imports: [CommonModule, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
@@ -41,16 +43,38 @@ export class CaregiverDashboardComponent implements OnInit {
     if (currentUser) {
       this.caregiverName = currentUser.name;
       this.caregiverId = currentUser.id;
-      
-      // Get all patients
-      this.patients = this.dataService.getPatients();
-      
+
       // Get tasks assigned to this caregiver
       this.allTasks = this.dataService.getTasksForCaregiver(currentUser.id);
-      
-      // Load appointments for patients
-      this.loadPatientAppointments();
+
+      this.loadPatientsForCaregiver();
     }
+  }
+
+  private loadPatientsForCaregiver(): void {
+    if (!this.caregiverId) {
+      this.patients = this.dataService.getPatients();
+      this.loadPatientAppointments();
+      return;
+    }
+
+    this.userService.getPatientsForCaregiver(this.caregiverId).pipe(
+      catchError((err) => {
+        console.warn('[CaregiverDashboard] Falling back to local patients for caregiver dashboard', err);
+        return of([] as ManagedUser[]);
+      })
+    ).subscribe({
+      next: (patients) => {
+        this.patients = patients.length > 0
+          ? patients.map(patient => this.mapManagedPatient(patient))
+          : this.dataService.getPatients();
+        this.loadPatientAppointments();
+      },
+      error: () => {
+        this.patients = this.dataService.getPatients();
+        this.loadPatientAppointments();
+      }
+    });
   }
 
   /**
@@ -99,7 +123,11 @@ export class CaregiverDashboardComponent implements OnInit {
       const patientName = patient ? patient.name : 'Unknown';
       
       appointments
-        .filter(appt => new Date(appt.startAt) >= now)
+        .filter(appt =>
+          new Date(appt.startAt) >= now &&
+          appt.status !== AppointmentStatus.CANCELLED &&
+          appt.status !== AppointmentStatus.REJECTED
+        )
         .forEach(appointment => {
           allAppointments.push({ appointment, patientName });
         });
@@ -121,7 +149,25 @@ export class CaregiverDashboardComponent implements OnInit {
 
   getPatientName(patientId: string): string {
     const patient = this.patients.find(p => p.id === patientId);
-    return patient ? patient.name : 'Unknown';
+    if (patient) {
+      return patient.name;
+    }
+
+    return this.dataService.getPatientById(patientId)?.name || 'Unknown';
+  }
+
+  getAppointmentsForPatient(patientId: string): Appointment[] {
+    return this.patientAppointments.get(patientId) || [];
+  }
+
+  handleAppointmentRequestCreated(patientId: string, appointment: Appointment): void {
+    const existingAppointments = this.patientAppointments.get(patientId) || [];
+    this.patientAppointments.set(
+      patientId,
+      [...existingAppointments, appointment].sort(
+        (left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime()
+      )
+    );
   }
 
   // ==================== TELECONSULTATION HELPERS ====================
@@ -138,7 +184,8 @@ export class CaregiverDashboardComponent implements OnInit {
 
   isTeleconsultationPending(appointment: Appointment): boolean {
     return appointment.mode === AppointmentMode.ONLINE && 
-           appointment.status === AppointmentStatus.REQUESTED;
+           (appointment.status === AppointmentStatus.REQUESTED ||
+            appointment.status === AppointmentStatus.ACCEPTED);
   }
 
   isAppointmentCancelled(appointment: Appointment): boolean {
@@ -188,5 +235,23 @@ export class CaregiverDashboardComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  private mapManagedPatient(patient: ManagedUser): any {
+    const profile = (patient.profile || {}) as Record<string, string>;
+    const displayName = patient.fullName
+      || `${patient.firstName || ''} ${patient.lastName || ''}`.trim()
+      || patient.username
+      || patient.email
+      || 'Patient';
+
+    return {
+      id: patient.id,
+      name: displayName,
+      email: patient.email || 'Not available',
+      phone: profile['phone'] || 'Not provided',
+      condition: profile['culturalContext'] || 'Patient under care',
+      emergencyContact: profile['emergencyContact'] || 'Not provided'
+    };
   }
 }

@@ -1,12 +1,26 @@
 import { Injectable } from '@angular/core';
-import { Appointment, AppointmentStatus } from '../models/medical-followup.model';
+import {
+  Appointment,
+  AppointmentPriority,
+  AppointmentStatus,
+  AppointmentType
+} from '../models/medical-followup.model';
 
 export type SchedulingParty = 'DOCTOR' | 'PATIENT' | 'CAREGIVER';
+export type SchedulingConflictSeverity = 'BLOCKING' | 'PREEMPTIBLE';
+
+export interface ProposedAppointmentWindow {
+  startAt: string;
+  endAt: string;
+  type: AppointmentType | string;
+  priority: AppointmentPriority | string;
+}
 
 export interface SchedulingConflict {
   party: SchedulingParty;
   withAppointment: Appointment;
   reason: string;
+  severity: SchedulingConflictSeverity;
 }
 
 export interface SuggestedSlot {
@@ -25,12 +39,22 @@ export interface SuggestSlotsOptions {
   startSearchAt: string; // LocalDateTime
   durationMinutes: number;
   sources: AvailabilitySource[];
+  type: AppointmentType | string;
+  priority: AppointmentPriority | string;
   mode: 'ONSITE' | 'ONLINE';
   maxSuggestions?: number;
   daysToScan?: number;
   stepMinutes?: number;
   workingHours?: { startHour: number; endHour: number };
   skipWeekends?: boolean;
+}
+
+export interface SchedulingConflictAnalysis {
+  conflicts: SchedulingConflict[];
+  blockingConflicts: SchedulingConflict[];
+  preemptibleConflicts: SchedulingConflict[];
+  canProceed: boolean;
+  hasPriorityOverride: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -73,6 +97,34 @@ export class AppointmentSchedulingService {
     return status !== AppointmentStatus.CANCELLED && status !== AppointmentStatus.REJECTED;
   }
 
+  isUrgentAppointment(appointment: Pick<ProposedAppointmentWindow, 'type' | 'priority'>): boolean {
+    return (
+      appointment.type === AppointmentType.EMERGENCY ||
+      appointment.priority === AppointmentPriority.CRITICAL
+    );
+  }
+
+  isRoutineAppointment(appointment: Pick<ProposedAppointmentWindow, 'type' | 'priority'>): boolean {
+    return (
+      appointment.type === AppointmentType.ROUTINE &&
+      !this.isUrgentAppointment(appointment)
+    );
+  }
+
+  getPriorityRank(priority: AppointmentPriority | string | undefined | null): number {
+    switch (priority) {
+      case AppointmentPriority.CRITICAL:
+        return 4;
+      case AppointmentPriority.HIGH:
+        return 3;
+      case AppointmentPriority.NORMAL:
+        return 2;
+      case AppointmentPriority.LOW:
+      default:
+        return 1;
+    }
+  }
+
   overlaps(
     proposedStart: Date,
     proposedEnd: Date,
@@ -88,10 +140,22 @@ export class AppointmentSchedulingService {
     return pStart < eEnd && pEnd > eStart;
   }
 
-  findConflicts(proposedStartAt: string, proposedEndAt: string, sources: AvailabilitySource[]): SchedulingConflict[] {
-    const pStart = this.parseLocalDateTime(proposedStartAt);
-    const pEnd = this.parseLocalDateTime(proposedEndAt);
-    if (!pStart || !pEnd) return [];
+  analyzeConflicts(
+    proposed: ProposedAppointmentWindow,
+    sources: AvailabilitySource[]
+  ): SchedulingConflictAnalysis {
+    const pStart = this.parseLocalDateTime(this.normalizeLocalDateTime(proposed.startAt));
+    const pEnd = this.parseLocalDateTime(this.normalizeLocalDateTime(proposed.endAt));
+
+    if (!pStart || !pEnd) {
+      return {
+        conflicts: [],
+        blockingConflicts: [],
+        preemptibleConflicts: [],
+        canProceed: false,
+        hasPriorityOverride: false
+      };
+    }
 
     const conflicts: SchedulingConflict[] = [];
 
@@ -104,17 +168,42 @@ export class AppointmentSchedulingService {
         const eEnd = this.parseLocalDateTime(this.normalizeLocalDateTime(appt.endAt));
         if (!eStart || !eEnd) continue;
 
-        if (this.overlaps(pStart, pEnd, eStart, eEnd, buffer)) {
-          conflicts.push({
-            party: source.party,
-            withAppointment: appt,
-            reason: buffer > 0 ? `Overlaps with buffer (${buffer} min)` : 'Overlaps'
-          });
+        if (!this.overlaps(pStart, pEnd, eStart, eEnd, buffer)) {
+          continue;
         }
+
+        const severity = this.canPreempt(proposed, appt) ? 'PREEMPTIBLE' : 'BLOCKING';
+        conflicts.push({
+          party: source.party,
+          withAppointment: appt,
+          reason: this.buildConflictReason(severity, buffer),
+          severity
+        });
       }
     }
 
-    return conflicts;
+    const blockingConflicts = conflicts.filter(conflict => conflict.severity === 'BLOCKING');
+    const preemptibleConflicts = conflicts.filter(conflict => conflict.severity === 'PREEMPTIBLE');
+
+    return {
+      conflicts,
+      blockingConflicts,
+      preemptibleConflicts,
+      canProceed: blockingConflicts.length === 0,
+      hasPriorityOverride: preemptibleConflicts.length > 0
+    };
+  }
+
+  findConflicts(proposedStartAt: string, proposedEndAt: string, sources: AvailabilitySource[]): SchedulingConflict[] {
+    return this.analyzeConflicts(
+      {
+        startAt: proposedStartAt,
+        endAt: proposedEndAt,
+        type: AppointmentType.ROUTINE,
+        priority: AppointmentPriority.NORMAL
+      },
+      sources
+    ).conflicts;
   }
 
   suggestSlots(options: SuggestSlotsOptions): SuggestedSlot[] {
@@ -122,6 +211,8 @@ export class AppointmentSchedulingService {
       startSearchAt,
       durationMinutes,
       sources,
+      type,
+      priority,
       maxSuggestions = 8,
       daysToScan = 14,
       stepMinutes = 15,
@@ -178,12 +269,23 @@ export class AppointmentSchedulingService {
 
         const startStr = this.toLocalDateTimeString(candidateStart);
         const endStr = this.toLocalDateTimeString(candidateEnd);
-        const conflicts = this.findConflicts(startStr, endStr, sources);
+        const analysis = this.analyzeConflicts(
+          {
+            startAt: startStr,
+            endAt: endStr,
+            type,
+            priority
+          },
+          sources
+        );
 
-        if (conflicts.length === 0) {
+        if (analysis.blockingConflicts.length === 0) {
           suggestions.push({
             startAt: startStr,
-            endAt: endStr
+            endAt: endStr,
+            note: analysis.preemptibleConflicts.length > 0
+              ? 'Urgent visit can preempt routine appointments in this slot.'
+              : undefined
           });
           if (suggestions.length >= maxSuggestions) break;
         }
@@ -201,5 +303,25 @@ export class AppointmentSchedulingService {
     }
     return value.replace(/Z$/, '');
   }
-}
 
+  private canPreempt(proposed: ProposedAppointmentWindow, existing: Appointment): boolean {
+    return (
+      this.isUrgentAppointment(proposed) &&
+      this.isRoutineAppointment(existing) &&
+      !this.isUrgentAppointment(existing) &&
+      this.getPriorityRank(proposed.priority) > this.getPriorityRank(existing.priority)
+    );
+  }
+
+  private buildConflictReason(severity: SchedulingConflictSeverity, bufferMinutes: number): string {
+    const overlapMessage = bufferMinutes > 0
+      ? `Overlaps with buffer (${bufferMinutes} min)`
+      : 'Overlaps';
+
+    if (severity === 'PREEMPTIBLE') {
+      return `${overlapMessage}; urgent care may take precedence over this routine visit.`;
+    }
+
+    return overlapMessage;
+  }
+}

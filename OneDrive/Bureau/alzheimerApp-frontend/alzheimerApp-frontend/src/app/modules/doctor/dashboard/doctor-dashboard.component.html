@@ -1,211 +1,361 @@
-<div class="max-w-7xl mx-auto px-4 py-8">
-  <!-- Header -->
-  <div class="mb-8">
-    <h1 class="text-4xl font-bold text-gray-800">Welcome, {{ doctorName }}</h1>
-    <p class="text-gray-600 mt-2">Patient management and medical records</p>
-  </div>
+<div class="doctor-dashboard">
+  <div class="mx-auto max-w-7xl px-4 py-8">
+    <header class="dash-hero mb-8">
+      <div class="dash-hero__text">
+        <p class="dash-hero__eyebrow">Doctor dashboard</p>
+        <h1 class="dash-hero__title">Welcome, {{ doctorName }}</h1>
+        <p class="dash-hero__subtitle">
+          <span *ngIf="doctorMeta; else metaFallback">{{ doctorMeta }}</span>
+          <ng-template #metaFallback>Appointments, patients, and follow-up tasks in one place.</ng-template>
+        </p>
+      </div>
 
-  <!-- Error Message -->
-  <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-    <p class="font-bold">Error</p>
-    <p>{{ error }}</p>
-  </div>
+      <div class="dash-hero__actions">
+        <a routerLink="/doctor/appointments" class="dash-hero__primary">
+          New appointment
+        </a>
+        <button
+          type="button"
+          (click)="loadDashboardData()"
+          class="dash-hero__refresh"
+          [disabled]="isLoading()">
+          {{ isLoading() ? 'Refreshing...' : 'Refresh' }}
+        </button>
+      </div>
+    </header>
 
-  <!-- Loading State -->
-  <div *ngIf="isLoading()" class="text-center py-12">
-    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
-    <p class="text-gray-600 mt-4">Loading dashboard...</p>
-  </div>
-
-  <div *ngIf="!isLoading()">
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <app-stat-card
-        label="Total Patients"
-        [value]="stats.totalPatients.toString()"
-        icon="👥"
-        color="primary">
-      </app-stat-card>
-      
-      <app-stat-card
-        label="Appointments Today"
-        [value]="stats.appointmentsToday.toString()"
-        icon="📅"
-        color="info">
-      </app-stat-card>
-      
-      <app-stat-card
-        label="Pending Reviews"
-        [value]="stats.pendingReviews.toString()"
-        icon="📋"
-        color="warning">
-      </app-stat-card>
-      
-      <app-stat-card
-        label="Active Prescriptions"
-        [value]="stats.activePrescriptions.toString()"
-        icon="💊"
-        color="success">
-      </app-stat-card>
+    <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+      <p class="font-bold">Error</p>
+      <p>{{ error }}</p>
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Patient List -->
-      <div class="lg:col-span-2">
-        <!-- Upcoming Appointments -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">Upcoming Appointments</h2>
-            <a routerLink="/doctor/appointments" class="text-primary-600 hover:text-primary-700 text-sm font-semibold">
-              View All →
-            </a>
+    <div *ngIf="isLoading()" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+      <p class="text-gray-600 mt-4">Loading dashboard...</p>
+    </div>
+
+    <div *ngIf="!isLoading()">
+      <section class="stats-grid mb-8">
+        <article class="stat-kpi stat-kpi--primary">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Active Caseload</p>
+            <span class="stat-kpi__icon" aria-hidden="true">👥</span>
           </div>
-          
-          <div *ngIf="getUpcomingAppointments().length > 0" class="space-y-4">
-            <div *ngFor="let appt of getUpcomingAppointments()" 
-                 class="border-l-4 border-primary-500 pl-4 py-3 hover:bg-primary-50 transition rounded-r-lg">
-              <div class="flex justify-between items-start">
-                <div>
-                  <p class="font-bold text-gray-800">{{ getPatientName(appt.patientId) }}</p>
-                  <p class="text-gray-600 text-sm">{{ appt.type }} • {{ appt.mode }}</p>
-                  <p class="text-gray-500 text-xs mt-1">📅 {{ formatAppointmentDate(appt.startAt) }}</p>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ activePatients.length }}</p>
+            <span class="stat-kpi__trend">{{ patientsWithoutUpcomingCount }} without next visit</span>
+          </div>
+          <p class="stat-kpi__meta">Patients currently active under your follow-up.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--info">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Scheduled Today</p>
+            <span class="stat-kpi__icon" aria-hidden="true">📅</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ stats.appointmentsToday }}</p>
+            <span class="stat-kpi__trend">{{ nextSevenDaysAppointmentsCount }} in 7 days</span>
+          </div>
+          <p class="stat-kpi__meta">Confirmed and upcoming visits still on today’s agenda.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--warning">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Pending Confirmations</p>
+            <span class="stat-kpi__icon" aria-hidden="true">📌</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ requestedAppointmentsCount }}</p>
+            <span class="stat-kpi__trend">{{ suspendedPlansCount }} plans suspended</span>
+          </div>
+          <p class="stat-kpi__meta">Appointment requests and medication reviews waiting for action.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--success">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Active Treatment Plans</p>
+            <span class="stat-kpi__icon" aria-hidden="true">💊</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ activeTreatmentPlansCount }}</p>
+            <span class="stat-kpi__trend">{{ activeTreatmentPatientsCount }} patients covered</span>
+          </div>
+          <p class="stat-kpi__meta">Medication plans currently active and requiring follow-up.</p>
+        </article>
+      </section>
+
+      <section class="action-strip mb-8">
+        <a routerLink="/doctor/appointments" class="action-chip">
+          <span class="action-chip__icon">📅</span>
+          <span class="action-chip__text">Appointments</span>
+        </a>
+        <a routerLink="/doctor/patients" class="action-chip">
+          <span class="action-chip__icon">👥</span>
+          <span class="action-chip__text">Patients</span>
+        </a>
+        <a routerLink="/doctor/prescriptions" class="action-chip">
+          <span class="action-chip__icon">💊</span>
+          <span class="action-chip__text">Prescriptions</span>
+        </a>
+        <a routerLink="/doctor/records" class="action-chip">
+          <span class="action-chip__icon">🗂️</span>
+          <span class="action-chip__text">Records</span>
+        </a>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <section class="lg:col-span-2 space-y-8">
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Today</h2>
+                <p class="panel__subtitle">What is scheduled for the rest of the day.</p>
+              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">Open →</a>
+            </div>
+
+            <div *ngIf="todaysAppointments.length > 0" class="space-y-3">
+              <div *ngFor="let appt of todaysAppointments" class="appt-row">
+                <div class="appt-row__main">
+                  <p class="appt-row__title">{{ getPatientName(appt.patientId) }}</p>
+                  <p class="appt-row__meta">{{ appt.type }} • {{ appt.mode }} • {{ formatAppointmentDate(appt.startAt) }}</p>
                 </div>
-                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                  [ngClass]="appt.status === 'COMPLETED' ? 'bg-success bg-opacity-20 text-success' : 
-                             appt.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                             appt.status === 'CANCELLED' ? 'bg-gray-200 text-gray-600' :
-                             'bg-primary-100 text-primary-700'">
+                <span class="appt-row__badge"
+                  [ngClass]="appt.status === 'CONFIRMED' ? 'badge-confirmed' :
+                             appt.status === 'REQUESTED' ? 'badge-requested' :
+                             'badge-neutral'">
                   {{ appt.status | titlecase }}
                 </span>
               </div>
             </div>
-          </div>
-          
-          <div *ngIf="getUpcomingAppointments().length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-            <p class="text-4xl mb-2">📅</p>
-            <p>No upcoming appointments</p>
-          </div>
-        </div>
 
-        <!-- Patients List -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-gray-800">Your Patients</h2>
-            <span class="text-sm text-gray-500">{{ patients.length }} total</span>
+            <div *ngIf="todaysAppointments.length === 0" class="empty-mini">
+              <p class="empty-mini__title">No appointments today.</p>
+              <p class="empty-mini__text">Use Appointments to schedule or review upcoming visits.</p>
+            </div>
           </div>
-          
-          <div *ngIf="patients.length > 0" class="space-y-4">
-            <div *ngFor="let patient of patients" class="border rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
-              <div class="flex justify-between items-start mb-4">
-                <div>
-                  <p class="text-xl font-bold text-gray-800">
-                    {{ patient.fullName || (patient.firstName + ' ' + patient.lastName) || patient.username }}
+
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Next 7 Days</h2>
+                <p class="panel__subtitle">Upcoming appointments, ordered by time.</p>
+              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">View all →</a>
+            </div>
+
+            <div *ngIf="nextAppointments.length > 0" class="space-y-3">
+              <div *ngFor="let appt of paginatedNextAppointments" class="appt-row appt-row--soft">
+                <div class="appt-row__main">
+                  <p class="appt-row__title">{{ getPatientName(appt.patientId) }}</p>
+                  <p class="appt-row__meta">{{ appt.type }} • {{ appt.mode }} • {{ formatAppointmentDate(appt.startAt) }}</p>
+                </div>
+                <span class="appt-row__badge badge-neutral">{{ appt.status | titlecase }}</span>
+              </div>
+
+              <div *ngIf="nextAppointments.length > nextAppointmentsPageSize" class="panel-pagination">
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safeNextAppointmentsPage <= 1"
+                  (click)="goToNextAppointmentsPage(safeNextAppointmentsPage - 1)">
+                  Previous
+                </button>
+                <div class="panel-pagination__pages">
+                  <button
+                    *ngFor="let page of nextAppointmentsPageNumbers"
+                    type="button"
+                    class="panel-pagination__number"
+                    [class.panel-pagination__number--active]="page === safeNextAppointmentsPage"
+                    (click)="goToNextAppointmentsPage(page)">
+                    {{ page }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safeNextAppointmentsPage >= nextAppointmentsTotalPages"
+                  (click)="goToNextAppointmentsPage(safeNextAppointmentsPage + 1)">
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="nextAppointments.length === 0" class="empty-mini">
+              <p class="empty-mini__title">Nothing scheduled in the next week.</p>
+              <p class="empty-mini__text">You can create appointments from the Patients list.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Priority Follow-up</h2>
+                <p class="panel__subtitle">Only patients needing scheduling, confirmation, or treatment review are shown here.</p>
+              </div>
+            </div>
+
+            <div class="patient-toolbar">
+              <input
+                type="text"
+                [(ngModel)]="patientQuery"
+                (ngModelChange)="onPatientQueryChange()"
+                placeholder="Search by name, email, username, or ID..."
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <div class="patient-toolbar__summary">
+                {{ patientQueue.length }} priority case{{ patientQueue.length === 1 ? '' : 's' }}
+              </div>
+            </div>
+
+            <div *ngIf="patientQueue.length > 0" class="queue-list">
+              <div *ngFor="let card of paginatedPatientQueue" class="queue-row">
+                <div class="queue-row__identity">
+                  <div class="queue-row__avatar">
+                    {{ (card.patient.fullName || card.patient.username || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="queue-row__main">
+                    <p class="queue-row__name">
+                      {{ card.patient.fullName || (card.patient.firstName + ' ' + card.patient.lastName) || card.patient.username }}
+                    </p>
+                    <p class="queue-row__meta">{{ card.patient.email || card.patient.username }}</p>
+                  </div>
+                </div>
+
+                <div class="queue-row__next">
+                  <p class="queue-row__next-label">Next appointment</p>
+                  <p class="queue-row__next-value" [class.queue-row__next-value--empty]="!card.nextAppointmentLabel">
+                    {{ card.nextAppointmentLabel || 'No appointment scheduled' }}
                   </p>
-                  <p class="text-gray-600 text-sm">{{ patient.email }}</p>
                 </div>
-                <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-info bg-opacity-20 text-info">
-                  {{ patient.status === 'ACTIVE' ? 'Active' : 'Inactive' }}
-                </span>
-              </div>
-              
-              <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-                <div>
-                  <p class="text-gray-600">Username</p>
-                  <p class="font-semibold text-gray-800">{{ patient.username }}</p>
+
+                <div class="queue-row__stats">
+                  <span *ngIf="card.hasToday" class="patient-badge patient-badge--today">Today</span>
+                  <span *ngIf="card.requestedCount > 0" class="patient-badge patient-badge--requested">
+                    {{ card.requestedCount }} requested
+                  </span>
+                  <span class="patient-badge patient-badge--upcoming">
+                    {{ card.upcomingCount }} upcoming
+                  </span>
+                  <span class="patient-badge patient-badge--plan">
+                    {{ card.activePlanCount }} active plan{{ card.activePlanCount === 1 ? '' : 's' }}
+                  </span>
                 </div>
-                <div>
-                  <p class="text-gray-600">Status</p>
-                  <p class="font-semibold text-gray-800">{{ patient.status === 'ACTIVE' ? 'Active' : 'Inactive' }}</p>
+
+                <div class="queue-row__actions">
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'appointments']" class="patient-action patient-action--primary">
+                    Appointments
+                  </a>
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'prescriptions']" class="patient-action">
+                    Prescriptions
+                  </a>
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'records']" class="patient-action">
+                    Records
+                  </a>
                 </div>
               </div>
 
-              <!-- Action Buttons -->
-              <div class="flex gap-3 pt-4 border-t">
-                <button class="flex-1 bg-primary-600 text-white px-4 py-2 rounded hover:bg-primary-700 transition font-semibold">
-                  View Profile
+              <div *ngIf="patientQueue.length > patientQueuePageSize" class="panel-pagination">
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safePatientQueuePage <= 1"
+                  (click)="goToPatientQueuePage(safePatientQueuePage - 1)">
+                  Previous
                 </button>
-                <button 
-                  routerLink="/doctor/appointments"
-                  class="flex-1 bg-success text-white px-4 py-2 rounded hover:bg-opacity-90 transition font-semibold">
-                  Schedule Appointment
+                <div class="panel-pagination__pages">
+                  <button
+                    *ngFor="let page of patientQueuePageNumbers"
+                    type="button"
+                    class="panel-pagination__number"
+                    [class.panel-pagination__number--active]="page === safePatientQueuePage"
+                    (click)="goToPatientQueuePage(page)">
+                    {{ page }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safePatientQueuePage >= patientQueueTotalPages"
+                  (click)="goToPatientQueuePage(safePatientQueuePage + 1)">
+                  Next
                 </button>
               </div>
             </div>
-          </div>
-          
-          <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-            <p class="text-4xl mb-2">👥</p>
-            <p>No patients assigned</p>
-          </div>
-        </div>
-      </div>
 
-      <!-- Sidebar -->
-      <div>
-        <!-- Today's Summary -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 class="text-xl font-bold text-gray-800 mb-4">Today's Summary</h2>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <div class="flex items-center gap-3">
-                <span class="text-2xl">📅</span>
-                <div>
-                  <p class="font-semibold text-gray-800">Appointments</p>
-                  <p class="text-xs text-gray-600">Scheduled for today</p>
-                </div>
-              </div>
-              <span class="text-2xl font-bold text-blue-600">{{ stats.appointmentsToday }}</span>
-            </div>
-            
-            <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-              <div class="flex items-center gap-3">
-                <span class="text-2xl">⏳</span>
-                <div>
-                  <p class="font-semibold text-gray-800">Pending</p>
-                  <p class="text-xs text-gray-600">Awaiting your review</p>
-                </div>
-              </div>
-              <span class="text-2xl font-bold text-yellow-600">{{ stats.pendingReviews }}</span>
-            </div>
-            
-            <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <div class="flex items-center gap-3">
-                <span class="text-2xl">💊</span>
-                <div>
-                  <p class="font-semibold text-gray-800">Prescriptions</p>
-                  <p class="text-xs text-gray-600">Active medications</p>
-                </div>
-              </div>
-              <span class="text-2xl font-bold text-green-600">{{ stats.activePrescriptions }}</span>
+            <div *ngIf="patientQueue.length === 0" class="empty-mini">
+              <p class="empty-mini__title">No priority follow-up at the moment.</p>
+              <p class="empty-mini__text">There are no patients with pending requests, today visits, or active plans without a next appointment.</p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- Quick Actions -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
-          <div class="space-y-3">
-            <a routerLink="/doctor/appointments" 
-               class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
-              <span class="text-xl">📅</span>
-              <span class="font-medium text-gray-700">Manage Appointments</span>
-            </a>
-            <a routerLink="/doctor/medications" 
-               class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
-              <span class="text-xl">💊</span>
-              <span class="font-medium text-gray-700">Medication Plans</span>
-            </a>
-            <button class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
-              <span class="text-xl">📊</span>
-              <span class="font-medium text-gray-700">View Reports</span>
-            </button>
-            <button class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
-              <span class="text-xl">✉️</span>
-              <span class="font-medium text-gray-700">Message Patients</span>
-            </button>
+        <aside class="space-y-8">
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Attention</h2>
+                <p class="panel__subtitle">Items that usually need a quick decision.</p>
+              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">Go →</a>
+            </div>
+
+            <div class="space-y-3">
+              <div class="attention-tile">
+                <p class="attention-tile__label">Requested appointments</p>
+                <p class="attention-tile__value">{{ requestedAppointmentsCount }}</p>
+              </div>
+
+              <div class="attention-tile attention-tile--soft">
+                <p class="attention-tile__label">Suspended medication plans</p>
+                <p class="attention-tile__value">{{ suspendedPlansCount }}</p>
+              </div>
+            </div>
+
+            <div class="mt-4" *ngIf="requestedAppointments.length > 0">
+              <p class="mini-title">Next requested</p>
+              <div class="space-y-2">
+                <div *ngFor="let appt of requestedAppointments" class="request-row">
+                  <div class="request-row__main">
+                    <p class="request-row__title">{{ getPatientName(appt.patientId) }}</p>
+                    <p class="request-row__meta">{{ formatAppointmentDate(appt.startAt) }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="acceptRequestedAppointment(appt.id)"
+                    [disabled]="confirming[appt.id]"
+                    class="request-row__action">
+                    {{ confirming[appt.id] ? 'Accepting...' : 'Accept' }}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <div class="panel panel--tint">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Shortcuts</h2>
+                <p class="panel__subtitle">Less clutter, just what you use.</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <a routerLink="/doctor/appointments" class="shortcut-row">
+                <span class="shortcut-row__label">Create appointment</span>
+                <span class="shortcut-row__meta">Open scheduling</span>
+              </a>
+              <a routerLink="/doctor/prescriptions" class="shortcut-row">
+                <span class="shortcut-row__label">Medication plans</span>
+                <span class="shortcut-row__meta">Review plans</span>
+              </a>
+              <a routerLink="/doctor/records" class="shortcut-row">
+                <span class="shortcut-row__label">Patient records</span>
+                <span class="shortcut-row__meta">Consult history</span>
+              </a>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </div>

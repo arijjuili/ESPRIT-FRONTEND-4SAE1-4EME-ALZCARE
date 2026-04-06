@@ -84,6 +84,21 @@
                 <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.emergencyContact.split(' -')[0] }}</p>
               </div>
             </div>
+
+            <div class="mt-4">
+              <app-appointment-request-card
+                [patientId]="patient.id"
+                [patientName]="patient.name"
+                [caregiverId]="caregiverId"
+                [existingAppointments]="getAppointmentsForPatient(patient.id)"
+                requesterRole="CAREGIVER"
+                buttonTone="caregiver"
+                buttonLabel="Request Appointment for Patient"
+                title="Request a patient appointment"
+                description="Use the doctor appointment fields to send a caregiver request directly from this dashboard."
+                (requestCreated)="handleAppointmentRequestCreated(patient.id, $event)">
+              </app-appointment-request-card>
+            </div>
           </div>
         </div>
         

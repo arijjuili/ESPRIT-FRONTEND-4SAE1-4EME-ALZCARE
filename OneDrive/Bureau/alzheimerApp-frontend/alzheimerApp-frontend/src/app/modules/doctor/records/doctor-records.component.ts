@@ -32,6 +32,9 @@ import { AuthUser } from '../../../core/models/user.model';
   styleUrls: ['./doctor-records.component.scss']
 })
 export class DoctorRecordsComponent implements OnInit {
+  readonly treatmentPreviewLimit = 6;
+  readonly appointmentPreviewLimit = 8;
+
   // Current user
   currentUser: AuthUser | null = null;
   doctorId = '';
@@ -44,6 +47,9 @@ export class DoctorRecordsComponent implements OnInit {
   // Filtered data (read-only view)
   treatmentHistory: MedicationPlan[] = [];
   appointmentHistory: Appointment[] = [];
+  recordSearchQuery = '';
+  treatmentCurrentPage = 1;
+  appointmentCurrentPage = 1;
 
   // Loading states
   loadingPlans = false;
@@ -90,9 +96,9 @@ export class DoctorRecordsComponent implements OnInit {
   loadPatients(): void {
     this.userService.getActivePatients().subscribe({
       next: (patients) => {
-        // Store patients in map for quick lookup
+        // Store patients with both profile id and user id when available
         patients.forEach(patient => {
-          this.patients.set(patient.id, patient);
+          this.indexPatient(patient);
         });
         // Load medication plans and appointments after patients are loaded
         this.loadMedicationPlans();
@@ -176,11 +182,76 @@ export class DoctorRecordsComponent implements OnInit {
       .sort((a, b) => new Date(b.startAt).getTime() - new Date(a.startAt).getTime());
   }
 
+  get filteredTreatmentHistory(): MedicationPlan[] {
+    if (!this.recordSearchQuery.trim()) {
+      return this.treatmentHistory;
+    }
+
+    return this.treatmentHistory.filter(plan => this.matchesPatientSearch(plan.patientId));
+  }
+
+  get filteredAppointmentHistory(): Appointment[] {
+    if (!this.recordSearchQuery.trim()) {
+      return this.appointmentHistory;
+    }
+
+    return this.appointmentHistory.filter(appt => this.matchesPatientSearch(appt.patientId));
+  }
+
+  get displayedTreatmentHistory(): MedicationPlan[] {
+    const start = (this.getSafeTreatmentPage() - 1) * this.treatmentPreviewLimit;
+    return this.filteredTreatmentHistory.slice(start, start + this.treatmentPreviewLimit);
+  }
+
+  get displayedAppointmentHistory(): Appointment[] {
+    const start = (this.getSafeAppointmentPage() - 1) * this.appointmentPreviewLimit;
+    return this.filteredAppointmentHistory.slice(start, start + this.appointmentPreviewLimit);
+  }
+
+  onSearchInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.recordSearchQuery = input?.value || '';
+    this.resetPagination();
+  }
+
+  clearSearch(): void {
+    this.recordSearchQuery = '';
+    this.resetPagination();
+  }
+
+  goToTreatmentPage(page: number): void {
+    this.treatmentCurrentPage = this.clampPage(page, this.getTreatmentTotalPages());
+  }
+
+  goToAppointmentPage(page: number): void {
+    this.appointmentCurrentPage = this.clampPage(page, this.getAppointmentTotalPages());
+  }
+
+  getTreatmentTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredTreatmentHistory.length / this.treatmentPreviewLimit));
+  }
+
+  getAppointmentTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredAppointmentHistory.length / this.appointmentPreviewLimit));
+  }
+
+  getTreatmentPageNumbers(): number[] {
+    return this.buildPageNumbers(this.getTreatmentTotalPages(), this.getSafeTreatmentPage());
+  }
+
+  getAppointmentPageNumbers(): number[] {
+    return this.buildPageNumbers(this.getAppointmentTotalPages(), this.getSafeAppointmentPage());
+  }
+
+  hasActiveSearch(): boolean {
+    return this.recordSearchQuery.trim().length > 0;
+  }
+
   /**
    * Get patient name by ID
    */
   getPatientName(patientId: string): string {
-    const patient = this.patients.get(patientId);
+    const patient = this.findPatient(patientId);
     if (patient) {
       return patient.fullName || 
         (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
@@ -189,6 +260,38 @@ export class DoctorRecordsComponent implements OnInit {
         'Unknown Patient';
     }
     return 'Unknown Patient';
+  }
+
+  private matchesPatientSearch(patientId: string): boolean {
+    const query = this.normalizeText(this.recordSearchQuery);
+    if (!query) {
+      return true;
+    }
+
+    const patient = this.findPatient(patientId);
+    const haystack = [
+      this.getPatientName(patientId),
+      patient?.fullName,
+      patient?.firstName,
+      patient?.lastName,
+      patient?.email,
+      patient?.username,
+      patient?.id
+    ]
+      .filter(Boolean)
+      .map(value => this.normalizeText(value as string))
+      .join(' ');
+
+    return haystack.includes(query);
+  }
+
+  private normalizeText(value: string): string {
+    return (value || '').trim().toLowerCase();
+  }
+
+  private resetPagination(): void {
+    this.treatmentCurrentPage = 1;
+    this.appointmentCurrentPage = 1;
   }
 
   /**
@@ -262,20 +365,6 @@ export class DoctorRecordsComponent implements OnInit {
   getMedicationCountLabel(plan: MedicationPlan): string {
     const count = plan.items?.length || 0;
     return count === 1 ? '1 Medication' : `${count} Medications`;
-  }
-
-  /**
-   * Calculate adherence rate (mock calculation based on available data)
-   * In a real scenario, this would come from the backend
-   */
-  getAdherenceRate(plan: MedicationPlan): number {
-    // This is a placeholder - in real implementation,
-    // adherence rate would be calculated from MedicationIntake data
-    // For now, return a reasonable estimate based on plan status
-    if (plan.status === PlanStatus.COMPLETED) {
-      return Math.floor(Math.random() * 15) + 85; // 85-100% for completed
-    }
-    return Math.floor(Math.random() * 30) + 60; // 60-90% for stopped
   }
 
   /**
@@ -364,5 +453,48 @@ export class DoctorRecordsComponent implements OnInit {
   closePlanDetails(): void {
     this.showPlanDetailsModal = false;
     this.selectedPlan = null;
+  }
+
+  private indexPatient(patient: ManagedUser): void {
+    if (patient.id) {
+      this.patients.set(patient.id, patient);
+    }
+
+    if (patient.profileId) {
+      this.patients.set(patient.profileId, patient);
+    }
+
+    const profileRecord = patient.profile as { id?: string } | undefined;
+    if (profileRecord?.id) {
+      this.patients.set(profileRecord.id, patient);
+    }
+  }
+
+  private findPatient(patientId: string): ManagedUser | undefined {
+    return this.patients.get(patientId);
+  }
+
+  private getSafeTreatmentPage(): number {
+    return this.clampPage(this.treatmentCurrentPage, this.getTreatmentTotalPages());
+  }
+
+  private getSafeAppointmentPage(): number {
+    return this.clampPage(this.appointmentCurrentPage, this.getAppointmentTotalPages());
+  }
+
+  private clampPage(page: number, totalPages: number): number {
+    return Math.min(Math.max(page, 1), totalPages);
+  }
+
+  private buildPageNumbers(totalPages: number, currentPage: number): number[] {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, start + 4);
+    const adjustedStart = Math.max(1, end - 4);
+
+    return Array.from({ length: end - adjustedStart + 1 }, (_, index) => adjustedStart + index);
   }
 }

@@ -2,9 +2,11 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import {
   Appointment,
   MedicationPlan,
@@ -18,7 +20,7 @@ import {
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
-  imports: [CommonModule, AlertCardComponent],
+  imports: [CommonModule, RouterLink, AlertCardComponent, AppointmentRequestCardComponent],
   templateUrl: './patient-dashboard.component.html',
   styleUrls: ['./patient-dashboard.component.scss']
 })
@@ -339,7 +341,11 @@ export class PatientDashboardComponent implements OnInit {
   getUpcomingAppointments(): Appointment[] {
     const now = new Date();
     return this.appointments
-      .filter(appt => new Date(appt.startAt) >= now)
+      .filter(appt =>
+        new Date(appt.startAt) >= now &&
+        appt.status !== AppointmentStatus.CANCELLED &&
+        appt.status !== AppointmentStatus.REJECTED
+      )
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
       .slice(0, 3);
   }
@@ -348,7 +354,7 @@ export class PatientDashboardComponent implements OnInit {
    * Get ALL appointments (upcoming and past) sorted by date
    */
   getAllAppointments(): Appointment[] {
-    return this.appointments
+    return [...this.appointments]
       .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
   }
 
@@ -412,6 +418,13 @@ export class PatientDashboardComponent implements OnInit {
     this.loadDashboardData();
   }
 
+  handleAppointmentRequestCreated(appointment: Appointment): void {
+    this.appointments = [...this.appointments, appointment].sort(
+      (left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime()
+    );
+    this.generateTodayTasks();
+  }
+
   // ==================== TELECONSULTATION HELPERS ====================
 
   /**
@@ -436,7 +449,8 @@ export class PatientDashboardComponent implements OnInit {
    */
   isTeleconsultationPending(appointment: Appointment): boolean {
     return appointment.mode === AppointmentMode.ONLINE && 
-           appointment.status === AppointmentStatus.REQUESTED;
+           (appointment.status === AppointmentStatus.REQUESTED ||
+            appointment.status === AppointmentStatus.ACCEPTED);
   }
 
   /**
