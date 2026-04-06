@@ -1,4 +1,5 @@
 import { CommonModule, SlicePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, of, forkJoin } from 'rxjs';
 import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
@@ -8,7 +9,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
-import { GameActivity } from '../../../core/models/api.model';
+import { DailyCheckInStatus, GameActivity, HealthRecord, RecordType } from '../../../core/models/api.model';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
@@ -23,12 +24,13 @@ import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../c
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
 export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private readonly missedCheckInAlertStorageKey = 'caregiver-missed-checkin-alerts';
   caregiverName = '';
   
   // Role theme for notification bell (emerald for caregiver)
@@ -71,6 +73,32 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     voiceUsage: number;
     adaptiveAdjustments: number;
   }> = [];
+  showDailyCheckInModal = false;
+  showTodayCheckInModal = false;
+  showMissedCheckInCalendarModal = false;
+  showMissedCheckInAlertModal = false;
+  caregiverCheckInPatientId = '';
+  caregiverCheckInPatientName = '';
+  selectedTodayCheckInForView: HealthRecord | null = null;
+  selectedMissedCalendarPatientId = '';
+  selectedMissedAlertPatientId = '';
+  missedCalendarViewDate: Date = new Date();
+  caregiverCheckInSubmitting = false;
+  caregiverCheckInError = '';
+  caregiverCheckInSuccessMessage = '';
+  caregiverCheckInStepIndex = 0;
+  caregiverCheckInTouchStartX = 0;
+  todaySharedCheckIns: Record<string, HealthRecord> = {};
+  dailyCheckInStatuses: Record<string, DailyCheckInStatus> = {};
+  caregiverCheckInAnswers: {
+    confusion: number | null;
+    memory: number | null;
+    notes: string;
+  } = {
+    confusion: null,
+    memory: null,
+    notes: ''
+  };
 
   // Enums for template
   CaregiverRole = CaregiverRole;
@@ -117,36 +145,51 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadRealPatients(): void {
-    // First load caregiver assignments, then fetch only assigned patients
     this.careTeamService.getCaregiverAssignments(this.caregiverId)
       .pipe(
         takeUntil(this.destroy$),
         switchMap(assignments => {
-          // Filter only ACTIVE assignments
           const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
           this.caregiverAssignments = activeAssignments;
-          
-          // Get unique patient IDs from assignments
-          const patientIds = [...new Set(activeAssignments.map(a => a.patientId))];
-          
-          if (patientIds.length === 0) {
-            return of([]);
+
+          if (activeAssignments.length === 0) {
+            return of([] as PatientProfileResponse[]);
           }
-          
-          // Fetch all patients and filter by assigned patient IDs
-          return this.patientService.getPatients().pipe(
-            map(allPatients => allPatients.filter(p => patientIds.includes(p.userId || p.id)))
+
+          const patientRequests = activeAssignments.map(assignment =>
+            this.patientService.getPatientById(assignment.patientId).pipe(
+              map(patient => ({
+                ...patient,
+                id: patient.id || assignment.patientId,
+                userId: patient.userId || assignment.patientId,
+                firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
+                lastName: patient.lastName || assignment.patientLastName || 'Patient'
+              })),
+              catchError(error => {
+                console.error(`Failed to load patient ${assignment.patientId}:`, error);
+                return of({
+                  id: assignment.patientId,
+                  userId: assignment.patientId,
+                  firstName: assignment.patientFirstName || 'Unknown',
+                  lastName: assignment.patientLastName || 'Patient'
+                } as PatientProfileResponse);
+              })
+            )
           );
+
+          return forkJoin(patientRequests);
         }),
         catchError(error => {
           console.error('Failed to load assigned patients:', error);
           this.toastService.error('Failed to load your assigned patients');
-          return of([]);
+          return of([] as PatientProfileResponse[]);
         })
       )
       .subscribe({
         next: (patients) => {
           this.patients = patients;
+          this.loadTodayCaregiverCheckIns();
+          this.loadDailyCheckInStatuses();
           // Load behaviors after patients are loaded
           this.loadRecentBehaviors();
           this.loadGameAnalytics();
@@ -155,6 +198,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
           console.error('Failed to load patients:', err);
           // Fallback to empty array if API fails
           this.patients = [];
+          this.todaySharedCheckIns = {};
+          this.dailyCheckInStatuses = {};
           this.loadRecentBehaviors();
           this.loadGameAnalytics();
         }
@@ -243,8 +288,199 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   getPatientName(patientId: string): string {
-    const patient = this.patients.find(p => p.id === patientId);
+    const patient = this.findPatientByAnyId(patientId);
     return patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown';
+  }
+
+  getAssignmentPatientName(assignment: CaregiverAssignment): string {
+    const patient = this.findPatientByAnyId(assignment.patientId);
+    if (patient) {
+      return `${patient.firstName} ${patient.lastName}`;
+    }
+
+    const firstName = assignment.patientFirstName?.trim();
+    const lastName = assignment.patientLastName?.trim();
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+
+    return fullName || 'Unknown Patient';
+  }
+
+  getTodayCaregiverCheckIn(patientId: string): HealthRecord | null {
+    return this.todaySharedCheckIns[patientId] || null;
+  }
+
+  hasTodayCaregiverCheckIn(patientId: string): boolean {
+    return !!this.getTodayCaregiverCheckIn(patientId);
+  }
+
+  hasPatientSubmittedToday(patientId: string): boolean {
+    return this.hasPatientMetrics(this.getTodayCaregiverCheckIn(patientId));
+  }
+
+  getDailyCheckInStatus(patientId: string): DailyCheckInStatus | null {
+    return this.dailyCheckInStatuses[patientId] || null;
+  }
+
+  getMissedCheckInCount(patientId: string): number {
+    return this.getDailyCheckInStatus(patientId)?.missedDays ?? 0;
+  }
+
+  hasMissedCheckIns(patientId: string): boolean {
+    return this.getMissedCheckInCount(patientId) > 0;
+  }
+
+  viewTodayCheckIn(patientId: string): void {
+    const record = this.getTodayCaregiverCheckIn(patientId);
+    if (!record) return;
+    this.selectedTodayCheckInForView = record;
+    this.showTodayCheckInModal = true;
+  }
+
+  closeTodayCheckInModal(): void {
+    this.showTodayCheckInModal = false;
+    this.selectedTodayCheckInForView = null;
+  }
+
+  openMissedCheckInCalendar(patientId: string): void {
+    if (!this.hasMissedCheckIns(patientId)) return;
+    this.selectedMissedCalendarPatientId = patientId;
+    this.missedCalendarViewDate = this.getInitialMissedCalendarViewDate(patientId);
+    this.showMissedCheckInCalendarModal = true;
+  }
+
+  closeMissedCheckInCalendar(): void {
+    this.showMissedCheckInCalendarModal = false;
+    this.selectedMissedCalendarPatientId = '';
+    this.missedCalendarViewDate = new Date();
+  }
+
+  getMissedAlertPatientName(): string {
+    return this.getPatientName(this.selectedMissedAlertPatientId);
+  }
+
+  getMissedAlertDays(): number {
+    return this.getMissedCheckInCount(this.selectedMissedAlertPatientId);
+  }
+
+  closeMissedCheckInAlert(): void {
+    this.acknowledgeCurrentMissedCheckInAlert();
+    this.showMissedCheckInAlertModal = false;
+    this.selectedMissedAlertPatientId = '';
+  }
+
+  viewMissedCheckInAlertCalendar(): void {
+    const patientId = this.selectedMissedAlertPatientId;
+    if (!patientId) {
+      return;
+    }
+
+    this.closeMissedCheckInAlert();
+    this.openMissedCheckInCalendar(patientId);
+  }
+
+  getMissedCalendarTitle(): string {
+    return this.getPatientName(this.selectedMissedCalendarPatientId);
+  }
+
+  getMissedCalendarMonthLabel(): string {
+    return this.missedCalendarViewDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+
+  goToPreviousMissedCalendarMonth(): void {
+    this.missedCalendarViewDate = new Date(
+      this.missedCalendarViewDate.getFullYear(),
+      this.missedCalendarViewDate.getMonth() - 1,
+      1
+    );
+  }
+
+  goToNextMissedCalendarMonth(): void {
+    this.missedCalendarViewDate = new Date(
+      this.missedCalendarViewDate.getFullYear(),
+      this.missedCalendarViewDate.getMonth() + 1,
+      1
+    );
+  }
+
+  getSelectedMissedDates(): string[] {
+    return this.getMissedCheckInDates(this.selectedMissedCalendarPatientId);
+  }
+
+  getMissedCheckInDates(patientId: string): string[] {
+    const missedDays = this.getMissedCheckInCount(patientId);
+    if (missedDays <= 0) return [];
+
+    const dates: string[] = [];
+    const referenceDate = this.getMissedCheckInReferenceDate();
+    for (let i = 0; i < missedDays; i++) {
+      const date = new Date(referenceDate);
+      date.setDate(referenceDate.getDate() - i);
+      dates.push(this.getLocalDateKey(date));
+    }
+    return dates.sort();
+  }
+
+  getMissedCalendarWeeks(): Array<Array<{ date: Date; isMissed: boolean; isCurrentMonth: boolean }>> {
+    const selectedDates = new Set(this.getSelectedMissedDates());
+    const monthStart = new Date(this.missedCalendarViewDate.getFullYear(), this.missedCalendarViewDate.getMonth(), 1);
+    const monthEnd = new Date(this.missedCalendarViewDate.getFullYear(), this.missedCalendarViewDate.getMonth() + 1, 0);
+    const calendarStart = new Date(monthStart);
+    calendarStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    const weeks: Array<Array<{ date: Date; isMissed: boolean; isCurrentMonth: boolean }>> = [];
+
+    for (let week = 0; week < 6; week++) {
+      const days: Array<{ date: Date; isMissed: boolean; isCurrentMonth: boolean }> = [];
+      for (let day = 0; day < 7; day++) {
+        const date = new Date(calendarStart);
+        date.setDate(calendarStart.getDate() + week * 7 + day);
+        const key = this.getLocalDateKey(date);
+        days.push({
+          date,
+          isMissed: selectedDates.has(key),
+          isCurrentMonth: date >= monthStart && date <= monthEnd
+        });
+      }
+      weeks.push(days);
+    }
+
+    return weeks;
+  }
+
+  private getInitialMissedCalendarViewDate(patientId: string): Date {
+    const missedDates = this.getMissedCheckInDates(patientId).sort();
+    if (!missedDates.length) {
+      return new Date();
+    }
+
+    const firstMissedDate = new Date(`${missedDates[0]}T00:00:00`);
+    return new Date(firstMissedDate.getFullYear(), firstMissedDate.getMonth(), 1);
+  }
+
+  private getMissedCheckInReferenceDate(): Date {
+    const now = new Date();
+    const referenceDate = new Date(now);
+    const cutoffHour = 7;
+
+    if (now.getHours() < cutoffHour) {
+      referenceDate.setDate(referenceDate.getDate() - 2);
+    } else {
+      referenceDate.setDate(referenceDate.getDate() - 1);
+    }
+
+    return referenceDate;
+  }
+
+  private findPatientByAnyId(patientId: string): PatientProfileResponse | undefined {
+    return this.patients.find(p => p.id === patientId || p.userId === patientId);
+  }
+
+  private getPatientApiId(patientId: string): string {
+    const patient = this.findPatientByAnyId(patientId);
+    return patient?.userId || patient?.id || patientId;
   }
 
   // ==================== Behavior Tracking ====================
@@ -257,6 +493,294 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   closeBehaviorLogModal(): void {
     this.showBehaviorLogModal = false;
     this.selectedPatientId = '';
+  }
+
+  openDailyCheckInModal(patientId: string, patientName: string): void {
+    this.caregiverCheckInPatientId = patientId;
+    this.caregiverCheckInPatientName = patientName;
+    this.caregiverCheckInError = '';
+    this.caregiverCheckInStepIndex = 0;
+    this.showDailyCheckInModal = true;
+    this.resetCaregiverCheckIn();
+  }
+
+  closeDailyCheckInModal(): void {
+    this.showDailyCheckInModal = false;
+    this.caregiverCheckInPatientId = '';
+    this.caregiverCheckInPatientName = '';
+    this.caregiverCheckInError = '';
+    this.caregiverCheckInStepIndex = 0;
+    this.resetCaregiverCheckIn();
+  }
+
+  handleCaregiverCheckInTouchStart(event: TouchEvent): void {
+    this.caregiverCheckInTouchStartX = event.touches[0].clientX;
+  }
+
+  handleCaregiverCheckInTouchEnd(event: TouchEvent): void {
+    const endX = event.changedTouches[0].clientX;
+    const deltaX = endX - this.caregiverCheckInTouchStartX;
+    if (Math.abs(deltaX) < 40) return;
+    if (deltaX < 0) {
+      this.nextCaregiverCheckInStep();
+    } else {
+      this.prevCaregiverCheckInStep();
+    }
+  }
+
+  nextCaregiverCheckInStep(): void {
+    if (!this.isCurrentCaregiverCheckInStepValid()) {
+      this.caregiverCheckInError = this.caregiverCheckInStepIndex === 2
+        ? 'Add a note or leave it empty, then submit.'
+        : 'Pick an answer before moving on.';
+      return;
+    }
+
+    if (this.caregiverCheckInStepIndex < this.getCaregiverCheckInStepCount() - 1) {
+      this.caregiverCheckInStepIndex += 1;
+      return;
+    }
+
+    this.submitCaregiverDailyCheckIn();
+  }
+
+  prevCaregiverCheckInStep(): void {
+    if (this.caregiverCheckInStepIndex > 0) {
+      this.caregiverCheckInStepIndex -= 1;
+      this.caregiverCheckInError = '';
+    }
+  }
+
+  setCaregiverCheckInAnswer(field: 'confusion' | 'memory', value: number): void {
+    this.caregiverCheckInAnswers[field] = value;
+    this.caregiverCheckInError = '';
+  }
+
+  setCaregiverCheckInNotes(value: string): void {
+    this.caregiverCheckInAnswers.notes = value;
+    this.caregiverCheckInError = '';
+  }
+
+  autoAdvanceCaregiverCheckIn(): void {
+    if (this.caregiverCheckInStepIndex < this.getCaregiverCheckInStepCount() - 1) {
+      setTimeout(() => {
+        this.nextCaregiverCheckInStep();
+      }, 400);
+    }
+  }
+
+  submitCaregiverDailyCheckIn(): void {
+    if (!this.caregiverId || !this.caregiverCheckInPatientId || this.caregiverCheckInSubmitting) return;
+    if (this.caregiverCheckInAnswers.confusion === null || this.caregiverCheckInAnswers.memory === null) {
+      this.caregiverCheckInError = 'Answer confusion and memory before saving.';
+      return;
+    }
+
+    this.caregiverCheckInSubmitting = true;
+    this.caregiverCheckInError = '';
+    this.caregiverCheckInSuccessMessage = '';
+
+    this.apiService.submitCaregiverDailyCheckIn({
+      patientId: this.caregiverCheckInPatientId,
+      caregiverUserId: this.caregiverId,
+      confusion: this.caregiverCheckInAnswers.confusion,
+      memory: this.caregiverCheckInAnswers.memory,
+      checkInNotes: this.caregiverCheckInAnswers.notes.trim() || undefined
+    }).pipe(
+      takeUntil(this.destroy$),
+      catchError(error => {
+        console.error('Failed to save caregiver daily check-in:', error);
+        this.caregiverCheckInSubmitting = false;
+        this.caregiverCheckInError = 'Failed to save caregiver check-in.';
+        return of(null);
+      })
+    ).subscribe(result => {
+      if (!result) return;
+      this.caregiverCheckInSubmitting = false;
+      this.showDailyCheckInModal = false;
+      this.caregiverCheckInStepIndex = 0;
+      this.todaySharedCheckIns[this.caregiverCheckInPatientId] = result;
+      this.loadDailyCheckInStatuses();
+      this.caregiverCheckInSuccessMessage = `Caregiver check-in saved for ${this.caregiverCheckInPatientName}.`;
+      this.resetCaregiverCheckIn();
+    });
+  }
+
+  canAdvanceCaregiverCheckIn(): boolean {
+    return !this.caregiverCheckInSubmitting && this.isCurrentCaregiverCheckInStepValid();
+  }
+
+  getCaregiverCheckInStepCount(): number {
+    return 3;
+  }
+
+  getCaregiverCheckInPrimaryButtonLabel(): string {
+    if (this.caregiverCheckInSubmitting) {
+      return 'Saving...';
+    }
+    return this.caregiverCheckInStepIndex < this.getCaregiverCheckInStepCount() - 1 ? 'Next →' : 'Submit ✓';
+  }
+
+  private isCurrentCaregiverCheckInStepValid(): boolean {
+    switch (this.caregiverCheckInStepIndex) {
+      case 0:
+        return this.caregiverCheckInAnswers.confusion !== null;
+      case 1:
+        return this.caregiverCheckInAnswers.memory !== null;
+      case 2:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private resetCaregiverCheckIn(): void {
+    this.caregiverCheckInAnswers = {
+      confusion: null,
+      memory: null,
+      notes: ''
+    };
+  }
+
+  private loadTodayCaregiverCheckIns(): void {
+    if (!this.caregiverAssignments.length) {
+      this.todaySharedCheckIns = {};
+      return;
+    }
+
+    const requests = this.caregiverAssignments.map(assignment =>
+      this.apiService.getHealthRecords(this.getPatientApiId(assignment.patientId), undefined, RecordType.DAILY_CHECKIN).pipe(
+        map(records => ({ patientId: assignment.patientId, record: this.findTodayCaregiverCheckIn(records) })),
+        catchError(() => of({ patientId: assignment.patientId, record: null as HealthRecord | null }))
+      )
+    );
+
+    forkJoin(requests)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(results => {
+        this.todaySharedCheckIns = {};
+        results.forEach(({ patientId, record }) => {
+          if (record) {
+            this.todaySharedCheckIns[patientId] = record;
+          }
+        });
+      });
+  }
+
+  private loadDailyCheckInStatuses(): void {
+    if (!this.caregiverAssignments.length) {
+      this.dailyCheckInStatuses = {};
+      return;
+    }
+
+    const requests = this.caregiverAssignments.map(assignment =>
+      this.apiService.getDailyCheckInStatus(this.getPatientApiId(assignment.patientId)).pipe(
+        map(status => ({ patientId: assignment.patientId, status })),
+        catchError(() => of({ patientId: assignment.patientId, status: null as DailyCheckInStatus | null }))
+      )
+    );
+
+    forkJoin(requests)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(results => {
+        this.dailyCheckInStatuses = {};
+        results.forEach(({ patientId, status }) => {
+          if (status) {
+            this.dailyCheckInStatuses[patientId] = status;
+          }
+        });
+        this.syncMissedCheckInAlertModal();
+      });
+  }
+
+  private syncMissedCheckInAlertModal(): void {
+    const mostOverduePatientId = this.caregiverAssignments
+      .map(assignment => assignment.patientId)
+      .filter(patientId => this.getMissedCheckInCount(patientId) >= 1)
+      .filter(patientId => this.shouldShowMissedCheckInAlert(patientId))
+      .sort((patientA, patientB) => this.getMissedCheckInCount(patientB) - this.getMissedCheckInCount(patientA))[0];
+
+    if (!mostOverduePatientId) {
+      this.showMissedCheckInAlertModal = false;
+      this.selectedMissedAlertPatientId = '';
+      return;
+    }
+
+    this.selectedMissedAlertPatientId = mostOverduePatientId;
+    this.showMissedCheckInAlertModal = true;
+  }
+
+  private shouldShowMissedCheckInAlert(patientId: string): boolean {
+    const missedDays = this.getMissedCheckInCount(patientId);
+    if (missedDays < 1) {
+      return false;
+    }
+
+    return missedDays > this.getAcknowledgedMissedCheckInDays(patientId);
+  }
+
+  private acknowledgeCurrentMissedCheckInAlert(): void {
+    const patientId = this.selectedMissedAlertPatientId;
+    if (!patientId) {
+      return;
+    }
+
+    const missedDays = this.getMissedCheckInCount(patientId);
+    if (missedDays < 1) {
+      return;
+    }
+
+    const acknowledgedAlerts = this.getAcknowledgedMissedCheckInAlerts();
+    acknowledgedAlerts[this.getMissedCheckInAlertStorageId(patientId)] = missedDays;
+    localStorage.setItem(this.missedCheckInAlertStorageKey, JSON.stringify(acknowledgedAlerts));
+  }
+
+  private getAcknowledgedMissedCheckInDays(patientId: string): number {
+    const acknowledgedAlerts = this.getAcknowledgedMissedCheckInAlerts();
+    return acknowledgedAlerts[this.getMissedCheckInAlertStorageId(patientId)] ?? 0;
+  }
+
+  private getAcknowledgedMissedCheckInAlerts(): Record<string, number> {
+    try {
+      const storedValue = localStorage.getItem(this.missedCheckInAlertStorageKey);
+      if (!storedValue) {
+        return {};
+      }
+
+      const parsedValue = JSON.parse(storedValue) as Record<string, number>;
+      return typeof parsedValue === 'object' && parsedValue !== null ? parsedValue : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private getMissedCheckInAlertStorageId(patientId: string): string {
+    return `${this.caregiverId}:${patientId}`;
+  }
+
+  private findTodayCaregiverCheckIn(records: HealthRecord[]): HealthRecord | null {
+    const todayKey = this.getLocalDateKey(new Date());
+
+    const todaysRecord = records
+      .filter(record => this.getLocalDateKey(new Date(record.completedAt || record.date)) === todayKey)
+      .filter(record => typeof record.confusion === 'number' || typeof record.memory === 'number' || !!record.checkInNotes)
+      .sort((a, b) => new Date(b.completedAt || b.date).getTime() - new Date(a.completedAt || a.date).getTime())[0];
+
+    return todaysRecord || null;
+  }
+
+  hasPatientMetrics(record: HealthRecord | null): boolean {
+    if (!record) return false;
+    return typeof record.mood === 'number'
+      || typeof record.sleep === 'number'
+      || typeof record.appetite === 'number';
+  }
+
+  private getLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   onBehaviorLogged(): void {

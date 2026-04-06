@@ -414,7 +414,7 @@ export class DoctorAssessmentsComponent implements OnInit {
   get dailyTrendAnalysis() {
     const records = this.filteredRecords.filter(r => r.recordType === RecordType.DAILY_CHECKIN);
     if (records.length < 2) {
-      return { trend: 'stable' as const, moodChange: 0 };
+      return { trend: 'stable' as const, change: 0 };
     }
 
     const sorted = [...records].sort((a, b) => 
@@ -424,13 +424,30 @@ export class DoctorAssessmentsComponent implements OnInit {
     const firstHalf = sorted.slice(0, Math.floor(sorted.length / 2));
     const secondHalf = sorted.slice(Math.floor(sorted.length / 2));
     
-    const avgMoodFirst = firstHalf.reduce((sum, r) => sum + (r.mood || 0), 0) / firstHalf.length;
-    const avgMoodSecond = secondHalf.reduce((sum, r) => sum + (r.mood || 0), 0) / secondHalf.length;
-    const moodChange = avgMoodSecond - avgMoodFirst;
-    
-    const trend = moodChange > 0.3 ? 'up' as const : moodChange < -0.3 ? 'down' as const : 'stable' as const;
-    
-    return { trend, moodChange: Math.round(moodChange * 10) / 10 };
+    const getMetricValue = (record: HealthRecord) => {
+      switch (this.selectedTrendMetric) {
+        case 'sleep':
+          return record.sleep || 0;
+        case 'appetite':
+          return record.appetite || 0;
+        case 'confusion':
+          return record.confusion || 0;
+        case 'memory':
+          return record.memory || 0;
+        case 'mood':
+        default:
+          return record.mood || 0;
+      }
+    };
+
+    const avgFirst = firstHalf.reduce((sum, r) => sum + getMetricValue(r), 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((sum, r) => sum + getMetricValue(r), 0) / secondHalf.length;
+    const change = avgSecond - avgFirst;
+
+    const threshold = this.selectedTrendMetric === 'confusion' ? 0.2 : 0.3;
+    const trend = change > threshold ? 'up' as const : change < -threshold ? 'down' as const : 'stable' as const;
+
+    return { trend, change: Math.round(change * 10) / 10 };
   }
 
   get scoreBreakdown() {
@@ -658,6 +675,8 @@ export class DoctorAssessmentsComponent implements OnInit {
       if (this.selectedTrendMetric === 'mood') return r.mood || 0;
       if (this.selectedTrendMetric === 'sleep') return r.sleep || 0;
       if (this.selectedTrendMetric === 'appetite') return r.appetite || 0;
+      if (this.selectedTrendMetric === 'confusion') return r.confusion || 0;
+      if (this.selectedTrendMetric === 'memory') return r.memory || 0;
       return r.mood || 0;
     };
     
@@ -700,7 +719,9 @@ export class DoctorAssessmentsComponent implements OnInit {
     const labels: Record<string, string> = {
       'mood': 'Mood',
       'sleep': 'Sleep',
-      'appetite': 'Appetite'
+      'appetite': 'Appetite',
+      'confusion': 'Confusion',
+      'memory': 'Memory'
     };
     return labels[this.selectedTrendMetric] || 'Mood';
   }
@@ -709,7 +730,9 @@ export class DoctorAssessmentsComponent implements OnInit {
     const colors: Record<string, string> = {
       'mood': '#8b5cf6',
       'sleep': '#3b82f6',
-      'appetite': '#f59e0b'
+      'appetite': '#f59e0b',
+      'confusion': '#ef4444',
+      'memory': '#06b6d4'
     };
     return colors[this.selectedTrendMetric] || '#8b5cf6';
   }
@@ -718,9 +741,23 @@ export class DoctorAssessmentsComponent implements OnInit {
     const emojis: Record<string, string> = {
       'mood': '😊',
       'sleep': '😴',
-      'appetite': '🍽️'
+      'appetite': '🍽️',
+      'confusion': '🧩',
+      'memory': '🧠'
     };
     return emojis[this.selectedTrendMetric] || '😊';
+  }
+
+  getDailyTrendLabel(): string {
+    if (this.dailyTrendAnalysis.trend === 'stable') {
+      return 'Stable';
+    }
+
+    if (this.selectedTrendMetric === 'confusion') {
+      return this.dailyTrendAnalysis.trend === 'up' ? 'More confusion' : 'Less confusion';
+    }
+
+    return this.dailyTrendAnalysis.trend === 'up' ? 'Improving' : 'Declining';
   }
 
   viewAssessment(record: HealthRecord): void {

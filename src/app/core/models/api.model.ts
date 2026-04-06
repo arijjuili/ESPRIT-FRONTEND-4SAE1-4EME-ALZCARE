@@ -242,6 +242,34 @@ export interface AssessmentSubmissionRequest {
   doctorNotes?: string;
 }
 
+export interface DailyCheckInStatus {
+  patientId: string;
+  checkInFrequencyHours: number;
+  lastCheckInDate?: string;
+  hoursSinceLastCheckIn?: number;
+  currentStreak: number;
+  missedDays: number;
+  completedToday: boolean;
+  dueNow: boolean;
+  overdue: boolean;
+}
+
+export interface PatientDailyCheckInRequest {
+  patientId: string;
+  mood?: number;
+  sleep?: number;
+  appetite?: number;
+  skipped?: boolean;
+}
+
+export interface CaregiverDailyCheckInRequest {
+  patientId: string;
+  caregiverUserId: string;
+  confusion?: number;
+  memory?: number;
+  checkInNotes?: string;
+}
+
 // Memory Item Response
 export interface MemoryItem {
   id: string;

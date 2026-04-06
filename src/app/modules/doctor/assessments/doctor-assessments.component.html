@@ -515,7 +515,7 @@
 
       <!-- Daily Check-In Stats -->
       <div *ngIf="isDailyCheckInMode" class="space-y-6">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
           <div class="bg-white rounded-2xl p-4 shadow-lg border border-violet-100 hover:scale-105 transition duration-300">
             <div class="flex items-center justify-between mb-2">
               <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-xl">😊</div>
@@ -540,6 +540,22 @@
             <p class="text-2xl font-bold text-pink-700">{{ dailyCheckInStats.avgAppetite ?? '—' }}/5</p>
           </div>
 
+          <div class="bg-white rounded-2xl p-4 shadow-lg border border-rose-100 hover:scale-105 transition duration-300">
+            <div class="flex items-center justify-between mb-2">
+              <div class="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-xl">🧩</div>
+            </div>
+            <p class="text-xs text-slate-500 uppercase tracking-wide">Avg Confusion</p>
+            <p class="text-2xl font-bold text-rose-700">{{ dailyCheckInStats.avgConfusion ?? '—' }}/5</p>
+          </div>
+
+          <div class="bg-white rounded-2xl p-4 shadow-lg border border-cyan-100 hover:scale-105 transition duration-300">
+            <div class="flex items-center justify-between mb-2">
+              <div class="w-10 h-10 rounded-xl bg-cyan-100 flex items-center justify-center text-xl">🧠</div>
+            </div>
+            <p class="text-xs text-slate-500 uppercase tracking-wide">Avg Memory</p>
+            <p class="text-2xl font-bold text-cyan-700">{{ dailyCheckInStats.avgMemory ?? '—' }}/5</p>
+          </div>
+
           <div class="bg-white rounded-2xl p-4 shadow-lg border border-amber-100 hover:scale-105 transition duration-300">
             <div class="flex items-center justify-between mb-2">
               <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-xl">🔥</div>
@@ -556,13 +572,25 @@
               <h3 class="text-lg font-bold text-slate-900">Wellness Trends</h3>
               <div class="flex gap-1">
                 <button 
-                  *ngFor="let metric of ['mood', 'sleep', 'appetite']"
+                  *ngFor="let metric of ['mood', 'sleep', 'appetite', 'confusion', 'memory']"
                   (click)="selectTrendMetric(metric)"
                   class="px-3 py-1 rounded-lg text-xs font-medium transition"
                   [ngClass]="selectedTrendMetric === metric 
-                    ? (metric === 'mood' ? 'bg-violet-600 text-white' : metric === 'sleep' ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white')
+                    ? (metric === 'mood' ? 'bg-violet-600 text-white' 
+                      : metric === 'sleep' ? 'bg-blue-600 text-white' 
+                      : metric === 'appetite' ? 'bg-amber-600 text-white'
+                      : metric === 'confusion' ? 'bg-rose-600 text-white'
+                      : 'bg-cyan-600 text-white')
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'">
-                  {{ metric === 'mood' ? '😊 Mood' : metric === 'sleep' ? '😴 Sleep' : '🍽️ Appetite' }}
+                  {{ metric === 'mood'
+                    ? '😊 Mood'
+                    : metric === 'sleep'
+                      ? '😴 Sleep'
+                      : metric === 'appetite'
+                        ? '🍽️ Appetite'
+                        : metric === 'confusion'
+                          ? '🧩 Confusion'
+                          : '🧠 Memory' }}
                 </button>
               </div>
             </div>
@@ -615,7 +643,7 @@
                   'text-emerald-600': dailyTrendAnalysis.trend === 'up',
                   'text-rose-600': dailyTrendAnalysis.trend === 'down',
                   'text-slate-600': dailyTrendAnalysis.trend === 'stable'
-                }">{{ dailyTrendAnalysis.trend === 'up' ? '↑ Improving' : dailyTrendAnalysis.trend === 'down' ? '↓ Declining' : '→ Stable' }}</span>
+                }">{{ dailyTrendAnalysis.trend === 'up' ? '↑ ' + getDailyTrendLabel() : dailyTrendAnalysis.trend === 'down' ? '↓ ' + getDailyTrendLabel() : '→ Stable' }}</span>
               </div>
             </div>
           </div>
@@ -639,6 +667,8 @@
                   <span class="text-xl" title="Mood">{{ record.mood ? '😊' : '—' }}</span>
                   <span class="text-xl" title="Sleep">{{ record.sleep ? '😴' : '—' }}</span>
                   <span class="text-xl" title="Appetite">{{ record.appetite ? '🍽️' : '—' }}</span>
+                  <span class="text-xl" title="Confusion">{{ record.confusion ? '🧩' : '—' }}</span>
+                  <span class="text-xl" title="Memory">{{ record.memory ? '🧠' : '—' }}</span>
                 </div>
               </div>
               <div *ngIf="filteredRecords.length === 0" class="text-center py-4 text-slate-500 text-sm">
@@ -805,7 +835,7 @@
         </div>
 
         <h3 class="text-lg font-bold text-slate-900 mb-4">Wellness Metrics</h3>
-        <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <div class="p-4 bg-violet-50 rounded-2xl text-center">
             <div class="text-3xl mb-2">😊</div>
             <p class="text-xs text-violet-600 uppercase">Mood</p>
@@ -821,10 +851,20 @@
             <p class="text-xs text-amber-600 uppercase">Appetite</p>
             <p class="text-2xl font-bold text-amber-700">{{ selectedCheckInForView?.appetite ?? '—' }}<span class="text-sm text-amber-400">/5</span></p>
           </div>
+          <div class="p-4 bg-rose-50 rounded-2xl text-center">
+            <div class="text-3xl mb-2">🧩</div>
+            <p class="text-xs text-rose-600 uppercase">Confusion</p>
+            <p class="text-2xl font-bold text-rose-700">{{ selectedCheckInForView?.confusion ?? '—' }}<span class="text-sm text-rose-400">/5</span></p>
+          </div>
+          <div class="p-4 bg-cyan-50 rounded-2xl text-center">
+            <div class="text-3xl mb-2">🧠</div>
+            <p class="text-xs text-cyan-600 uppercase">Memory</p>
+            <p class="text-2xl font-bold text-cyan-700">{{ selectedCheckInForView?.memory ?? '—' }}<span class="text-sm text-cyan-400">/5</span></p>
+          </div>
         </div>
 
         <div *ngIf="selectedCheckInForView?.checkInNotes" class="pt-4 border-t border-slate-200">
-          <h3 class="text-lg font-bold text-slate-900 mb-2">Patient Notes</h3>
+          <h3 class="text-lg font-bold text-slate-900 mb-2">Caregiver Check-In Notes</h3>
           <p class="text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">{{ selectedCheckInForView?.checkInNotes }}</p>
         </div>
 

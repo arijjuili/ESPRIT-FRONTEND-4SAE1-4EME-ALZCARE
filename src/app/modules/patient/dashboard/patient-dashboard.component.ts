@@ -10,12 +10,12 @@ import { NotificationBellComponent } from '../../../shared/components/notificati
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { HealthMetric } from '../../../core/models/user.model';
 import {
+  DailyCheckInStatus,
   GamificationBadgeEvent,
   GamificationDailyChallenge,
   GamificationLeaderboardEntry,
   GamificationSummary,
   HealthRecord,
-  HealthRecordCreateRequest,
   RecordType
 } from '../../../core/models/api.model';
 
@@ -63,11 +63,20 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   checkInSubmitting = false;
   checkInError = '';
   checkInTouchStartX = 0;
-  checkInAnswers: { mood: number | null; sleep: number | null; appetite: number | null } = {
+  checkInAnswers: {
+    mood: number | null;
+    sleep: number | null;
+    appetite: number | null;
+  } = {
     mood: null,
     sleep: null,
     appetite: null
   };
+  checkInStatus: DailyCheckInStatus | null = null;
+  todayCheckInRecord: HealthRecord | null = null;
+  dailyCheckInResolved = false;
+  dailyCheckInSuccessMessage = '';
+  dailyCheckInSuccessAccent = '';
 
   assessmentItems: AssessmentStatusItem[] = [];
   isLoadingAssessment = false;
@@ -160,6 +169,27 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   scrollToGamificationArena(): void {
     this.gamificationArena?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  shouldShowDailyCheckInCta(): boolean {
+    if (!this.dailyCheckInResolved) {
+      return false;
+    }
+
+    if (this.dailyCheckInSuccessAccent === 'skip') {
+      return true;
+    }
+
+    if (this.checkInStatus) {
+      return !this.checkInStatus.completedToday;
+    }
+
+    return !this.hasPatientSubmittedToday();
+  }
+
+  openCheckInModalFromDashboard(): void {
+    this.checkInError = '';
+    this.showCheckInModal = true;
   }
 
   isBadgeImageUrl(iconUrl?: string): boolean {
@@ -268,21 +298,32 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     const patientId = this.authService.getCurrentUser()?.id;
     if (!patientId) return;
 
-    this.apiService.getHealthRecords(patientId, undefined, RecordType.DAILY_CHECKIN).subscribe({
-      next: (records) => {
-        const latest = this.getLatestRecord(records);
-        const now = Date.now();
-        const lastTime = latest?.completedAt
-          ? new Date(latest.completedAt).getTime()
-          : latest?.date
-            ? new Date(latest.date).getTime()
-            : 0;
-
-        const diffHours = lastTime ? (now - lastTime) / (1000 * 60 * 60) : 999;
-        this.showCheckInModal = diffHours >= 24;
+    this.apiService.getDailyCheckInStatus(patientId).subscribe({
+      next: (status) => {
+        this.checkInStatus = status;
+        this.loadTodayCheckInRecord(status.dueNow);
       },
       error: () => {
-        // If API fails, still allow check-in so the user can proceed
+        this.checkInStatus = null;
+        this.loadTodayCheckInRecord(true);
+      }
+    });
+  }
+
+  private loadTodayCheckInRecord(fallbackShowModal: boolean): void {
+    const patientId = this.authService.getCurrentUser()?.id;
+    if (!patientId) return;
+
+    this.dailyCheckInResolved = false;
+    this.apiService.getHealthRecords(patientId, undefined, RecordType.DAILY_CHECKIN).subscribe({
+      next: (records) => {
+        this.todayCheckInRecord = this.findTodayCheckInRecord(records);
+        this.dailyCheckInResolved = true;
+        this.showCheckInModal = this.hasPatientSubmittedToday() ? false : fallbackShowModal || !this.todayCheckInRecord;
+      },
+      error: () => {
+        this.todayCheckInRecord = null;
+        this.dailyCheckInResolved = true;
         this.showCheckInModal = true;
       }
     });
@@ -290,6 +331,11 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   handleCheckInTouchStart(event: TouchEvent): void {
     this.checkInTouchStartX = event.touches[0].clientX;
+  }
+
+  closeCheckInModal(): void {
+    this.showCheckInModal = false;
+    this.checkInError = '';
   }
 
   handleCheckInTouchEnd(event: TouchEvent): void {
@@ -304,7 +350,12 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   nextCheckInStep(): void {
-    if (this.checkInStepIndex < 2) {
+    if (!this.isCurrentCheckInStepValid()) {
+      this.checkInError = 'Pick an answer before moving on.';
+      return;
+    }
+
+    if (this.checkInStepIndex < this.getCheckInStepCount() - 1) {
       this.checkInStepIndex += 1;
       return;
     }
@@ -319,10 +370,11 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   setCheckInAnswer(field: 'mood' | 'sleep' | 'appetite', value: number): void {
     this.checkInAnswers[field] = value;
+    this.checkInError = '';
   }
 
   autoAdvance(): void {
-    if (this.checkInStepIndex < 2) {
+    if (this.checkInStepIndex < this.getCheckInStepCount() - 1) {
       setTimeout(() => {
         this.nextCheckInStep();
       }, 400);
@@ -330,36 +382,122 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   submitDailyCheckIn(): void {
+    this.saveDailyCheckIn(false);
+  }
+
+  skipDailyCheckIn(): void {
+    this.saveDailyCheckIn(true);
+  }
+
+  private saveDailyCheckIn(skipped: boolean): void {
     const patientId = this.authService.getCurrentUser()?.id;
     if (!patientId || this.checkInSubmitting) return;
 
+    if (!skipped && !this.isCurrentCheckInStepValid()) {
+      this.checkInError = 'Pick an answer before submitting.';
+      return;
+    }
+
     this.checkInSubmitting = true;
     this.checkInError = '';
+    this.dailyCheckInSuccessMessage = '';
+    this.dailyCheckInSuccessAccent = '';
 
-    const today = new Date();
-    const request: HealthRecordCreateRequest = {
+    const request = {
       patientId,
-      recordType: RecordType.DAILY_CHECKIN,
-      date: today.toISOString().slice(0, 10),
-      completedAt: today.toISOString(),
-      mood: this.checkInAnswers.mood ?? undefined,
-      sleep: this.checkInAnswers.sleep ?? undefined,
-      appetite: this.checkInAnswers.appetite ?? undefined,
-      checkInFrequencyHours: 24,
-      isActive: true
+      mood: skipped ? undefined : this.checkInAnswers.mood ?? undefined,
+      sleep: skipped ? undefined : this.checkInAnswers.sleep ?? undefined,
+      appetite: skipped ? undefined : this.checkInAnswers.appetite ?? undefined,
+      skipped
     };
 
-    this.apiService.createHealthRecord(request).subscribe({
+    this.apiService.submitPatientDailyCheckIn(request).subscribe({
       next: () => {
         this.checkInSubmitting = false;
         this.showCheckInModal = false;
         this.checkInStepIndex = 0;
+        this.resetCheckInAnswers();
+        this.loadCheckInStatus();
+        this.dailyCheckInSuccessMessage = skipped
+          ? 'Today is marked as a skip day. You can jump back in tomorrow.'
+          : 'Sparkling job. Your daily check-in is safely logged.';
+        this.dailyCheckInSuccessAccent = skipped ? 'skip' : 'saved';
       },
       error: () => {
         this.checkInSubmitting = false;
-        this.checkInError = 'Failed to save your check-in. Please try again.';
+        this.checkInError = skipped
+          ? 'Could not save today as skipped. Please try again.'
+          : 'Failed to save your check-in. Please try again.';
       }
     });
+  }
+
+  canAdvanceCheckIn(): boolean {
+    return !this.checkInSubmitting && this.isCurrentCheckInStepValid();
+  }
+
+  getCheckInStepCount(): number {
+    return 3;
+  }
+
+  getCheckInPrimaryButtonLabel(): string {
+    if (this.checkInSubmitting) {
+      return 'Saving...';
+    }
+    return this.checkInStepIndex < this.getCheckInStepCount() - 1 ? 'Next →' : 'Submit ✓';
+  }
+
+  private isCurrentCheckInStepValid(): boolean {
+    switch (this.checkInStepIndex) {
+      case 0:
+        return this.checkInAnswers.mood !== null;
+      case 1:
+        return this.checkInAnswers.sleep !== null;
+      case 2:
+        return this.checkInAnswers.appetite !== null;
+      default:
+        return false;
+    }
+  }
+
+  private resetCheckInAnswers(): void {
+    this.checkInAnswers = {
+      mood: null,
+      sleep: null,
+      appetite: null
+    };
+  }
+
+  private hasPatientSubmittedToday(): boolean {
+    if (!this.todayCheckInRecord) return false;
+    return typeof this.todayCheckInRecord.mood === 'number'
+      || typeof this.todayCheckInRecord.sleep === 'number'
+      || typeof this.todayCheckInRecord.appetite === 'number';
+  }
+
+  private findTodayCheckInRecord(records: HealthRecord[]): HealthRecord | null {
+    const todayKey = this.getLocalDateKey(new Date());
+    return records
+      .filter(record => this.getRecordDateKey(record) === todayKey)
+      .sort((a, b) => new Date(b.completedAt || b.date).getTime() - new Date(a.completedAt || a.date).getTime())[0] || null;
+  }
+
+  private getRecordDateKey(record: HealthRecord): string {
+    if (record.date) {
+      if (record.date.length >= 10) {
+        return record.date.slice(0, 10);
+      }
+      return this.getLocalDateKey(new Date(record.date));
+    }
+
+    return this.getLocalDateKey(new Date(record.completedAt || ''));
+  }
+
+  private getLocalDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   // ==================== Assessment Status ====================

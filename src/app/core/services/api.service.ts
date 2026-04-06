@@ -10,6 +10,9 @@ import {
   CaregiverProfile,
   AutonomyAssessment,
   AutonomyAssessmentRequest,
+  CaregiverDailyCheckInRequest,
+  DailyCheckInStatus,
+  PatientDailyCheckInRequest,
   TokenResponse,
   RecordType,
   HealthRecord,
@@ -207,6 +210,23 @@ export class ApiService {
    */
   createHealthRecord(request: HealthRecordCreateRequest): Observable<HealthRecord> {
     return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records`, request);
+  }
+
+  /**
+   * Get computed daily check-in status for a patient
+   */
+  getDailyCheckInStatus(patientId: string): Observable<DailyCheckInStatus> {
+    return this.http.get<DailyCheckInStatus>(`${this.cognitiveBaseUrl}/health-records/daily-checkin-status`, {
+      params: new HttpParams().set('patientId', patientId)
+    });
+  }
+
+  submitPatientDailyCheckIn(request: PatientDailyCheckInRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/daily-checkin/patient`, request);
+  }
+
+  submitCaregiverDailyCheckIn(request: CaregiverDailyCheckInRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/daily-checkin/caregiver`, request);
   }
 
   /**

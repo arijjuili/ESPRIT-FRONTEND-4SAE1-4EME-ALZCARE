@@ -9,8 +9,8 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ImageUploadComponent } from '../../../../shared/components/image-upload/image-upload.component';
 import { BehaviorLogResponse, UpdateBehaviorLogRequest } from '../../../../core/models/safety-alert.model';
 import { AssignmentStatus } from '../../../../core/models/care-team.model';
-import { map, switchMap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
+import { switchMap, catchError } from 'rxjs/operators';
+import { of, forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-behavior-log-form',
@@ -156,29 +156,35 @@ export class BehaviorLogFormComponent implements OnInit {
       return;
     }
     
-    // Get caregiver assignments first, then fetch assigned patients
     this.careTeamService.getCaregiverAssignments(currentUser.id)
       .pipe(
         switchMap(assignments => {
-          // Filter only ACTIVE assignments
           const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-          
-          // Get unique patient IDs from assignments
-          const patientIds = [...new Set(activeAssignments.map(a => a.patientId))];
-          
-          if (patientIds.length === 0) {
-            return of([]);
+
+          if (activeAssignments.length === 0) {
+            return of([] as PatientProfileResponse[]);
           }
-          
-          // Fetch all patients and filter by assigned patient IDs
-          return this.patientService.getPatients().pipe(
-            map(allPatients => allPatients.filter(p => patientIds.includes(p.userId || p.id)))
+
+          const patientRequests = activeAssignments.map(assignment =>
+            this.patientService.getPatientById(assignment.patientId).pipe(
+              catchError(error => {
+                console.error(`Failed to load patient ${assignment.patientId}:`, error);
+                return of({
+                  id: assignment.patientId,
+                  userId: assignment.patientId,
+                  firstName: assignment.patientFirstName || 'Unknown',
+                  lastName: assignment.patientLastName || 'Patient'
+                } as PatientProfileResponse);
+              })
+            )
           );
+
+          return forkJoin(patientRequests);
         }),
         catchError(error => {
           console.error('Failed to load assigned patients:', error);
           this.patientLoadError = 'Failed to load your assigned patients. Please try again.';
-          return of([]);
+          return of([] as PatientProfileResponse[]);
         })
       )
       .subscribe(patients => {
