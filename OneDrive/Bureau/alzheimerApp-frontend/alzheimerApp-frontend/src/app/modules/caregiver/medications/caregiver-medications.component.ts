@@ -504,7 +504,7 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
    * Format date and time
    */
   formatDateTime(dateString: string): string {
-    return new Date(dateString).toLocaleString('en-US', {
+    return new Date(dateString).toLocaleString('fr-FR', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',

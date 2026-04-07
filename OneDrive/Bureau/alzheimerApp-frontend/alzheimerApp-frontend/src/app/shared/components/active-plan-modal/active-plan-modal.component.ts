@@ -64,7 +64,7 @@ export class ActivePlanModalComponent {
     if (!this.activePlan) return '';
     
     const startDate = new Date(this.activePlan.startDate);
-    const startFormatted = startDate.toLocaleDateString('en-US', {
+    const startFormatted = startDate.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric'
@@ -75,7 +75,7 @@ export class ActivePlanModalComponent {
     }
 
     const endDate = new Date(this.activePlan.endDate);
-    const endFormatted = endDate.toLocaleDateString('en-US', {
+    const endFormatted = endDate.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric'

@@ -1,7 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { AppointmentSchedulingService } from '../../core/services/appointment-scheduling.service';
+import {
+  AppointmentSchedulingService,
+  AvailabilitySource,
+  SchedulingConflict,
+  SuggestedSlot
+} from '../../core/services/appointment-scheduling.service';
 import { MedicalFollowupService } from '../../core/services/medical-followup.service';
 import {
   Appointment,
@@ -42,6 +47,14 @@ export class AppointmentRequestCardComponent {
   successMessage: string | null = null;
   appointmentDuration = 30;
 
+  // Doctor availability (patient/caregiver request)
+  availabilityChecked = false;
+  availabilityLoading = false;
+  availabilityError: string | null = null;
+  availabilityConflicts: SchedulingConflict[] = [];
+  blockingConflicts: SchedulingConflict[] = [];
+  suggestedSlots: SuggestedSlot[] = [];
+
   appointmentRequest: AppointmentCreateRequest = this.createEmptyRequest();
 
   constructor(
@@ -59,6 +72,7 @@ export class AppointmentRequestCardComponent {
     this.showModal = false;
     this.error = null;
     this.loading = false;
+    this.resetAvailability();
     this.initializeRequest();
   }
 
@@ -70,10 +84,12 @@ export class AppointmentRequestCardComponent {
 
   onStartChange(): void {
     this.calculateEndDate();
+    this.resetAvailability();
   }
 
   onDurationChange(): void {
     this.calculateEndDate();
+    this.resetAvailability();
   }
 
   submitRequest(): void {
@@ -94,6 +110,40 @@ export class AppointmentRequestCardComponent {
       return;
     }
 
+    // Check doctor availability and suggest a slot if needed (similar to doctor scheduler).
+    this.runDoctorAvailabilityCheck(() => this.performSubmitRequest());
+  }
+
+  checkDoctorAvailability(): void {
+    if (!this.patientId) {
+      this.error = 'Patient information is missing.';
+      return;
+    }
+    if (!this.appointmentRequest.startAt) {
+      this.error = 'Please choose a start date and time.';
+      return;
+    }
+    this.calculateEndDate();
+    if (!this.appointmentRequest.endAt) {
+      this.error = 'Unable to calculate the appointment end time.';
+      return;
+    }
+    this.runDoctorAvailabilityCheck();
+  }
+
+  applySuggestedSlot(slot: SuggestedSlot): void {
+    const start = this.schedulingService.parseLocalDateTime(slot.startAt);
+    if (!start) {
+      this.availabilityError = 'Invalid suggested slot. Please try another one.';
+      return;
+    }
+
+    this.appointmentRequest.startAt = this.formatDateTimeLocal(start);
+    this.calculateEndDate();
+    this.resetAvailability();
+  }
+
+  private performSubmitRequest(): void {
     const resolvedDoctorId = this.resolveDoctorId();
     if (!resolvedDoctorId) {
       this.error = 'No doctor target is available for this request.';
@@ -136,6 +186,10 @@ export class AppointmentRequestCardComponent {
     return this.schedulingService.isUrgentAppointment(this.appointmentRequest);
   }
 
+  get hasBlockingConflicts(): boolean {
+    return this.blockingConflicts.length > 0;
+  }
+
   get requesterLabel(): string {
     return this.requesterRole === 'CAREGIVER' ? 'Caregiver request' : 'Patient request';
   }
@@ -165,9 +219,106 @@ export class AppointmentRequestCardComponent {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
+  private resetAvailability(): void {
+    this.availabilityChecked = false;
+    this.availabilityLoading = false;
+    this.availabilityError = null;
+    this.availabilityConflicts = [];
+    this.blockingConflicts = [];
+    this.suggestedSlots = [];
+  }
+
+  private runDoctorAvailabilityCheck(onAvailable?: () => void): void {
+    this.availabilityChecked = false;
+    this.availabilityLoading = true;
+    this.availabilityError = null;
+    this.availabilityConflicts = [];
+    this.blockingConflicts = [];
+    this.suggestedSlots = [];
+
+    const doctorId = this.resolveDoctorId();
+    if (!doctorId) {
+      this.availabilityLoading = false;
+      this.availabilityError = 'No doctor target is available for availability checking.';
+      return;
+    }
+
+    const startAt = this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.startAt);
+    const endAt = this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.endAt);
+    const startDate = this.schedulingService.parseLocalDateTime(startAt);
+
+    if (!startDate) {
+      this.availabilityLoading = false;
+      this.availabilityError = 'Invalid start date/time.';
+      return;
+    }
+
+    const daysToScan = 14;
+    const from = this.schedulingService.toLocalDateTimeString(new Date(startDate.getTime() - 24 * 60 * 60_000));
+    const to = this.schedulingService.toLocalDateTimeString(new Date(startDate.getTime() + daysToScan * 24 * 60 * 60_000));
+
+    this.medicalService.getDoctorAppointments(doctorId, from, to).subscribe({
+      next: (doctorAppointments) => {
+        const sources: AvailabilitySource[] = [{
+          party: 'DOCTOR',
+          appointments: doctorAppointments
+        }];
+
+        const analysis = this.schedulingService.analyzeConflicts(
+          {
+            startAt,
+            endAt,
+            type: this.appointmentRequest.type,
+            priority: this.appointmentRequest.priority
+          },
+          sources
+        );
+
+        this.availabilityConflicts = analysis.conflicts;
+        this.blockingConflicts = analysis.blockingConflicts;
+
+        if (analysis.blockingConflicts.length > 0) {
+          this.suggestedSlots = this.schedulingService.suggestSlots({
+            startSearchAt: startAt,
+            durationMinutes: Math.max(5, this.appointmentDuration),
+            sources,
+            type: this.appointmentRequest.type,
+            priority: this.appointmentRequest.priority,
+            mode: this.appointmentRequest.mode === AppointmentMode.ONLINE ? 'ONLINE' : 'ONSITE',
+            daysToScan,
+            maxSuggestions: 8
+          });
+
+          // For urgent requests, we still allow submitting even when conflicts exist.
+          if (this.isUrgentSelection) {
+            this.availabilityChecked = true;
+            this.availabilityLoading = false;
+            onAvailable?.();
+            return;
+          }
+
+          this.availabilityChecked = true;
+          this.availabilityLoading = false;
+          return;
+        }
+
+        this.availabilityChecked = true;
+        this.availabilityLoading = false;
+        onAvailable?.();
+      },
+      error: (err) => {
+        console.error('[AppointmentRequestCard] Error checking doctor availability:', err);
+        this.availabilityChecked = true;
+        this.availabilityLoading = false;
+        this.availabilityError = 'Unable to check doctor availability right now. Please try again.';
+      }
+    });
+  }
+
   private initializeRequest(): void {
     this.appointmentDuration = 30;
     this.appointmentRequest = this.createEmptyRequest();
+    this.resetAvailability();
   }
 
   private createEmptyRequest(): AppointmentCreateRequest {

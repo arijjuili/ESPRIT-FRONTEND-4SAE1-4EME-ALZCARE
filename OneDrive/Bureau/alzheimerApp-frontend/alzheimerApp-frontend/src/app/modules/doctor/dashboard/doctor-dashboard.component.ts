@@ -532,7 +532,7 @@ export class DoctorDashboardComponent implements OnInit {
    */
   formatAppointmentDate(dateStr: string): string {
     const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('fr-FR', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

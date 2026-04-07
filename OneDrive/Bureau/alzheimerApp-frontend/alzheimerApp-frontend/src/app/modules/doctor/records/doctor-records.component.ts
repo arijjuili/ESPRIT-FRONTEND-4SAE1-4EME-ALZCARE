@@ -308,7 +308,7 @@ export class DoctorRecordsComponent implements OnInit {
    */
   getAvatarColor(patientId: string): string {
     const colors = [
-      'bg-blue-500',
+      'bg-emerald-500',
       'bg-green-500',
       'bg-purple-500',
       'bg-orange-500',
@@ -338,7 +338,7 @@ export class DoctorRecordsComponent implements OnInit {
    */
   formatDate(dateString: string): string {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -350,7 +350,7 @@ export class DoctorRecordsComponent implements OnInit {
    */
   formatDateTime(dateString: string): string {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
+    return new Date(dateString).toLocaleString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -377,7 +377,7 @@ export class DoctorRecordsComponent implements OnInit {
       case PlanStatus.STOPPED:
         return 'bg-gray-100 text-gray-600 border-gray-200';
       case PlanStatus.ACTIVE:
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case PlanStatus.SUSPENDED:
         return 'bg-amber-100 text-amber-700 border-amber-200';
       default:
@@ -408,7 +408,7 @@ export class DoctorRecordsComponent implements OnInit {
       case AppointmentPriority.HIGH:
         return 'bg-orange-100 text-orange-700 border-orange-200';
       case AppointmentPriority.NORMAL:
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       case AppointmentPriority.LOW:
         return 'bg-gray-100 text-gray-600 border-gray-200';
       default:
@@ -426,7 +426,7 @@ export class DoctorRecordsComponent implements OnInit {
       case AppointmentStatus.CANCELLED:
         return 'bg-gray-100 text-gray-500 border-gray-200';
       case AppointmentStatus.CONFIRMED:
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       default:
         return 'bg-gray-100 text-gray-600 border-gray-200';
     }

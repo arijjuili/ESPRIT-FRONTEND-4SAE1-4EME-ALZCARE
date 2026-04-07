@@ -297,7 +297,7 @@ export class PatientDashboardComponent implements OnInit {
 
   formatAppointmentDate(dateStr: string): string {
     const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('fr-FR', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -307,14 +307,14 @@ export class PatientDashboardComponent implements OnInit {
   }
 
   formatTime(dateStr: string): string {
-    return new Date(dateStr).toLocaleTimeString('en-US', {
+    return new Date(dateStr).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit'
     });
   }
 
   formatTimeOnly(dateStr: string): string {
-    return new Date(dateStr).toLocaleTimeString('en-US', {
+    return new Date(dateStr).toLocaleTimeString('fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false

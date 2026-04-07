@@ -1,8 +1,8 @@
 :host {
   display: block;
-  --doctor-blue: #3b82f6;
-  --doctor-blue-dark: #2563eb;
-  --doctor-blue-soft: rgba(59, 130, 246, 0.12);
+  --doctor-blue: #10b981;
+  --doctor-blue-dark: #059669;
+  --doctor-blue-soft: rgba(16, 185, 129, 0.12);
   --doctor-cyan-soft: rgba(6, 182, 212, 0.12);
   --doctor-emerald-soft: rgba(16, 185, 129, 0.14);
   --surface: rgba(255, 255, 255, 0.92);
@@ -20,9 +20,9 @@
 .doctor-patients {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28rem),
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
     radial-gradient(circle at 85% 10%, rgba(6, 182, 212, 0.1), transparent 24rem),
-    linear-gradient(180deg, #f8fbff 0%, #f3f7fd 48%, #edf4fb 100%);
+    linear-gradient(180deg, #f6fffb 0%, #f2fbf7 48%, #eefbf4 100%);
 }
 
 .patients-container {
@@ -219,8 +219,8 @@
 
 .search-input-wrapper:focus-within {
   transform: translateY(-1px);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .search-icon {
@@ -229,8 +229,8 @@
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 0.85rem;
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.95));
-  border: 1px solid rgba(191, 219, 254, 0.9);
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(167, 243, 208, 0.9);
   color: var(--doctor-blue-dark);
   flex: 0 0 auto;
 }
@@ -265,8 +265,8 @@
 }
 
 .clear-search:hover {
-  border-color: rgba(191, 219, 254, 0.9);
-  background: rgba(239, 246, 255, 0.95);
+  border-color: rgba(167, 243, 208, 0.9);
+  background: rgba(236, 253, 245, 0.95);
   color: var(--doctor-blue-dark);
 }
 
@@ -285,8 +285,8 @@
 
 .filter-select:focus {
   transform: translateY(-1px);
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .table-panel {
@@ -302,7 +302,7 @@
   padding: 1.15rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background:
-    linear-gradient(135deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 0.9));
+    linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(255, 255, 255, 0.9));
 }
 
 .results-summary {
@@ -376,14 +376,14 @@
 }
 
 .patients-table thead th.sortable:hover {
-  background: rgba(239, 246, 255, 0.95);
+  background: rgba(236, 253, 245, 0.95);
   color: var(--doctor-blue-dark);
 }
 
 .patients-table thead th.sorted-asc,
 .patients-table thead th.sorted-desc {
   color: var(--doctor-blue-dark);
-  background: rgba(219, 234, 254, 0.82);
+  background: rgba(209, 250, 229, 0.82);
 }
 
 .sort-icon {
@@ -396,7 +396,7 @@
 }
 
 .patients-table tbody tr:hover {
-  background: rgba(239, 246, 255, 0.5);
+  background: rgba(236, 253, 245, 0.5);
 }
 
 .patients-table tbody td {
@@ -454,8 +454,8 @@
   height: 2.75rem;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--doctor-blue), var(--doctor-blue-dark));
-  border: 1px solid rgba(191, 219, 254, 0.9);
-  box-shadow: 0 16px 28px -22px rgba(37, 99, 235, 0.85);
+  border: 1px solid rgba(167, 243, 208, 0.9);
+  box-shadow: 0 16px 28px -22px rgba(5, 150, 105, 0.6);
   color: #ffffff;
   font-size: 0.85rem;
   font-weight: 900;
@@ -559,13 +559,13 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.95));
-  border-color: rgba(191, 219, 254, 0.95);
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.95));
+  border-color: rgba(167, 243, 208, 0.95);
   color: var(--doctor-blue-dark);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 18px 34px -28px rgba(37, 99, 235, 0.65);
+  box-shadow: 0 18px 34px -28px rgba(5, 150, 105, 0.5);
 }
 
 .btn-success {
@@ -608,7 +608,7 @@
   width: 4.5rem;
   height: 4.5rem;
   border-radius: 1.35rem;
-  background: linear-gradient(135deg, rgba(219, 234, 254, 0.75), rgba(255, 255, 255, 0.95));
+  background: linear-gradient(135deg, rgba(209, 250, 229, 0.75), rgba(255, 255, 255, 0.95));
   color: var(--doctor-blue-dark);
   font-size: 2rem;
 }
@@ -637,13 +637,13 @@
   color: #ffffff;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 20px 36px -28px rgba(37, 99, 235, 0.72);
+  box-shadow: 0 20px 36px -28px rgba(5, 150, 105, 0.55);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .btn-reset:hover {
   transform: translateY(-1px);
-  box-shadow: 0 24px 40px -30px rgba(37, 99, 235, 0.75);
+  box-shadow: 0 24px 40px -30px rgba(5, 150, 105, 0.62);
 }
 
 .pagination-container {
@@ -693,8 +693,8 @@
 .btn-page:hover:not(:disabled),
 .btn-page-number:hover {
   transform: translateY(-1px);
-  border-color: rgba(191, 219, 254, 0.92);
-  background: rgba(239, 246, 255, 0.92);
+  border-color: rgba(167, 243, 208, 0.92);
+  background: rgba(236, 253, 245, 0.92);
 }
 
 .btn-page:disabled {
@@ -712,7 +712,7 @@
   border-color: transparent;
   background: linear-gradient(135deg, var(--doctor-blue), var(--doctor-blue-dark));
   color: #ffffff;
-  box-shadow: 0 18px 32px -26px rgba(37, 99, 235, 0.7);
+  box-shadow: 0 18px 32px -26px rgba(5, 150, 105, 0.55);
 }
 
 @media (min-width: 640px) {

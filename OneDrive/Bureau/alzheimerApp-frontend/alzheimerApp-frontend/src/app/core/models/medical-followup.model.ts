@@ -137,6 +137,8 @@ export interface AppointmentUpdateRequest {
   mode?: AppointmentMode;
   startAt?: string;
   endAt?: string;
+  attendanceStatus?: AttendanceStatus;
+  outcomeType?: OutcomeType;
   meetingUrl?: string;
 }
 

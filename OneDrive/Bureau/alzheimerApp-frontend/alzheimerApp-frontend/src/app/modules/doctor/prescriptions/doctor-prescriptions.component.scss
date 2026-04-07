@@ -1,7 +1,7 @@
 :host {
   display: block;
-  --doctor-blue: #3b82f6;
-  --doctor-blue-dark: #2563eb;
+  --doctor-blue: #10b981;
+  --doctor-blue-dark: #059669;
   --doctor-cyan: #06b6d4;
   --doctor-emerald: #10b981;
   --doctor-amber: #f59e0b;
@@ -20,9 +20,9 @@
 .prescriptions-page {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28rem),
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
     radial-gradient(circle at 85% 10%, rgba(6, 182, 212, 0.1), transparent 24rem),
-    linear-gradient(180deg, #f8fbff 0%, #f3f7fd 48%, #edf4fb 100%);
+    linear-gradient(180deg, #f6fffb 0%, #f2fbf7 48%, #eefbf4 100%);
 }
 
 .prescriptions-hero {
@@ -63,13 +63,13 @@
   border: 1px solid transparent;
   border-radius: 1rem;
   background: linear-gradient(135deg, var(--doctor-blue), var(--doctor-blue-dark));
-  box-shadow: 0 18px 34px -28px rgba(37, 99, 235, 0.75);
+  box-shadow: 0 18px 34px -28px rgba(5, 150, 105, 0.6);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .prescriptions-hero__action:hover {
   transform: translateY(-1px);
-  box-shadow: 0 22px 36px -28px rgba(37, 99, 235, 0.78);
+  box-shadow: 0 22px 36px -28px rgba(5, 150, 105, 0.68);
 }
 
 .prescriptions-panel {
@@ -150,14 +150,14 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.7), rgba(6, 182, 212, 0.35));
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.72), rgba(6, 182, 212, 0.3));
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
 .prescription-card:hover {
   transform: translateY(-1px);
-  border-color: rgba(191, 219, 254, 0.95);
+  border-color: rgba(167, 243, 208, 0.95);
   box-shadow: 0 22px 38px -34px rgba(15, 23, 42, 0.36);
 }
 
@@ -183,12 +183,12 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 6px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.75), rgba(6, 182, 212, 0.3));
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.75), rgba(6, 182, 212, 0.25));
 }
 
 .prescriptions-detail__avatar {
-  border: 1px solid rgba(191, 219, 254, 0.9);
-  box-shadow: 0 16px 30px -24px rgba(37, 99, 235, 0.8);
+  border: 1px solid rgba(167, 243, 208, 0.9);
+  box-shadow: 0 16px 30px -24px rgba(5, 150, 105, 0.6);
 }
 
 .prescriptions-detail__actions {
@@ -198,9 +198,9 @@
 
 .detail-action-btn {
   min-height: 2.6rem;
-  border: 1px solid rgba(191, 219, 254, 0.95);
+  border: 1px solid rgba(167, 243, 208, 0.95);
   border-radius: 0.95rem;
-  background: rgba(239, 246, 255, 0.78);
+  background: rgba(236, 253, 245, 0.78);
   font-weight: 800;
   transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
 }
@@ -222,7 +222,7 @@
   min-height: 2.8rem;
   border-radius: 0.95rem;
   background: linear-gradient(135deg, var(--doctor-blue), var(--doctor-blue-dark));
-  box-shadow: 0 18px 34px -28px rgba(37, 99, 235, 0.72);
+  box-shadow: 0 18px 34px -28px rgba(5, 150, 105, 0.6);
 }
 
 .medications-table-wrap {
@@ -257,7 +257,7 @@
 }
 
 .medications-table tbody tr:hover {
-  background: rgba(239, 246, 255, 0.42);
+  background: rgba(236, 253, 245, 0.42);
 }
 
 .medication-inline-btn {
@@ -298,7 +298,7 @@
 }
 
 .modal-card__header {
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.7), rgba(255, 255, 255, 0.95));
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.7), rgba(255, 255, 255, 0.95));
 }
 
 .modal-card__body {
@@ -361,8 +361,8 @@
 .modal-card textarea:focus {
   outline: none;
   transform: translateY(-1px);
-  border-color: rgba(59, 130, 246, 0.42);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: rgba(16, 185, 129, 0.42);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .form-control--textarea,
@@ -380,8 +380,8 @@
 
 .patient-picker:focus-within {
   transform: translateY(-1px);
-  border-color: rgba(59, 130, 246, 0.42);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  border-color: rgba(16, 185, 129, 0.42);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
 }
 
 .patient-dropdown {
@@ -434,7 +434,7 @@
 }
 
 .time-chip.bg-primary-600 {
-  box-shadow: 0 18px 30px -26px rgba(37, 99, 235, 0.72);
+  box-shadow: 0 18px 30px -26px rgba(5, 150, 105, 0.55);
 }
 
 .risk-toggle {
@@ -468,7 +468,7 @@
 }
 
 .modal-btn--primary {
-  box-shadow: 0 18px 32px -26px rgba(37, 99, 235, 0.68);
+  box-shadow: 0 18px 32px -26px rgba(5, 150, 105, 0.55);
 }
 
 .animate-spin {
@@ -516,7 +516,7 @@
   @apply bg-red-100 text-red-800;
 }
 
-.avatar-blue { @apply bg-blue-500; }
+.avatar-blue { @apply bg-emerald-500; }
 .avatar-green { @apply bg-green-500; }
 .avatar-purple { @apply bg-violet-500; }
 .avatar-orange { @apply bg-orange-500; }

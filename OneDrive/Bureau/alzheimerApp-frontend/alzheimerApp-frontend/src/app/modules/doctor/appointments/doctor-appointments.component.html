@@ -206,6 +206,55 @@
                     </div>
                   </div>
 
+                  <div *ngIf="appt.status === 'COMPLETED'" class="mt-4 rounded-xl border border-slate-200 bg-white/80 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p class="text-xs font-bold tracking-widest uppercase text-slate-500">Outcome</p>
+                        <p *ngIf="appt.outcomeType" class="mt-1 text-sm font-semibold text-slate-900">
+                          {{ appt.outcomeType.replace('_', ' ') }}
+                          <span *ngIf="appt.attendanceStatus" class="ml-2 text-xs font-bold text-slate-500">
+                            ({{ appt.attendanceStatus }})
+                          </span>
+                        </p>
+                        <p *ngIf="!appt.outcomeType" class="mt-1 text-sm text-slate-600">
+                          Outcome not recorded yet.
+                        </p>
+                      </div>
+
+                      <button
+                        *ngIf="!appt.outcomeType"
+                        type="button"
+                        (click)="openOutcomeModal(appt)"
+                        class="secondary-button secondary-button--compact">
+                        Record outcome
+                      </button>
+                    </div>
+
+                    <div *ngIf="shouldSuggestFollowUp(appt)" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p class="text-sm font-semibold text-emerald-900">{{ getFollowUpSuggestionLabel(appt) }}</p>
+                      <p class="mt-1 text-xs text-emerald-800" *ngIf="getSuggestedFollowUpStartAt(appt)">
+                        Suggested start: <span class="font-mono">{{ getSuggestedFollowUpStartAt(appt) }}</span>
+                      </p>
+                      <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          (click)="openSuggestedFollowUp(appt)"
+                          class="primary-button primary-button--compact flex-1">
+                          Schedule follow-up
+                        </button>
+                        <button
+                          type="button"
+                          (click)="openModal()"
+                          class="secondary-button secondary-button--compact flex-1">
+                          Create manually
+                        </button>
+                      </div>
+                      <p class="mt-2 text-xs text-emerald-700">
+                        The follow-up opens as a suggestion. You can adjust the slot and run availability check before saving.
+                      </p>
+                    </div>
+                  </div>
+
                   <div *ngIf="appt.mode === 'ONLINE'" class="telehealth-panel">
                     <div class="telehealth-panel__header">
                       <div>
@@ -373,6 +422,91 @@
   </div>
 </div>
 
+<div *ngIf="showOutcomeModal"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     (click)="closeOutcomeModal()">
+  <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+       (click)="$event.stopPropagation()">
+
+    <div class="bg-emerald-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-bold text-white">Appointment Outcome</h2>
+        <p class="text-xs text-emerald-100 mt-1">Record what happened after the consultation.</p>
+      </div>
+      <button
+        type="button"
+        (click)="closeOutcomeModal()"
+        class="text-white hover:text-emerald-100 transition text-2xl leading-none">
+        X
+      </button>
+    </div>
+
+    <div class="p-6 space-y-6">
+      <div *ngIf="outcomeModalAppointment" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <p class="text-sm font-semibold text-slate-900">{{ getPatientNameById(outcomeModalAppointment.patientId) }}</p>
+        <p class="text-xs text-slate-600 mt-1">
+          {{ formatDateDisplay(outcomeModalAppointment.startAt) }} • {{ getDurationMinutes(outcomeModalAppointment.startAt, outcomeModalAppointment.endAt) }} min
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block">
+          <span class="block text-sm font-semibold text-gray-700 mb-2">Attendance</span>
+          <select
+            [(ngModel)]="outcomeAttendance"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <option *ngFor="let status of attendanceOutcomeOptions" [value]="status">{{ status }}</option>
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="block text-sm font-semibold text-gray-700 mb-2">Outcome</span>
+          <select
+            [(ngModel)]="outcomeType"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <option *ngFor="let outcome of outcomeTypes" [value]="outcome">{{ outcome }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div *ngIf="isOutcomeModalFollowUpNeeded()" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <p class="text-sm font-semibold text-emerald-900">System suggestion</p>
+        <p class="mt-1 text-xs text-emerald-800" *ngIf="getOutcomeModalFollowUpPreviewStartAt()">
+          Suggested start: <span class="font-mono">{{ getOutcomeModalFollowUpPreviewStartAt() }}</span>
+        </p>
+        <div class="mt-3">
+          <button
+            type="button"
+            (click)="openSuggestedFollowUpFromOutcomeModal()"
+            class="primary-button primary-button--compact w-full">
+            Open follow-up suggestion
+          </button>
+        </div>
+        <p class="mt-2 text-xs text-emerald-700">
+          This opens a pre-filled follow-up appointment. You can adjust the slot and run availability check before saving.
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
+      <button
+        type="button"
+        (click)="saveOutcomeAndMaybeComplete()"
+        [disabled]="outcomeSaving || !outcomeModalAppointment"
+        class="flex-1 bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        {{ outcomeSaving ? 'Saving...' : (completeAfterOutcomeSave ? 'Save & Complete' : 'Save Outcome') }}
+      </button>
+      <button
+        type="button"
+        (click)="closeOutcomeModal()"
+        [disabled]="outcomeSaving"
+        class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
 <div *ngIf="showModal"
      class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
      (click)="closeModal()">
@@ -400,7 +534,11 @@
               {{ currentUser?.name || 'Current Doctor' }}
             </p>
             <p class="text-xs text-gray-500 mt-1">
-              {{ modalMode === 'reschedule' ? 'Adjusting an existing appointment.' : 'Creating a new appointment.' }}
+              {{
+                modalMode === 'reschedule'
+                  ? 'Adjusting an existing appointment.'
+                  : (modalIntent === 'followup' ? 'Scheduling a system-suggested follow-up.' : 'Creating a new appointment.')
+              }}
             </p>
           </div>
         </div>
@@ -416,18 +554,18 @@
               type="text"
               [value]="patientSearchQuery"
               (input)="onPatientSearch($event)"
-              (focus)="!routePatientId && modalMode !== 'reschedule' && (showPatientDropdown = true)"
+              (focus)="!patientLocked && !routePatientId && modalMode !== 'reschedule' && (showPatientDropdown = true)"
               (blur)="hidePatientDropdown()"
-              [disabled]="(routePatientId && selectedPatient) || modalMode === 'reschedule'"
+              [disabled]="patientLocked || (routePatientId && selectedPatient) || modalMode === 'reschedule'"
               class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-700"
               [placeholder]="modalMode === 'reschedule'
                 ? 'Patient locked while rescheduling'
-                : (routePatientId && selectedPatient ? 'Patient pre-selected from the patient list' : 'Search patient by name, email, or ID...')"
+                : (patientLocked ? 'Patient locked (follow-up suggestion)' : (routePatientId && selectedPatient ? 'Patient pre-selected from the patient list' : 'Search patient by name, email, or ID...'))"
               autocomplete="off">
             <span class="absolute left-3 top-3.5 text-gray-400">🔍</span>
 
             <button
-              *ngIf="selectedPatient && !routePatientId && modalMode !== 'reschedule'"
+              *ngIf="selectedPatient && !patientLocked && !routePatientId && modalMode !== 'reschedule'"
               (click)="clearPatientSelection()"
               class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
               X
@@ -438,7 +576,7 @@
             </div>
           </div>
 
-          <div *ngIf="showPatientDropdown && filteredPatients.length > 0"
+          <div *ngIf="!patientLocked && showPatientDropdown && filteredPatients.length > 0"
                class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
             <div *ngFor="let patient of filteredPatients"
                  (click)="selectPatient(patient)"
@@ -454,7 +592,7 @@
             </div>
           </div>
 
-          <div *ngIf="showPatientDropdown && patientSearchQuery && filteredPatients.length === 0 && !loadingPatients"
+          <div *ngIf="!patientLocked && showPatientDropdown && patientSearchQuery && filteredPatients.length === 0 && !loadingPatients"
                class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
             No patients found
           </div>

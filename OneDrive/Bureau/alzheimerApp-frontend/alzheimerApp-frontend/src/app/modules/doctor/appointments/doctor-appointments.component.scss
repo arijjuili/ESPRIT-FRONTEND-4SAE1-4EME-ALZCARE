@@ -5,8 +5,8 @@
 .appointments-page {
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28rem),
-    linear-gradient(180deg, #f8fbff 0%, #f5f7fb 40%, #eef4fb 100%);
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
+    linear-gradient(180deg, #f6fffb 0%, #f5fbf7 40%, #eefbf4 100%);
 }
 
 .hero-panel,
@@ -31,7 +31,7 @@
   border-radius: 1.5rem;
   padding: 1.5rem;
   background:
-    linear-gradient(135deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.94)),
+    linear-gradient(135deg, rgba(236, 253, 245, 0.96), rgba(255, 255, 255, 0.94)),
     rgba(255, 255, 255, 0.92);
 }
 
@@ -102,9 +102,9 @@
 .hero-panel__button,
 .primary-button,
 .primary-button--compact {
-  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: #fff;
-  box-shadow: 0 16px 30px -20px rgba(37, 99, 235, 0.8);
+  box-shadow: 0 16px 30px -20px rgba(5, 150, 105, 0.6);
 }
 
 .hero-panel__button:hover,
@@ -184,8 +184,8 @@ input:focus,
 select:focus,
 .field-shell__control:focus {
   outline: none;
-  border-color: rgba(59, 130, 246, 0.65);
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+  border-color: rgba(16, 185, 129, 0.65);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
 }
 
 .toolbar-summary {
@@ -193,8 +193,8 @@ select:focus,
   flex-direction: column;
   justify-content: center;
   border-radius: 1rem;
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.96));
-  border: 1px solid rgba(191, 219, 254, 0.95);
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.96));
+  border: 1px solid rgba(167, 243, 208, 0.95);
   padding: 1rem 1.1rem;
 }
 
@@ -245,7 +245,7 @@ select:focus,
 }
 
 .toggle-shell__control input {
-  accent-color: #2563eb;
+  accent-color: #10b981;
 }
 
 .day-group {
@@ -394,7 +394,7 @@ select:focus,
 }
 
 .appointment-card--requested::before {
-  background: #3b82f6;
+  background: #10b981;
 }
 
 .appointment-card--completed::before {
@@ -423,9 +423,9 @@ select:focus,
   align-items: center;
   justify-content: center;
   border-radius: 1rem;
-  background: linear-gradient(135deg, #dbeafe, #eff6ff);
+  background: linear-gradient(135deg, #d1fae5, #ecfdf5);
   font-size: 1.4rem;
-  box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.95);
+  box-shadow: inset 0 0 0 1px rgba(167, 243, 208, 0.95);
 }
 
 .appointment-card__title {
@@ -483,7 +483,7 @@ select:focus,
   margin-top: 1rem;
   border-radius: 1.15rem;
   border: 1px solid rgba(221, 214, 254, 0.95);
-  background: linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(239, 246, 255, 0.95));
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(237, 233, 254, 0.95));
   padding: 1rem;
 }
 
@@ -514,8 +514,8 @@ select:focus,
 }
 
 .telehealth-state--info {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #d1fae5;
+  color: #047857;
 }
 
 .telehealth-state--danger {
@@ -609,7 +609,7 @@ select:focus,
 }
 
 .action-button--accept {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: #fff;
 }
 
@@ -620,9 +620,9 @@ select:focus,
 }
 
 .action-button--reschedule {
-  background: rgba(239, 246, 255, 0.96);
-  color: #1d4ed8;
-  border: 1px solid rgba(191, 219, 254, 0.95);
+  background: rgba(236, 253, 245, 0.96);
+  color: #047857;
+  border: 1px solid rgba(167, 243, 208, 0.95);
 }
 
 .action-button--complete {
@@ -691,7 +691,7 @@ select:focus,
   justify-content: space-between;
   gap: 1rem;
   padding: 1.4rem 1.5rem;
-  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  background: linear-gradient(135deg, #ecfdf5, #ffffff);
   border-bottom: 1px solid rgba(226, 232, 240, 0.92);
 }
 
@@ -732,7 +732,7 @@ select:focus,
   gap: 1rem;
   border-radius: 1.2rem;
   padding: 1rem 1.1rem;
-  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(255, 255, 255, 0.96));
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.96));
 }
 
 .doctor-pill__avatar {
@@ -742,7 +742,7 @@ select:focus,
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  background: linear-gradient(135deg, #10b981, #059669);
   color: #fff;
   font-size: 0.92rem;
   font-weight: 800;
@@ -862,7 +862,7 @@ select:focus,
 }
 
 .online-info {
-  background: linear-gradient(135deg, rgba(245, 243, 255, 0.96), rgba(239, 246, 255, 0.96));
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.96), rgba(237, 233, 254, 0.96));
 }
 
 .online-info__title,

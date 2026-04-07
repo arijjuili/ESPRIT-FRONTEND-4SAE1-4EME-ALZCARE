@@ -71,13 +71,13 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
     .btn-back {
       display: inline-flex;
       align-items: center;
-      color: #3b82f6;
+      color: #10b981;
       text-decoration: none;
       font-weight: 500;
       transition: color 0.2s;
 
       &:hover {
-        color: #2563eb;
+        color: #059669;
       }
     }
 
@@ -129,7 +129,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem 1.5rem;
-      background: #3b82f6;
+      background: #10b981;
       color: white;
       text-decoration: none;
       border-radius: 0.5rem;
@@ -137,7 +137,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
       transition: all 0.2s;
 
       &:hover {
-        background: #2563eb;
+        background: #059669;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
     }

@@ -67,14 +67,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
     },
     doctor: {
       name: 'Doctor',
-      primary: '#3b82f6',      // Blue 500
-      primaryLight: '#eff6ff', // Blue 50
-      primaryDark: '#1d4ed8',  // Blue 700
-      gradientFrom: '#3b82f6',
-      gradientTo: '#2563eb',
-      borderColor: '#dbeafe',  // Blue 100
-      hoverBg: '#dbeafe',
-      activeBg: '#3b82f6',
+      primary: '#10b981',      // Emerald 500
+      primaryLight: '#ecfdf5', // Emerald 50
+      primaryDark: '#047857',  // Emerald 700
+      gradientFrom: '#10b981',
+      gradientTo: '#059669',
+      borderColor: '#d1fae5',  // Emerald 100
+      hoverBg: '#d1fae5',
+      activeBg: '#10b981',
       activeText: '#ffffff'
     },
     admin: {

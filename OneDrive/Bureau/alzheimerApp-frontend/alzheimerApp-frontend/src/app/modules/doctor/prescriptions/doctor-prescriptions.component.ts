@@ -925,7 +925,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
 
   formatDate(dateString: string | undefined): string {
     if (!dateString) return 'Not set';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       month: 'short',
       day: 'numeric',
       year: 'numeric'
@@ -934,7 +934,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
 
   formatShortDate(dateString: string | undefined): string {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       month: 'short',
       day: 'numeric'
     });
@@ -970,7 +970,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
 
   getAvatarColor(patientId: string): string {
     const colors = [
-      'bg-blue-500',
+      'bg-emerald-500',
       'bg-green-500',
       'bg-purple-500',
       'bg-orange-500',
@@ -1121,7 +1121,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
     const start = new Date(startDate);
     const end = endDate ? new Date(endDate) : null;
     
-    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+    const startMonth = start.toLocaleDateString('fr-FR', { month: 'short' });
     const startDay = start.getDate();
     const startYear = start.getFullYear();
     
@@ -1129,7 +1129,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
       return `${startMonth} ${startDay}, ${startYear} – Ongoing`;
     }
     
-    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = end.toLocaleDateString('fr-FR', { month: 'short' });
     const endDay = end.getDate();
     const endYear = end.getFullYear();
     
@@ -1165,7 +1165,7 @@ const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;      
     if (diffDays < 7) return `${diffDays}d ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
     
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
   }
 
   // ==================== DRUG AUTOCOMPLETE ====================

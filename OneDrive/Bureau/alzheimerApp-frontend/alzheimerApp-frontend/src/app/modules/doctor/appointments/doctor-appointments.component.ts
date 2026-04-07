@@ -22,7 +22,9 @@ import {
   AppointmentStatus,
   AppointmentType,
   AppointmentPriority,
-  AppointmentMode
+  AppointmentMode,
+  AttendanceStatus,
+  OutcomeType
 } from '../../../core/models/medical-followup.model';
 
 /**
@@ -67,12 +69,25 @@ export class DoctorAppointmentsComponent implements OnInit {
   appointmentTypes = Object.values(AppointmentType);
   appointmentPriorities = Object.values(AppointmentPriority);
   appointmentModes = Object.values(AppointmentMode);
+  attendanceStatuses = Object.values(AttendanceStatus);
+  outcomeTypes = Object.values(OutcomeType);
+  attendanceOutcomeOptions: AttendanceStatus[] = [AttendanceStatus.CONFIRMED, AttendanceStatus.NO_SHOW];
 
   // Modal Dialog state
   showModal = false;
   modalMode: 'create' | 'reschedule' = 'create';
+  modalIntent: 'new' | 'followup' = 'new';
+  patientLocked = false;
   editingAppointmentId: number | null = null;
   editingAppointmentStatus: AppointmentStatus | null = null;
+
+  // Outcome tracking (Module 1.2 - Outcome + follow-up suggestion)
+  showOutcomeModal = false;
+  outcomeModalAppointment: Appointment | null = null;
+  outcomeAttendance: AttendanceStatus = AttendanceStatus.CONFIRMED;
+  outcomeType: OutcomeType = OutcomeType.STABLE;
+  completeAfterOutcomeSave = false;
+  outcomeSaving = false;
 
   // Patient Search
   patientSearchQuery = '';
@@ -265,6 +280,9 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Search/filter patients based on query
    */
   onPatientSearch(event: Event): void {
+    if (this.patientLocked) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
     const query = input.value;
     this.patientSearchQuery = query;
@@ -421,6 +439,9 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Clear patient selection
    */
   clearPatientSelection(): void {
+    if (this.patientLocked) {
+      return;
+    }
     this.selectedPatient = null;
     this.patientSearchQuery = '';
     this.newAppointment.patientId = '';
@@ -435,6 +456,8 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   openModal(): void {
     this.modalMode = 'create';
+    this.modalIntent = 'new';
+    this.patientLocked = false;
     this.successMessage = null;
     this.showModal = true;
     this.resetForm();
@@ -450,6 +473,8 @@ export class DoctorAppointmentsComponent implements OnInit {
     );
 
     this.modalMode = 'reschedule';
+    this.modalIntent = 'new';
+    this.patientLocked = true;
     this.successMessage = null;
     this.showModal = true;
     this.resetForm();
@@ -485,7 +510,119 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   closeModal(): void {
     this.showModal = false;
+    this.modalIntent = 'new';
+    this.patientLocked = false;
     this.resetForm();
+  }
+
+  openOutcomeModal(appointment: Appointment, completeAfterSave = false): void {
+    this.successMessage = null;
+    this.error = null;
+    this.completeAfterOutcomeSave = completeAfterSave;
+    this.outcomeModalAppointment = appointment;
+    this.outcomeAttendance = appointment.attendanceStatus || AttendanceStatus.CONFIRMED;
+    this.outcomeType = appointment.outcomeType || OutcomeType.STABLE;
+    this.showOutcomeModal = true;
+  }
+
+  closeOutcomeModal(): void {
+    this.showOutcomeModal = false;
+    this.outcomeModalAppointment = null;
+    this.completeAfterOutcomeSave = false;
+    this.outcomeSaving = false;
+  }
+
+  saveOutcomeAndMaybeComplete(): void {
+    if (!this.outcomeModalAppointment) {
+      return;
+    }
+
+    const baseAppointment = this.outcomeModalAppointment;
+    const appointmentId = baseAppointment.id;
+    this.outcomeSaving = true;
+    this.error = null;
+    this.activeActionId = appointmentId;
+
+    // Some backends treat PUT as "replace": sending only outcome fields can null-out required fields.
+    // We include the existing appointment fields to keep the payload safe.
+    const update: AppointmentUpdateRequest = {
+      type: baseAppointment.type,
+      priority: baseAppointment.priority,
+      mode: baseAppointment.mode,
+      startAt: baseAppointment.startAt,
+      endAt: baseAppointment.endAt,
+      meetingUrl: baseAppointment.meetingUrl,
+      attendanceStatus: this.outcomeAttendance,
+      outcomeType: this.outcomeType
+    };
+
+    console.log('[DoctorAppointments] Saving outcome payload:', update);
+
+    this.medicalService.updateAppointment(appointmentId, update).subscribe({
+      next: (updated) => {
+        const index = this.appointments.findIndex(a => a.id === appointmentId);
+        if (index !== -1) {
+          this.appointments[index] = {
+            ...this.appointments[index],
+            ...updated
+          };
+          this.appointments = [...this.appointments];
+        }
+
+        if (!this.completeAfterOutcomeSave) {
+          this.successMessage = 'Outcome saved.';
+          this.outcomeSaving = false;
+          this.activeActionId = null;
+          this.closeOutcomeModal();
+          return;
+        }
+
+        this.medicalService.changeAppointmentStatus(appointmentId, AppointmentStatus.COMPLETED).subscribe({
+          next: (statusUpdated) => {
+            const statusIndex = this.appointments.findIndex(a => a.id === appointmentId);
+            if (statusIndex !== -1) {
+              this.appointments[statusIndex] = {
+                ...this.appointments[statusIndex],
+                ...statusUpdated
+              };
+              this.appointments = [...this.appointments];
+            }
+            this.successMessage = 'Appointment completed and outcome recorded.';
+            this.outcomeSaving = false;
+            this.activeActionId = null;
+            this.closeOutcomeModal();
+          },
+          error: (err) => {
+            console.error('Error completing appointment after outcome save:', err);
+            this.error = 'Outcome saved, but failed to complete the appointment. Please try again.';
+            this.outcomeSaving = false;
+            this.activeActionId = null;
+          }
+        });
+      },
+      error: (err) => {
+        const backendMessage =
+          (typeof (err as any)?.error === 'string' && (err as any).error) ||
+          (err as any)?.error?.message ||
+          (err as any)?.error?.error ||
+          (err as any)?.error?.detail ||
+          null;
+
+        console.error('[DoctorAppointments] Error saving outcome:', {
+          status: (err as any)?.status,
+          message: (err as any)?.message,
+          error: (err as any)?.error,
+          payload: update
+        });
+
+        // 500 = server-side exception (often payload shape/required fields not met, or backend feature not implemented yet).
+        this.error = backendMessage
+          ? `Failed to save outcome: ${backendMessage}`
+          : 'Failed to save appointment outcome (server error). Please check backend logs and try again.';
+        this.outcomeSaving = false;
+        this.activeActionId = null;
+      }
+    });
   }
 
   /**
@@ -583,7 +720,7 @@ export class DoctorAppointmentsComponent implements OnInit {
     const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
     return keys.map(dayKey => {
       const items = (groups.get(dayKey) || []).slice().sort((a, b) => this.compareAppointments(a, b));
-      const dayLabel = new Date(`${dayKey}T00:00:00`).toLocaleDateString('en-US', {
+      const dayLabel = new Date(`${dayKey}T00:00:00`).toLocaleDateString('fr-FR', {
         weekday: 'long',
         year: 'numeric',
         month: 'short',
@@ -998,7 +1135,14 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Mark an appointment as completed
    */
   completeAppointment(appointmentId: number): void {
-    this.updateStatus(appointmentId, AppointmentStatus.COMPLETED, 'Appointment completed.');
+    const appointment = this.appointments.find(a => a.id === appointmentId);
+
+    if (!appointment) {
+      this.error = 'Appointment not found. Please refresh and try again.';
+      return;
+    }
+
+    this.openOutcomeModal(appointment, true);
   }
 
   /**
@@ -1062,19 +1206,31 @@ export class DoctorAppointmentsComponent implements OnInit {
   }
 
   get modalTitle(): string {
-    return this.modalMode === 'reschedule' ? 'Reschedule Appointment' : 'New Appointment';
+    if (this.modalMode === 'reschedule') {
+      return 'Reschedule Appointment';
+    }
+
+    return this.modalIntent === 'followup' ? 'Suggested Follow-up' : 'New Appointment';
   }
 
   get modalSubmitLabel(): string {
     if (this.loading) {
-      return this.modalMode === 'reschedule' ? 'Saving...' : 'Creating...';
+      if (this.modalMode === 'reschedule') {
+        return 'Saving...';
+      }
+
+      return this.modalIntent === 'followup' ? 'Scheduling...' : 'Creating...';
     }
 
     if (this.availabilityLoading) {
       return 'Checking...';
     }
 
-    return this.modalMode === 'reschedule' ? 'Save Reschedule' : 'Create Appointment';
+    if (this.modalMode === 'reschedule') {
+      return 'Save Reschedule';
+    }
+
+    return this.modalIntent === 'followup' ? 'Create Follow-up' : 'Create Appointment';
   }
 
   isUrgentSelection(): boolean {
@@ -1107,6 +1263,114 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   isActionLoading(appointmentId: number): boolean {
     return this.activeActionId === appointmentId;
+  }
+
+  shouldSuggestFollowUp(appointment: Appointment): boolean {
+    return (
+      appointment.status === AppointmentStatus.COMPLETED &&
+      (appointment.outcomeType === OutcomeType.FOLLOW_UP_NEEDED ||
+        appointment.outcomeType === OutcomeType.URGENT_FOLLOW_UP)
+    );
+  }
+
+  getFollowUpSuggestionLabel(appointment: Appointment): string {
+    if (appointment.outcomeType === OutcomeType.URGENT_FOLLOW_UP) {
+      return 'System suggests an urgent follow-up within 24h.';
+    }
+
+    return 'System suggests a follow-up in ~7 days.';
+  }
+
+  getSuggestedFollowUpStartAt(appointment: Appointment): string | null {
+    const base = this.schedulingService.parseLocalDateTime(
+      this.schedulingService.normalizeLocalDateTime(appointment.startAt)
+    );
+
+    if (!base) {
+      return null;
+    }
+
+    const followUpDate = new Date(base);
+    const daysToAdd = appointment.outcomeType === OutcomeType.URGENT_FOLLOW_UP ? 1 : 7;
+    followUpDate.setDate(followUpDate.getDate() + daysToAdd);
+    return this.formatDateTimeLocal(followUpDate);
+  }
+
+  openSuggestedFollowUp(appointment: Appointment): void {
+    const startAt = this.getSuggestedFollowUpStartAt(appointment);
+    if (!startAt) {
+      this.error = 'Unable to compute a follow-up slot. Please create one manually.';
+      return;
+    }
+
+    const baseDurationMinutes = this.getDurationMinutes(appointment.startAt, appointment.endAt) || this.appointmentDuration;
+    const startDate = this.schedulingService.parseLocalDateTime(startAt);
+
+    if (!startDate) {
+      this.error = 'Invalid follow-up suggestion date. Please create one manually.';
+      return;
+    }
+
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + baseDurationMinutes);
+
+    this.openModal();
+    this.modalIntent = 'followup';
+    this.patientLocked = true;
+
+    const patient = this.findPatientByAnyId(appointment.patientId);
+    if (patient) {
+      this.selectPatient(patient);
+    } else {
+      // Fallback: lock patient id even if we don't have the full profile loaded.
+      this.newAppointment.patientId = appointment.patientId;
+      this.patientSearchQuery = this.getPatientNameById(appointment.patientId);
+      this.selectedPatient = null;
+      this.showPatientDropdown = false;
+    }
+
+    this.newAppointment.type = AppointmentType.FOLLOW_UP;
+    this.newAppointment.mode = appointment.mode;
+    this.newAppointment.priority =
+      appointment.outcomeType === OutcomeType.URGENT_FOLLOW_UP ? AppointmentPriority.CRITICAL : AppointmentPriority.HIGH;
+    this.newAppointment.startAt = this.formatDateTimeLocal(startDate);
+    this.newAppointment.endAt = this.formatDateTimeLocal(endDate);
+
+    this.resetAvailability();
+    this.cdr.detectChanges();
+  }
+
+  isOutcomeModalFollowUpNeeded(): boolean {
+    return this.outcomeType === OutcomeType.FOLLOW_UP_NEEDED || this.outcomeType === OutcomeType.URGENT_FOLLOW_UP;
+  }
+
+  getOutcomeModalFollowUpPreviewStartAt(): string | null {
+    if (!this.outcomeModalAppointment) {
+      return null;
+    }
+
+    const preview: Appointment = {
+      ...this.outcomeModalAppointment,
+      status: AppointmentStatus.COMPLETED,
+      outcomeType: this.outcomeType
+    };
+
+    return this.getSuggestedFollowUpStartAt(preview);
+  }
+
+  openSuggestedFollowUpFromOutcomeModal(): void {
+    if (!this.outcomeModalAppointment) {
+      return;
+    }
+
+    const preview: Appointment = {
+      ...this.outcomeModalAppointment,
+      status: AppointmentStatus.COMPLETED,
+      outcomeType: this.outcomeType
+    };
+
+    this.closeOutcomeModal();
+    this.openSuggestedFollowUp(preview);
   }
 
   /**
@@ -1172,7 +1436,7 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   formatDateDisplay(isoString: string): string {
     const date = new Date(isoString);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('fr-FR', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -1187,7 +1451,7 @@ export class DoctorAppointmentsComponent implements OnInit {
   getStatusClass(status: AppointmentStatus): string {
     const classes: Record<AppointmentStatus, string> = {
       [AppointmentStatus.REQUESTED]: 'bg-gray-100 text-gray-800',
-      [AppointmentStatus.ACCEPTED]: 'bg-blue-100 text-blue-800',
+      [AppointmentStatus.ACCEPTED]: 'bg-emerald-100 text-emerald-800',
       [AppointmentStatus.REJECTED]: 'bg-red-100 text-red-800',
       [AppointmentStatus.CONFIRMED]: 'bg-green-100 text-green-800',
       [AppointmentStatus.COMPLETED]: 'bg-purple-100 text-purple-800',
@@ -1231,7 +1495,7 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   getModeClass(mode: AppointmentMode): string {
     const classes: Record<AppointmentMode, string> = {
-      [AppointmentMode.ONSITE]: 'bg-blue-100 text-blue-800 border-blue-200',
+      [AppointmentMode.ONSITE]: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       [AppointmentMode.ONLINE]: 'bg-purple-100 text-purple-800 border-purple-200'
     };
     return classes[mode];

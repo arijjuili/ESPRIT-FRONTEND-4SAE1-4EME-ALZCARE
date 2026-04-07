@@ -553,7 +553,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
 
   formatDate(date: string | Date | undefined): string {
     if (!date) return 'Never';
-    return new Date(date).toLocaleDateString('en-US', {
+    return new Date(date).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
