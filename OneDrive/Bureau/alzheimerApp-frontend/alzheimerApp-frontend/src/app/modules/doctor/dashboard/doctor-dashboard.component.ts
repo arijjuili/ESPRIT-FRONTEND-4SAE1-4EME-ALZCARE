@@ -123,8 +123,8 @@ export class DoctorDashboardComponent implements OnInit {
 
     const todayFrom = startOfDay.toISOString();
     const todayTo = endOfDay.toISOString();
-    const monthFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-    const monthTo = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString();
+    const monthFrom = new Date(today.getTime() - 30 * 24 * 60 * 60_000).toISOString();
+    const monthTo = new Date(today.getTime() + 90 * 24 * 60 * 60_000).toISOString();
 
     // Load patients, appointments, and medications in parallel
     forkJoin({

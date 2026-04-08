@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import {
   AppointmentSchedulingService,
   AvailabilitySource,
@@ -8,6 +10,7 @@ import {
   SuggestedSlot
 } from '../../core/services/appointment-scheduling.service';
 import { MedicalFollowupService } from '../../core/services/medical-followup.service';
+import { ApiService } from '../../core/services/api.service';
 import {
   Appointment,
   AppointmentCreateRequest,
@@ -33,8 +36,8 @@ export class AppointmentRequestCardComponent {
   @Input() description = 'Use the same appointment fields as the doctor form to send a request.';
   @Input() buttonLabel = 'Request Appointment';
   @Input() buttonTone: 'patient' | 'caregiver' = 'patient';
-  @Input() doctorEmail = 'doctor@doctor.com';
-  @Input() fallbackDoctorId = '3';
+  @Input() doctorEmail = '';
+  @Input() fallbackDoctorId = '';
   @Output() requestCreated = new EventEmitter<Appointment>();
 
   appointmentTypes = Object.values(AppointmentType);
@@ -59,7 +62,8 @@ export class AppointmentRequestCardComponent {
 
   constructor(
     private medicalService: MedicalFollowupService,
-    private schedulingService: AppointmentSchedulingService
+    private schedulingService: AppointmentSchedulingService,
+    private apiService: ApiService
   ) {}
 
   openModal(): void {
@@ -144,27 +148,31 @@ export class AppointmentRequestCardComponent {
   }
 
   private performSubmitRequest(): void {
-    const resolvedDoctorId = this.resolveDoctorId();
-    if (!resolvedDoctorId) {
+    const targetDoctorId = this.resolveDoctorId();
+    if (!targetDoctorId) {
       this.error = 'No doctor target is available for this request.';
       return;
     }
-
-    const payload: AppointmentCreateRequest = {
-      ...this.appointmentRequest,
-      patientId: this.patientId,
-      doctorId: resolvedDoctorId,
-      caregiverId: this.requesterRole === 'CAREGIVER' ? this.caregiverId || undefined : undefined,
-      startAt: this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.startAt),
-      endAt: this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.endAt),
-      status: AppointmentStatus.REQUESTED
-    };
 
     this.loading = true;
     this.error = null;
     this.successMessage = null;
 
-    this.medicalService.createAppointment(payload).subscribe({
+    this.resolveDoctorUserId(targetDoctorId).pipe(
+      switchMap(resolvedDoctorId => {
+        const payload: AppointmentCreateRequest = {
+          ...this.appointmentRequest,
+          patientId: this.patientId,
+          doctorId: resolvedDoctorId,
+          caregiverId: this.requesterRole === 'CAREGIVER' ? this.caregiverId || undefined : undefined,
+          startAt: this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.startAt),
+          endAt: this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.endAt),
+          status: AppointmentStatus.REQUESTED
+        };
+
+        return this.medicalService.createAppointment(payload);
+      })
+    ).subscribe({
       next: (appointment) => {
         this.loading = false;
         this.showModal = false;
@@ -207,7 +215,23 @@ export class AppointmentRequestCardComponent {
       return 'This request will follow the same doctor already linked to this patient history.';
     }
 
-    return `Temporary routing is enabled to ${this.doctorEmail}.`;
+    if (this.fallbackDoctorId) {
+      return `Temporary routing is enabled to ${this.doctorEmail || this.fallbackDoctorId}.`;
+    }
+
+    return 'No linked doctor was detected for this patient. Link a doctor first, then send the request.';
+  }
+
+  get targetDoctorLabel(): string {
+    if (this.hasKnownDoctorRelationship()) {
+      return this.doctorEmail || 'Linked doctor from patient history';
+    }
+
+    if (this.fallbackDoctorId) {
+      return this.doctorEmail || this.fallbackDoctorId;
+    }
+
+    return 'Doctor link required';
   }
 
   formatDateTimeLocal(date: Date): string {
@@ -236,8 +260,8 @@ export class AppointmentRequestCardComponent {
     this.blockingConflicts = [];
     this.suggestedSlots = [];
 
-    const doctorId = this.resolveDoctorId();
-    if (!doctorId) {
+    const targetDoctorId = this.resolveDoctorId();
+    if (!targetDoctorId) {
       this.availabilityLoading = false;
       this.availabilityError = 'No doctor target is available for availability checking.';
       return;
@@ -257,7 +281,9 @@ export class AppointmentRequestCardComponent {
     const from = this.schedulingService.toLocalDateTimeString(new Date(startDate.getTime() - 24 * 60 * 60_000));
     const to = this.schedulingService.toLocalDateTimeString(new Date(startDate.getTime() + daysToScan * 24 * 60 * 60_000));
 
-    this.medicalService.getDoctorAppointments(doctorId, from, to).subscribe({
+    this.resolveDoctorUserId(targetDoctorId).pipe(
+      switchMap(doctorId => this.loadDoctorAppointmentsForAvailability(doctorId, from, to))
+    ).subscribe({
       next: (doctorAppointments) => {
         const sources: AvailabilitySource[] = [{
           party: 'DOCTOR',
@@ -289,7 +315,6 @@ export class AppointmentRequestCardComponent {
             maxSuggestions: 8
           });
 
-          // For urgent requests, we still allow submitting even when conflicts exist.
           if (this.isUrgentSelection) {
             this.availabilityChecked = true;
             this.availabilityLoading = false;
@@ -313,6 +338,33 @@ export class AppointmentRequestCardComponent {
         this.availabilityError = 'Unable to check doctor availability right now. Please try again.';
       }
     });
+  }
+
+  private loadDoctorAppointmentsForAvailability(doctorId: string, from: string, to: string) {
+    return this.medicalService.getDoctorAppointments(doctorId, from, to).pipe(
+      catchError((err) => {
+        console.warn(`[AppointmentRequestCard] Failed to load appointments for doctorId=${doctorId}`, err);
+        return of([] as Appointment[]);
+      })
+    );
+  }
+
+  private resolveDoctorUserId(doctorId: string): Observable<string> {
+    const normalizedDoctorId = (doctorId || '').trim();
+
+    if (!normalizedDoctorId) {
+      return of('');
+    }
+
+    return this.apiService.getDoctorByUserId(normalizedDoctorId).pipe(
+      map(profile => String(profile?.userId || normalizedDoctorId)),
+      catchError(() =>
+        this.apiService.getDoctorById(normalizedDoctorId).pipe(
+          map(profile => String(profile?.userId || normalizedDoctorId)),
+          catchError(() => of(normalizedDoctorId))
+        )
+      )
+    );
   }
 
   private initializeRequest(): void {
@@ -351,7 +403,7 @@ export class AppointmentRequestCardComponent {
       return String(linkedAppointment.doctorId);
     }
 
-    return this.fallbackDoctorId;
+    return this.fallbackDoctorId || '';
   }
 
   private hasKnownDoctorRelationship(): boolean {

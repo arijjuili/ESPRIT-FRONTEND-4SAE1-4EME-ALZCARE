@@ -94,14 +94,14 @@ export class CaregiverDashboardComponent implements OnInit {
     
     // Load appointments for each patient
     const appointmentRequests = this.patients.map(patient => 
-      this.medicalService.getPatientAppointments(patient.id, fromDate, toDate)
+      this.medicalService.getPatientAppointments(this.getPatientAppointmentKey(patient), fromDate, toDate)
         .pipe(catchError(() => of([])))
     );
     
     forkJoin(appointmentRequests).subscribe({
       next: (appointmentsArray) => {
         this.patients.forEach((patient, index) => {
-          this.patientAppointments.set(patient.id, appointmentsArray[index]);
+          this.patientAppointments.set(this.getPatientAppointmentKey(patient), appointmentsArray[index]);
         });
         this.loadingAppointments = false;
       },
@@ -119,7 +119,7 @@ export class CaregiverDashboardComponent implements OnInit {
     const now = new Date();
     
     this.patientAppointments.forEach((appointments, patientId) => {
-      const patient = this.patients.find(p => p.id === patientId);
+      const patient = this.findPatientByAnyId(patientId);
       const patientName = patient ? patient.name : 'Unknown';
       
       appointments
@@ -148,7 +148,7 @@ export class CaregiverDashboardComponent implements OnInit {
   }
 
   getPatientName(patientId: string): string {
-    const patient = this.patients.find(p => p.id === patientId);
+    const patient = this.findPatientByAnyId(patientId);
     if (patient) {
       return patient.name;
     }
@@ -247,11 +247,22 @@ export class CaregiverDashboardComponent implements OnInit {
 
     return {
       id: patient.id,
+      userId: (patient as any).userId || (patient as any).keycloakId || patient.id,
       name: displayName,
       email: patient.email || 'Not available',
       phone: profile['phone'] || 'Not provided',
       condition: profile['culturalContext'] || 'Patient under care',
       emergencyContact: profile['emergencyContact'] || 'Not provided'
     };
+  }
+
+  getPatientAppointmentKey(patient: any): string {
+    return patient?.userId || patient?.keycloakId || patient?.id || '';
+  }
+
+  private findPatientByAnyId(patientId: string): any | undefined {
+    return this.patients.find(patient =>
+      patient.id === patientId || this.getPatientAppointmentKey(patient) === patientId
+    );
   }
 }

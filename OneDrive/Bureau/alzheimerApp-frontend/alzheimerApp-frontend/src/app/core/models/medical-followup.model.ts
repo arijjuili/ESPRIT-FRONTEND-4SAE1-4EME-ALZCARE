@@ -102,8 +102,8 @@ export enum RiskLevel {
 export interface Appointment {
   id: number;
   patientId: string;
-  doctorId: number;
-  caregiverId?: number;
+  doctorId: string;
+  caregiverId?: string;
   type: AppointmentType;
   priority: AppointmentPriority;
   mode: AppointmentMode;
@@ -132,11 +132,16 @@ export interface AppointmentCreateRequest {
 }
 
 export interface AppointmentUpdateRequest {
+  patientId?: string;
+  doctorId?: string;
+  caregiverId?: string;
   type?: AppointmentType;
   priority?: AppointmentPriority;
   mode?: AppointmentMode;
+  status?: AppointmentStatus;
   startAt?: string;
   endAt?: string;
+  confirmedByRole?: ValidatorRole;
   attendanceStatus?: AttendanceStatus;
   outcomeType?: OutcomeType;
   meetingUrl?: string;
@@ -159,7 +164,7 @@ export interface AppointmentQueryParams {
 export interface MedicationPlan {
   id: number;
   patientId: string;
-  doctorId: number;
+  doctorId: string;
   title: string;
   notes?: string;
   startDate: string; // ISO date

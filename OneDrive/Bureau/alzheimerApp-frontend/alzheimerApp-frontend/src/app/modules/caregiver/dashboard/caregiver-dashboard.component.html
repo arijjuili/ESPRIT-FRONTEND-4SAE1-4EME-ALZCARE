@@ -87,16 +87,16 @@
 
             <div class="mt-4">
               <app-appointment-request-card
-                [patientId]="patient.id"
+                [patientId]="getPatientAppointmentKey(patient)"
                 [patientName]="patient.name"
                 [caregiverId]="caregiverId"
-                [existingAppointments]="getAppointmentsForPatient(patient.id)"
+                [existingAppointments]="getAppointmentsForPatient(getPatientAppointmentKey(patient))"
                 requesterRole="CAREGIVER"
                 buttonTone="caregiver"
                 buttonLabel="Request Appointment for Patient"
                 title="Request a patient appointment"
                 description="Use the doctor appointment fields to send a caregiver request directly from this dashboard."
-                (requestCreated)="handleAppointmentRequestCreated(patient.id, $event)">
+                (requestCreated)="handleAppointmentRequestCreated(getPatientAppointmentKey(patient), $event)">
               </app-appointment-request-card>
             </div>
           </div>

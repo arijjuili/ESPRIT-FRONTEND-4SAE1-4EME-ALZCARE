@@ -213,9 +213,11 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   initializeDateFilters(): void {
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    // End of day, otherwise appointments on the last day (e.g. 31st 09:30) fall outside the range.
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const firstDay = new Date(now);
+    firstDay.setDate(firstDay.getDate() - 30);
+    const lastDay = new Date(now);
+    lastDay.setDate(lastDay.getDate() + 90);
+    lastDay.setHours(23, 59, 59, 0);
     
     this.filterFrom = this.formatDateTimeLocal(firstDay);
     this.filterTo = this.formatDateTimeLocal(lastDay);
@@ -532,6 +534,26 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.outcomeSaving = false;
   }
 
+  private buildAppointmentUpdatePayload(
+    appointment: Appointment,
+    overrides: Partial<AppointmentUpdateRequest> = {}
+  ): AppointmentUpdateRequest {
+    return {
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      caregiverId: appointment.caregiverId,
+      type: appointment.type,
+      priority: appointment.priority,
+      mode: appointment.mode,
+      status: appointment.status,
+      startAt: this.schedulingService.normalizeLocalDateTime(appointment.startAt),
+      endAt: this.schedulingService.normalizeLocalDateTime(appointment.endAt),
+      confirmedByRole: appointment.confirmedByRole,
+      meetingUrl: appointment.meetingUrl,
+      ...overrides
+    };
+  }
+
   saveOutcomeAndMaybeComplete(): void {
     if (!this.outcomeModalAppointment) {
       return;
@@ -545,16 +567,10 @@ export class DoctorAppointmentsComponent implements OnInit {
 
     // Some backends treat PUT as "replace": sending only outcome fields can null-out required fields.
     // We include the existing appointment fields to keep the payload safe.
-    const update: AppointmentUpdateRequest = {
-      type: baseAppointment.type,
-      priority: baseAppointment.priority,
-      mode: baseAppointment.mode,
-      startAt: baseAppointment.startAt,
-      endAt: baseAppointment.endAt,
-      meetingUrl: baseAppointment.meetingUrl,
+    const update: AppointmentUpdateRequest = this.buildAppointmentUpdatePayload(baseAppointment, {
       attendanceStatus: this.outcomeAttendance,
       outcomeType: this.outcomeType
-    };
+    });
 
     console.log('[DoctorAppointments] Saving outcome payload:', update);
 
@@ -850,15 +866,22 @@ export class DoctorAppointmentsComponent implements OnInit {
     }
 
     const appointmentId = this.editingAppointmentId;
+    const existingAppointment = this.appointments.find(appointment => appointment.id === appointmentId);
 
-    const updatePayload: AppointmentUpdateRequest = {
+    if (!existingAppointment) {
+      this.error = 'Unable to find the appointment to reschedule.';
+      return;
+    }
+
+    const updatePayload: AppointmentUpdateRequest = this.buildAppointmentUpdatePayload(existingAppointment, {
+      caregiverId: this.newAppointment.caregiverId || this.linkedCaregiverId || existingAppointment.caregiverId,
       type: this.newAppointment.type,
       priority: this.newAppointment.priority,
       mode: this.newAppointment.mode,
       startAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt),
       endAt: this.schedulingService.normalizeLocalDateTime(this.newAppointment.endAt),
       meetingUrl: this.newAppointment.meetingUrl
-    };
+    });
 
     this.loading = true;
     this.error = null;
@@ -958,7 +981,7 @@ export class DoctorAppointmentsComponent implements OnInit {
           withAppointment: {
             id: -1 as any,
             patientId: this.newAppointment.patientId,
-            doctorId: Number(this.doctorId) as any,
+            doctorId: this.doctorId,
             type: this.newAppointment.type,
             priority: this.newAppointment.priority,
             mode: this.newAppointment.mode,

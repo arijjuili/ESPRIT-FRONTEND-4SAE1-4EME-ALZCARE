@@ -18,6 +18,7 @@ import {
   DoctorUpdateRequest,
   CaregiverUpdateRequest
 } from '../models/api.model';
+import { ApiService } from './api.service';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -34,7 +35,10 @@ export class UserManagementService {
   private profileApiUrl = `${environment.apiUrl}/admin/profiles`;
   private patientsApiUrl = `${environment.apiUrl}/patients`;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private apiService: ApiService
+  ) { }
 
   // ==================== USER LISTING ====================
 
@@ -59,10 +63,24 @@ export class UserManagementService {
    * Falls back to all active patients if endpoint doesn't exist
    */
   getPatientsForCaregiver(caregiverId: string): Observable<ManagedUser[]> {
-    // Try to get patients specifically assigned to this caregiver
-    return this.http.get<ManagedUser[]>(`${environment.apiUrl}/caregivers/${caregiverId}/patients`).pipe(
+    const normalizedCaregiverId = (caregiverId || '').trim();
+
+    if (!normalizedCaregiverId) {
+      return this.getActivePatients();
+    }
+
+    return this.apiService.getCaregiverByUserId(normalizedCaregiverId).pipe(
+      switchMap(profile => {
+        const resolvedCaregiverId = String(profile?.id || profile?.userId || normalizedCaregiverId).trim();
+        if (!resolvedCaregiverId) {
+          return this.getActivePatients();
+        }
+
+        return this.http.get<ManagedUser[]>(`${environment.apiUrl}/caregivers/${resolvedCaregiverId}/patients`).pipe(
+          catchError(() => this.getActivePatients())
+        );
+      }),
       catchError(() => {
-        // Fallback: return all active patients
         return this.getActivePatients();
       })
     );
