@@ -1,0 +1,43 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
+  <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+    <h1 class="text-2xl font-bold text-slate-800 mb-2">Caregiver invite</h1>
+    <p class="text-slate-600 text-sm mb-6">AlzCare — join a patient’s care team</p>
+
+    <div *ngIf="loading" class="text-center py-8 text-slate-500">Checking your invite…</div>
+
+    <div *ngIf="!loading && loadError" class="rounded-lg bg-red-50 text-red-800 p-4 text-sm mb-4">
+      {{ loadError }}
+    </div>
+
+    <div *ngIf="!loading && validation?.valid" class="space-y-4">
+      <div class="rounded-lg bg-emerald-50 border border-emerald-100 p-4 text-sm text-emerald-900">
+        <p><strong>Patient ID:</strong> {{ validation?.patientId }}</p>
+        <p class="mt-1"><strong>Role offered:</strong> {{ validation?.role }}</p>
+        <p *ngIf="validation?.expiresAt" class="mt-1 text-xs opacity-80">Expires: {{ validation?.expiresAt }}</p>
+      </div>
+
+      <p class="text-sm text-slate-600">
+        Sign in with your caregiver account, then confirm below to link your account to this patient.
+      </p>
+
+      <div class="flex flex-col gap-2">
+        <a
+          *ngIf="!loggedIn"
+          routerLink="/login"
+          [queryParams]="{ returnUrl: '/accept-invite?token=' + token }"
+          class="text-center py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">
+          Log in to continue
+        </a>
+        <button
+          *ngIf="loggedIn"
+          type="button"
+          (click)="accept()"
+          [disabled]="accepting"
+          class="py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50">
+          {{ accepting ? 'Linking…' : 'Accept invite & link my account' }}
+        </button>
+        <a routerLink="/landing" class="text-center text-sm text-slate-500 hover:text-slate-700 py-2">Back to home</a>
+      </div>
+    </div>
+  </div>
+</div>

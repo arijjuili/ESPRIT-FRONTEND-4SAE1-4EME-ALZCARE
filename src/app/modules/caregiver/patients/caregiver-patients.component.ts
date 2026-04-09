@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
@@ -9,7 +10,13 @@ import { CareTeamService } from '../../../core/services/care-team.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
-import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
+import {
+  CaregiverAssignment,
+  CaregiverRole,
+  AssignmentStatus,
+  CaregiverPermissionsDto,
+  CaregiverAvailabilitySlotDto
+} from '../../../core/models/care-team.model';
 
 /**
  * Extended patient interface with assignment and computed fields
@@ -23,7 +30,7 @@ interface PatientWithAssignment extends PatientProfileResponse {
 @Component({
   selector: 'app-caregiver-patients',
   standalone: true,
-  imports: [CommonModule, RouterLink, NotificationBellComponent],
+  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule, NotificationBellComponent],
   templateUrl: './caregiver-patients.component.html',
   styleUrls: ['./caregiver-patients.component.scss']
 })
@@ -51,6 +58,23 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
   patients: PatientWithAssignment[] = [];
   loading = false;
   error: string | null = null;
+
+  /** Coordination modal (permissions, availability, mark unavailable) */
+  showCoordinationModal = false;
+  coordinationPatient: PatientWithAssignment | null = null;
+  coordinationPermissions: CaregiverPermissionsDto | null = null;
+  coordinationSlots: CaregiverAvailabilitySlotDto[] = [];
+  loadingCoordination = false;
+  showUnavailableForm = false;
+  unavailableForm: FormGroup;
+  savingUnavailable = false;
+
+  /** PDF: primary caregiver invites family / emergency */
+  showInviteModal = false;
+  invitePatient: PatientWithAssignment | null = null;
+  inviteRole: CaregiverRole = CaregiverRole.FAMILY;
+  generatingInvite = false;
+  lastInviteUrl: string | null = null;
   
   // Enums for template access
   CaregiverRole = CaregiverRole;
@@ -67,8 +91,15 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
     private patientService: PatientService,
     private careTeamService: CareTeamService,
     private toastService: ToastService,
-    private router: Router
-  ) {}
+    private router: Router,
+    private fb: FormBuilder
+  ) {
+    this.unavailableForm = this.fb.group({
+      from: ['', Validators.required],
+      to: ['', Validators.required],
+      reason: ['']
+    });
+  }
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
@@ -131,38 +162,34 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
    * Load patient profiles from IDs in assignments
    */
   private loadPatientProfiles(assignments: CaregiverAssignment[]): void {
-    const patientRequests = assignments.map(assignment => 
+    const patientRequests = assignments.map((assignment) =>
       this.patientService.getPatientById(assignment.patientId).pipe(
-        map(patient => ({ patient, assignment })),
-        catchError(error => {
-          console.error(`Failed to load patient ${assignment.patientId}:`, error);
-          // Return patient with basic info from assignment if profile fetch fails
-          return of({
-            patient: {
-              id: assignment.patientId,
-              userId: assignment.patientId,
-              firstName: assignment.patientFirstName || 'Unknown',
-              lastName: assignment.patientLastName || 'Patient'
-            } as PatientProfileResponse,
-            assignment
-          });
+        map((patient) => ({ patient, assignment })),
+        catchError(() => {
+          // No Keycloak/identity user — hide stale care-team assignment (same as doctor dashboard)
+          return of(null);
         })
       )
     );
 
     forkJoin(patientRequests)
       .pipe(takeUntil(this.destroy$))
-      .subscribe(results => {
-        this.patients = results.map(({ patient, assignment }) => ({
-          ...patient,
-          assignment,
-          age: this.calculateAge(patient.dateOfBirth),
-          photoUrl: undefined // Will be populated when photo service is available
-        })).sort((a, b) => 
-          // Sort by role priority: PRIMARY first, then FAMILY, then EMERGENCY
-          this.getRolePriority(a.assignment.role) - this.getRolePriority(b.assignment.role)
+      .subscribe((results) => {
+        const rows = results.filter(
+          (r): r is { patient: PatientProfileResponse; assignment: CaregiverAssignment } => r !== null
         );
-        
+        this.patients = rows
+          .map(({ patient, assignment }) => ({
+            ...patient,
+            assignment,
+            age: this.calculateAge(patient.dateOfBirth),
+            photoUrl: undefined
+          }))
+          .sort(
+            (a, b) =>
+              this.getRolePriority(a.assignment.role) - this.getRolePriority(b.assignment.role)
+          );
+
         this.loading = false;
       });
   }
@@ -307,5 +334,148 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
   getUniqueRoleCount(): number {
     const roles = new Set(this.patients.map(p => p.assignment.role));
     return roles.size;
+  }
+
+  openCoordination(patient: PatientWithAssignment): void {
+    this.coordinationPatient = patient;
+    this.coordinationPermissions = null;
+    this.coordinationSlots = [];
+    this.showUnavailableForm = false;
+    this.unavailableForm.reset();
+    this.showCoordinationModal = true;
+    this.loadCoordinationData(patient);
+  }
+
+  closeCoordination(): void {
+    this.showCoordinationModal = false;
+    this.coordinationPatient = null;
+    this.showUnavailableForm = false;
+  }
+
+  private loadCoordinationData(patient: PatientWithAssignment): void {
+    this.loadingCoordination = true;
+    const pid = patient.assignment.patientId;
+    forkJoin({
+      permissions: this.careTeamService.getCaregiverPermissions(this.caregiverId, pid).pipe(
+        catchError(() => of(null))
+      ),
+      availability: this.careTeamService.getCaregiverAvailability(this.caregiverId).pipe(
+        catchError(() => of([] as CaregiverAvailabilitySlotDto[]))
+      )
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ permissions, availability }) => {
+          this.coordinationPermissions = permissions;
+          this.coordinationSlots = availability.filter((s) => s.patientId === pid);
+          this.loadingCoordination = false;
+        },
+        error: () => {
+          this.loadingCoordination = false;
+        }
+      });
+  }
+
+  toggleUnavailableForm(): void {
+    this.showUnavailableForm = !this.showUnavailableForm;
+    if (!this.showUnavailableForm) {
+      this.unavailableForm.reset();
+    }
+  }
+
+  private toLocalDateTimeIso(raw: string): string {
+    if (!raw) return raw;
+    return raw.length === 16 ? `${raw}:00` : raw;
+  }
+
+  submitUnavailable(): void {
+    if (!this.coordinationPatient || this.unavailableForm.invalid) {
+      this.toastService.warning('Fill in start and end time');
+      return;
+    }
+    const v = this.unavailableForm.value;
+    const from = this.toLocalDateTimeIso(v.from);
+    const to = this.toLocalDateTimeIso(v.to);
+    this.savingUnavailable = true;
+    this.careTeamService
+      .markCaregiverUnavailable(this.coordinationPatient.assignment.id, {
+        from,
+        to,
+        reason: v.reason || ''
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.toastService.success('Unavailability saved');
+          this.savingUnavailable = false;
+          this.showUnavailableForm = false;
+          this.unavailableForm.reset();
+          this.loadCoordinationData(this.coordinationPatient!);
+          this.loadPatients();
+        },
+        error: (err) => {
+          this.toastService.error(err.error?.message || 'Could not save');
+          this.savingUnavailable = false;
+        }
+      });
+  }
+
+  permissionEntries(): { key: string; value: boolean }[] {
+    const p = this.coordinationPermissions?.permissions;
+    if (!p) return [];
+    return Object.keys(p).map((key) => ({ key, value: !!p[key] }));
+  }
+
+  isPrimaryCaregiver(patient: PatientWithAssignment): boolean {
+    return patient.assignment.role === CaregiverRole.PRIMARY;
+  }
+
+  openInviteModal(patient: PatientWithAssignment): void {
+    if (!this.isPrimaryCaregiver(patient)) return;
+    this.invitePatient = patient;
+    this.inviteRole = CaregiverRole.FAMILY;
+    this.lastInviteUrl = null;
+    this.showInviteModal = true;
+  }
+
+  closeInviteModal(): void {
+    this.showInviteModal = false;
+    this.invitePatient = null;
+    this.generatingInvite = false;
+    this.lastInviteUrl = null;
+  }
+
+  submitGenerateInvite(): void {
+    if (!this.invitePatient) return;
+    const pid = this.invitePatient.assignment.patientId;
+    this.generatingInvite = true;
+    this.lastInviteUrl = null;
+    this.careTeamService
+      .generateCaregiverInvite({ patientId: pid, role: this.inviteRole })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.lastInviteUrl = res.inviteUrl;
+          this.toastService.success('Invite link created — share it with the new caregiver');
+          this.generatingInvite = false;
+        },
+        error: (err) => {
+          const msg =
+            err.error?.message ||
+            err.error?.detail ||
+            (typeof err.error === 'string' ? err.error : null) ||
+            'Could not create invite';
+          this.toastService.error(msg);
+          this.generatingInvite = false;
+        }
+      });
+  }
+
+  copyInviteUrl(): void {
+    if (!this.lastInviteUrl) return;
+    void navigator.clipboard.writeText(this.lastInviteUrl).then(
+      () => this.toastService.success('Link copied'),
+      () => this.toastService.warning('Copy failed — select the link manually')
+    );
   }
 }

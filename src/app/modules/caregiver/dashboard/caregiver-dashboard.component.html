@@ -70,7 +70,7 @@
     </div>
   </div>
 
-  <!-- Alerts Section -->
+  <!-- Alerts Section 
   <div class="mb-6 sm:mb-8 space-y-2 sm:space-y-4">
     <app-alert-card 
       type="warning"
@@ -83,7 +83,7 @@
       title="Upcoming Appointment"
       message="Margaret has a cognitive assessment scheduled for tomorrow at 10:00 AM">
     </app-alert-card>
-  </div>
+  </div> -->
 
   <!-- Stats Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
@@ -257,60 +257,6 @@
           <span class="text-5xl mb-3 block">👥</span>
           <h3 class="text-lg font-semibold text-gray-900 mb-1">No Patient Assignments</h3>
           <p class="text-gray-600 text-sm">You don't have any active patient assignments yet.</p>
-        </div>
-      </div>
-
-      <!-- Patients Under Care (Legacy) -->
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-        <div class="flex justify-between items-center mb-4 sm:mb-6">
-          <h2 class="text-lg sm:text-2xl font-bold text-gray-900">🏥 Patients Under Your Care</h2>
-        </div>
-        
-        <div *ngIf="patients.length > 0" class="space-y-3 sm:space-y-4">
-          <div *ngFor="let patient of patients" class="border-l-4 border-primary-500 bg-gradient-to-r from-primary-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-6 hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-3 sm:mb-4 gap-2">
-              <div class="min-w-0 flex-1">
-                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ patient.firstName }} {{ patient.lastName }}</p>
-                <p class="text-gray-600 text-xs sm:text-sm mt-1 truncate">{{ patient.gender }} • {{ patient.dateOfBirth | date:'mediumDate' }}</p>
-                
-                <!-- Show role badge if available -->
-                <span *ngIf="getAssignmentForPatient(patient.id) as assignment"
-                      class="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-bold border"
-                      [class]="getRoleBadgeClass(assignment.role)">
-                  {{ getRoleLabel(assignment.role) }}
-                </span>
-              </div>
-              <div class="flex flex-col gap-2 flex-shrink-0">
-                <span class="inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-success bg-opacity-20 text-success text-center">
-                  ✓ Active
-                </span>
-                <button 
-                  (click)="openBehaviorLogModal(patient.id)"
-                  class="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium transition">
-                  Log Behavior
-                </button>
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Phone</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.phoneNumber || 'N/A' }}</p>
-              </div>
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Stage</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.alzheimerStage || 'N/A' }}</p>
-              </div>
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Emergency</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.emergencyContactName || 'N/A' }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8">
-          No patients assigned
         </div>
       </div>
 

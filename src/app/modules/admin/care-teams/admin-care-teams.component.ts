@@ -20,6 +20,7 @@ import {
   ChecklistPriority,
   ChecklistCategory,
   GenerateCaregiverInviteRequest,
+  CaregiverInviteResponse,
   AssignDoctorRequest,
   ChecklistFilter
 } from '../../../core/models/care-team.model';
@@ -104,7 +105,6 @@ export class AdminCareTeamsComponent implements OnInit, OnDestroy {
   ) {
     this.inviteForm = this.fb.group({
       patientId: ['', [Validators.required]],
-      caregiverId: ['', [Validators.required]],
       role: [CaregiverRole.FAMILY, [Validators.required]]
     });
 
@@ -256,7 +256,11 @@ export class AdminCareTeamsComponent implements OnInit, OnDestroy {
 
   // ==================== CAREGIVER ACTIONS ====================
 
+  /** Shown after successful link-based invite generation */
+  lastGeneratedInvite: CaregiverInviteResponse | null = null;
+
   openInviteModal(): void {
+    this.lastGeneratedInvite = null;
     this.inviteForm.reset({
       role: CaregiverRole.FAMILY
     });
@@ -266,44 +270,34 @@ export class AdminCareTeamsComponent implements OnInit, OnDestroy {
 
   closeInviteModal(): void {
     this.showInviteModal = false;
+    this.lastGeneratedInvite = null;
     this.inviteForm.reset();
+  }
+
+  copyInviteLink(): void {
+    const url = this.lastGeneratedInvite?.inviteUrl;
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(
+      () => this.toastService.success('Invite link copied to clipboard'),
+      () => this.toastService.warning('Could not copy — copy the link manually')
+    );
   }
 
   generateInvite(): void {
     if (this.inviteForm.invalid) {
-      this.toastService.warning('Please select a patient and caregiver');
+      this.toastService.warning('Please select a patient and role');
       return;
     }
 
     const patientId = this.inviteForm.value.patientId;
-    const caregiverId = this.inviteForm.value.caregiverId;
-    
-    // Validation for UUID strings
-    if (!patientId || !caregiverId) {
-      this.toastService.warning('Please select a valid patient and caregiver');
-      return;
-    }
-
-    // Check for existing active or pending assignment
-    const existingAssignment = this.caregiverAssignments.find(
-      a => a.patientId === patientId && 
-           a.caregiverId === caregiverId && 
-           (a.status === AssignmentStatus.ACTIVE || a.status === AssignmentStatus.PENDING)
-    );
-
-    if (existingAssignment) {
-      const statusText = existingAssignment.status === AssignmentStatus.ACTIVE ? 'active' : 'pending';
-      this.toastService.warning(
-        `This caregiver already has a ${statusText} assignment to this patient`,
-        'Duplicate Assignment'
-      );
+    if (!patientId) {
+      this.toastService.warning('Please select a valid patient');
       return;
     }
 
     this.loadingAction = true;
     const request: GenerateCaregiverInviteRequest = {
-      patientId: patientId,
-      caregiverId: caregiverId,
+      patientId,
       role: this.inviteForm.value.role
     };
 
@@ -311,14 +305,19 @@ export class AdminCareTeamsComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          this.toastService.success('Caregiver invite generated successfully');
-          this.closeInviteModal();
+          this.lastGeneratedInvite = response;
+          this.toastService.success('Invite link ready — share it with the caregiver');
           this.loadCaregiverAssignments();
           this.loadingAction = false;
         },
         error: (err) => {
           console.error('Failed to generate invite:', err);
-          this.toastService.error(err.error?.detail || 'Failed to generate invite');
+          const msg =
+            err.error?.message ||
+            err.error?.detail ||
+            (typeof err.error === 'string' ? err.error : null) ||
+            'Failed to generate invite';
+          this.toastService.error(msg);
           this.loadingAction = false;
         }
       });

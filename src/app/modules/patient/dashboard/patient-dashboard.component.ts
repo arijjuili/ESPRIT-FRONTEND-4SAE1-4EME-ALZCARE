@@ -101,10 +101,10 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (currentUser) {
       this.patientName = currentUser.name;
-      
+
       // Get patient data (assuming patient 1 for demo)
       const patient = this.dataService.getPatients()[0];
       if (patient) {
@@ -118,6 +118,12 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         this.healthMetrics = this.dataService.getHealthMetrics(patient.id);
       }
     }
+
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.patientName = user.name;
+      }
+    });
 
     this.loadCheckInStatus();
     this.loadAssessmentStatus();

@@ -70,8 +70,8 @@ export enum ChecklistCompletionStatus {
 export interface CaregiverAssignment {
   /** Primary key (UUID) */
   id: string;
-  /** Reference to caregiver profile (UUID) */
-  caregiverId: string;
+  /** Reference to caregiver profile (UUID); empty until invite is accepted */
+  caregiverId?: string | null;
   /** Reference to patient profile (UUID) */
   patientId: string;
   /** PRIMARY, FAMILY, or EMERGENCY */
@@ -195,11 +195,12 @@ export interface CaregiverHandover {
 // Request DTOs
 // ==========================================
 
-/** Generate caregiver invite request */
+/** Generate caregiver invite request (caregiver is unknown until they accept the link) */
 export interface GenerateCaregiverInviteRequest {
   patientId: string;
-  caregiverId: string;
   role: CaregiverRole;
+  /** @deprecated not used by API */
+  caregiverId?: string;
 }
 
 /** Accept caregiver invite request */
@@ -271,12 +272,53 @@ export interface CaregiverInviteResponse {
   expiresAt: string;
 }
 
+/** Backend invite validate payload */
+export interface InviteValidationResponse {
+  valid: boolean;
+  patientId?: string;
+  role?: string;
+  expiresAt?: string;
+}
+
 /** Assignment count/statistics */
 export interface CareTeamStats {
   totalCaregivers: number;
   totalDoctors: number;
   activeAssignments: number;
   pendingInvites: number;
+}
+
+/** Logical daily checklist (grouped items) from care-team API */
+export interface ChecklistGroupDto {
+  doctorId: string;
+  patientId: string;
+  date: string;
+  aggregateChecklistStatus: string;
+  items: ChecklistItem[];
+}
+
+export interface CaregiverPermissionsDto {
+  caregiverId: string;
+  patientId: string;
+  role: string;
+  permissions: Record<string, boolean>;
+}
+
+export interface CaregiverAvailabilitySlotDto {
+  assignmentId: string;
+  patientId: string;
+  unavailableFrom: string | null;
+  unavailableTo: string | null;
+  reason: string | null;
+}
+
+export interface PatientCareProfileDto {
+  patientId: string;
+  fullName: string | null;
+  dateOfBirth: string | null;
+  diagnosisStage: string | null;
+  address: string | null;
+  updatedAt: string | null;
 }
 
 // ==========================================

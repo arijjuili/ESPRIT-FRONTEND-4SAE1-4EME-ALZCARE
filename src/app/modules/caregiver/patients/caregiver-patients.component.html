@@ -177,6 +177,19 @@
             <span>Handover</span>
           </a>
         </div>
+        <button
+          type="button"
+          (click)="openCoordination(patient)"
+          class="w-full mt-3 px-4 py-2.5 rounded-lg border-2 border-emerald-200 text-emerald-800 font-medium hover:bg-emerald-50 transition text-sm">
+          Permissions & availability
+        </button>
+        <button
+          *ngIf="isPrimaryCaregiver(patient)"
+          type="button"
+          (click)="openInviteModal(patient)"
+          class="w-full mt-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition text-sm">
+          Invite family / emergency
+        </button>
       </div>
     </div>
   </div>
@@ -204,6 +217,99 @@
           <span>●</span>
           {{ getRoleCount(CaregiverRole.EMERGENCY) }} Emergency
         </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coordination modal -->
+  <div *ngIf="showCoordinationModal && coordinationPatient" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-start gap-4">
+        <div>
+          <h3 class="text-lg font-bold text-gray-900">Care coordination</h3>
+          <p class="text-sm text-gray-600">{{ getPatientFullName(coordinationPatient) }}</p>
+        </div>
+        <button type="button" (click)="closeCoordination()" class="text-gray-500 hover:text-gray-800 text-xl leading-none">&times;</button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div *ngIf="loadingCoordination" class="text-center text-gray-500 py-6">Loading…</div>
+        <ng-container *ngIf="!loadingCoordination">
+          <div *ngIf="coordinationPermissions" class="rounded-lg bg-slate-50 p-4">
+            <p class="text-sm font-semibold text-gray-800 mb-2">Effective permissions</p>
+            <p class="text-xs text-gray-600 mb-2">Role: {{ coordinationPermissions.role }}</p>
+            <ul class="text-sm space-y-1">
+              <li *ngFor="let e of permissionEntries()" class="flex justify-between gap-2">
+                <span class="text-gray-600">{{ e.key }}</span>
+                <span [class]="e.value ? 'text-emerald-600 font-medium' : 'text-gray-400'">{{ e.value ? 'Yes' : 'No' }}</span>
+              </li>
+            </ul>
+          </div>
+          <div *ngIf="!coordinationPermissions" class="text-sm text-amber-700 bg-amber-50 rounded-lg p-3">
+            Permissions could not be loaded (you may lack access for this patient).
+          </div>
+          <div class="rounded-lg border border-gray-200 p-4">
+            <p class="text-sm font-semibold text-gray-800 mb-2">Unavailability for this patient</p>
+            <ul *ngIf="coordinationSlots.length > 0" class="text-xs text-gray-600 space-y-2 mb-3">
+              <li *ngFor="let s of coordinationSlots">
+                {{ s.unavailableFrom }} → {{ s.unavailableTo }}
+                <span *ngIf="s.reason" class="block text-gray-500">{{ s.reason }}</span>
+              </li>
+            </ul>
+            <p *ngIf="coordinationSlots.length === 0" class="text-xs text-gray-500 mb-3">No windows recorded.</p>
+            <button type="button" (click)="toggleUnavailableForm()" class="text-sm font-medium text-emerald-700 hover:underline">
+              {{ showUnavailableForm ? 'Cancel' : 'Mark unavailable…' }}
+            </button>
+            <form *ngIf="showUnavailableForm" [formGroup]="unavailableForm" (ngSubmit)="submitUnavailable()" class="mt-4 space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">From (local)</label>
+                <input type="datetime-local" formControlName="from" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">To (local)</label>
+                <input type="datetime-local" formControlName="to" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Reason (optional)</label>
+                <input formControlName="reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              </div>
+              <button type="submit" [disabled]="savingUnavailable || unavailableForm.invalid"
+                class="w-full py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+                {{ savingUnavailable ? 'Saving…' : 'Save unavailability' }}
+              </button>
+            </form>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF: primary caregiver generates shareable invite -->
+  <div *ngIf="showInviteModal && invitePatient" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h3 class="text-lg font-bold text-gray-900">Invite caregiver</h3>
+          <p class="text-sm text-gray-600">{{ getPatientFullName(invitePatient) }}</p>
+        </div>
+        <button type="button" (click)="closeInviteModal()" class="text-gray-500 hover:text-gray-800 text-xl leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">Only the primary caregiver can invite family or emergency contacts (module 3.1).</p>
+      <label class="block text-xs font-medium text-gray-600 mb-1">Role for invitee</label>
+      <select [(ngModel)]="inviteRole" class="w-full border rounded-lg px-3 py-2 text-sm mb-4">
+        <option [ngValue]="CaregiverRole.FAMILY">Family member</option>
+        <option [ngValue]="CaregiverRole.EMERGENCY">Emergency contact</option>
+      </select>
+      <button
+        type="button"
+        (click)="submitGenerateInvite()"
+        [disabled]="generatingInvite"
+        class="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-semibold disabled:opacity-50 mb-3">
+        {{ generatingInvite ? 'Generating…' : 'Generate invite link' }}
+      </button>
+      <div *ngIf="lastInviteUrl" class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
+        <p class="font-medium text-gray-800 mb-1">Share this link</p>
+        <code class="text-xs break-all block mb-2">{{ lastInviteUrl }}</code>
+        <button type="button" (click)="copyInviteUrl()" class="text-sm text-emerald-700 font-medium hover:underline">Copy to clipboard</button>
       </div>
     </div>
   </div>

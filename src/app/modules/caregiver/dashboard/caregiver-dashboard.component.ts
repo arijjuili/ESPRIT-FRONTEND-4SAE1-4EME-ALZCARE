@@ -123,20 +123,26 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (currentUser) {
       this.caregiverName = currentUser.name;
       this.caregiverId = currentUser.id;
-      
+
       // Get tasks assigned to this caregiver (still from mock for now)
       this.allTasks = this.dataService.getTasksForCaregiver(currentUser.id);
-      
+
       // Load real patients from backend
       this.loadRealPatients();
-      
+
       // Load caregiver assignments (My Patients section)
       this.loadCaregiverAssignments();
     }
+
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.caregiverName = user.name;
+      }
+    });
   }
   
   ngOnDestroy(): void {

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   CaregiverAssignment,
@@ -20,8 +21,23 @@ import {
   DoctorAssignmentFilter,
   ChecklistFilter,
   HandoverFilter,
-  CareTeamStats
+  CareTeamStats,
+  ChecklistGroupDto,
+  CaregiverPermissionsDto,
+  CaregiverAvailabilitySlotDto,
+  PatientCareProfileDto,
+  InviteValidationResponse
 } from '../models/care-team.model';
+
+/** Raw JSON from Spring record InviteCreatedResponse */
+interface InviteCreatedRaw {
+  assignmentId: string;
+  inviteToken: string;
+  inviteUrl: string;
+  expiresAt: string;
+  patientId: string;
+  role: string;
+}
 
 /**
  * Care Team Service
@@ -43,16 +59,26 @@ export class CareTeamService {
    * Generate a caregiver invite token for a patient
    */
   generateCaregiverInvite(request: GenerateCaregiverInviteRequest): Observable<CaregiverInviteResponse> {
-    return this.http.post<CaregiverInviteResponse>(`${this.apiUrl}/caregivers/generate-invite`, request);
+    return this.http
+      .post<InviteCreatedRaw>(`${this.apiUrl}/caregivers/generate-invite`, {
+        patientId: request.patientId,
+        role: request.role
+      })
+      .pipe(
+        map((r) => ({
+          assignmentId: r.assignmentId,
+          inviteToken: r.inviteToken,
+          inviteUrl: r.inviteUrl,
+          expiresAt: r.expiresAt
+        }))
+      );
   }
 
   /**
    * Validate an invite token before accepting
    */
-  validateInviteToken(token: string): Observable<{ valid: boolean; patientId?: string; caregiverId?: string }> {
-    return this.http.get<{ valid: boolean; patientId?: string; caregiverId?: string }>(
-      `${this.apiUrl}/invitations/${token}/validate`
-    );
+  validateInviteToken(token: string): Observable<InviteValidationResponse> {
+    return this.http.get<InviteValidationResponse>(`${this.apiUrl}/invitations/${token}/validate`);
   }
 
   /**
@@ -94,7 +120,26 @@ export class CareTeamService {
    * Mark a caregiver as unavailable for a specific period
    */
   markCaregiverUnavailable(assignmentId: string, request: MarkUnavailableRequest): Observable<CaregiverAssignment> {
-    return this.http.put<CaregiverAssignment>(`${this.apiUrl}/caregivers/assignments/${assignmentId}/availability`, request);
+    return this.http.put<CaregiverAssignment>(
+      `${this.apiUrl}/caregivers/assignments/${assignmentId}/availability`,
+      {
+        unavailableFrom: request.from,
+        unavailableTo: request.to,
+        reason: request.reason
+      }
+    );
+  }
+
+  getCaregiverPermissions(caregiverId: string, patientId: string): Observable<CaregiverPermissionsDto> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<CaregiverPermissionsDto>(
+      `${this.apiUrl}/caregivers/${caregiverId}/permissions`,
+      { params }
+    );
+  }
+
+  getCaregiverAvailability(caregiverId: string): Observable<CaregiverAvailabilitySlotDto[]> {
+    return this.http.get<CaregiverAvailabilitySlotDto[]>(`${this.apiUrl}/caregivers/${caregiverId}/availability`);
   }
 
   // ==================== DOCTOR ASSIGNMENT METHODS ====================
@@ -128,6 +173,53 @@ export class CareTeamService {
     return this.http.put<DoctorAssignment>(`${this.apiUrl}/doctor-assignments/${assignmentId}/deactivate`, {});
   }
 
+  updatePatientCareProfile(patientId: string, body: Partial<PatientCareProfileDto>): Observable<PatientCareProfileDto> {
+    return this.http.put<PatientCareProfileDto>(`${this.apiUrl}/patients/${patientId}`, body);
+  }
+
+  getPatientCareProfile(patientId: string): Observable<PatientCareProfileDto> {
+    return this.http.get<PatientCareProfileDto>(`${this.apiUrl}/patients/${patientId}/care-profile`);
+  }
+
+  /** PDF path alias — same data as getPatientHandovers */
+  getPatientHandoversByPatientPath(patientId: string): Observable<CaregiverHandover[]> {
+    return this.http.get<CaregiverHandover[]>(`${this.apiUrl}/patients/${patientId}/handovers`);
+  }
+
+  routingTravelTime(
+    originLat: number,
+    originLon: number,
+    destLat: number,
+    destLon: number
+  ): Observable<unknown> {
+    const params = new HttpParams()
+      .set('originLat', String(originLat))
+      .set('originLon', String(originLon))
+      .set('destLat', String(destLat))
+      .set('destLon', String(destLon));
+    return this.http.get<unknown>(`${this.apiUrl}/routing/travel-time`, { params });
+  }
+
+  rxNormSearch(name: string): Observable<string> {
+    const params = new HttpParams().set('name', name);
+    return this.http.get(`${this.apiUrl}/integrations/rxnorm/search`, {
+      params,
+      responseType: 'text'
+    });
+  }
+
+  airQualityNearest(lat: number, lon: number): Observable<string> {
+    const params = new HttpParams().set('lat', String(lat)).set('lon', String(lon));
+    return this.http.get(`${this.apiUrl}/integrations/air-quality`, {
+      params,
+      responseType: 'text'
+    });
+  }
+
+  researchNews(): Observable<string> {
+    return this.http.get(`${this.apiUrl}/integrations/research-news`, { responseType: 'text' });
+  }
+
   // ==================== CHECKLIST METHODS ====================
 
   /**
@@ -154,9 +246,27 @@ export class CareTeamService {
   /**
    * Get all checklist items for a patient on a specific date
    * @param date Date in YYYY-MM-DD format
+   * @param doctorId optional; if omitted, backend resolves active doctor for the patient
    */
-  getPatientChecklist(patientId: string, date: string): Observable<ChecklistItem[]> {
-    return this.http.get<ChecklistItem[]>(`${this.apiUrl}/checklists/patient/${patientId}/date/${date}`);
+  getPatientChecklist(patientId: string, date: string, doctorId?: string): Observable<ChecklistItem[]> {
+    let params = new HttpParams();
+    if (doctorId) {
+      params = params.set('doctorId', doctorId);
+    }
+    return this.http.get<ChecklistItem[]>(
+      `${this.apiUrl}/checklists/patient/${patientId}/date/${date}`,
+      { params }
+    );
+  }
+
+  /** Generate daily checklist (stub or custom items) */
+  generateDailyChecklist(body: { doctorId: string; patientId: string; date: string; items?: unknown[] }): Observable<ChecklistItem[]> {
+    return this.http.post<ChecklistItem[]>(`${this.apiUrl}/checklists/generate`, body);
+  }
+
+  /** Checklists grouped by (patientId, date) for a doctor */
+  getDoctorChecklistsGrouped(doctorId: string): Observable<ChecklistGroupDto[]> {
+    return this.http.get<ChecklistGroupDto[]>(`${this.apiUrl}/checklists/doctor/${doctorId}/grouped`);
   }
 
   /**

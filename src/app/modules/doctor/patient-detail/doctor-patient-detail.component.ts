@@ -1,8 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { PatientService } from '../../../core/services/patient.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
@@ -12,14 +16,16 @@ import {
   ChecklistPriority,
   ChecklistCategory,
   ChecklistStatus,
+  CaregiverRole,
   CreateChecklistItemRequest,
-  AssignChecklistItemRequest
+  AssignChecklistItemRequest,
+  CaregiverInviteResponse
 } from '../../../core/models/care-team.model';
 
 @Component({
   selector: 'app-doctor-patient-detail',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, NotificationBellComponent],
   templateUrl: './doctor-patient-detail.component.html',
   styleUrls: ['./doctor-patient-detail.component.scss']
 })
@@ -27,11 +33,37 @@ export class DoctorPatientDetailComponent implements OnInit {
   patientId!: string;
   patient: any = null;
   caregivers: CaregiverAssignment[] = [];
+  /** Link invites not yet accepted (hidden before — caused “pending PRIMARY” errors with an empty list) */
+  pendingCaregiverInvites: CaregiverAssignment[] = [];
+  revokingAssignmentId: string | null = null;
   checklistItems: ChecklistItem[] = [];
   loading = false;
   loadingCaregivers = false;
   loadingChecklist = false;
+  savingCareProfile = false;
+  generatingChecklist = false;
+  generatingInvite = false;
   showCreateForm = false;
+
+  /** Care profile (care-team bounded context) */
+  careProfileForm: FormGroup;
+
+  /** Checklist date + daily generate */
+  checklistViewDate = this.getTodayDate();
+
+  /** Link-based caregiver invite */
+  inviteRole: CaregiverRole = CaregiverRole.FAMILY;
+  caregiverRoleOptions = [
+    { value: CaregiverRole.PRIMARY, label: 'Primary caregiver' },
+    { value: CaregiverRole.FAMILY, label: 'Family' },
+    { value: CaregiverRole.EMERGENCY, label: 'Emergency contact' }
+  ];
+  lastInvite: CaregiverInviteResponse | null = null;
+
+  /** Optional RxNorm hint for medication tasks */
+  rxNormQuery = '';
+  rxNormHint: string | null = null;
+  rxNormLoading = false;
 
   // Role theme for notification bell (blue for doctor)
   currentTheme: RoleTheme = {
@@ -58,9 +90,17 @@ export class DoctorPatientDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private careTeamService: CareTeamService,
+    private patientService: PatientService,
+    private authService: AuthService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {
+    this.careProfileForm = this.fb.group({
+      fullName: [''],
+      dateOfBirth: [''],
+      diagnosisStage: [''],
+      address: ['']
+    });
     this.checklistForm = this.fb.group({
       description: ['', [Validators.required, Validators.minLength(5)]],
       priority: [ChecklistPriority.MEDIUM, Validators.required],
@@ -82,8 +122,6 @@ export class DoctorPatientDetailComponent implements OnInit {
 
   loadPatientData(): void {
     this.loading = true;
-    // In a real implementation, you would load patient details from a patient service
-    // For now, we'll create a placeholder patient object
     this.patient = {
       id: this.patientId,
       firstName: 'Patient',
@@ -92,16 +130,182 @@ export class DoctorPatientDetailComponent implements OnInit {
       phone: ''
     };
 
-    this.loadCaregivers();
+    const profile$ = this.careTeamService.getPatientCareProfile(this.patientId).pipe(
+      catchError(() => of(null))
+    );
+    const identity$ = this.patientService.getPatientById(this.patientId).pipe(
+      catchError(() => of(null))
+    );
+
+    forkJoin([profile$, identity$]).subscribe({
+      next: ([profile, identity]) => {
+        if (identity) {
+          this.patient = {
+            ...this.patient,
+            firstName: identity.firstName,
+            lastName: identity.lastName,
+            email: '',
+            phone: identity.phoneNumber || ''
+          };
+        }
+        if (profile) {
+          this.careProfileForm.patchValue({
+            fullName: profile.fullName || '',
+            dateOfBirth: profile.dateOfBirth ? String(profile.dateOfBirth).slice(0, 10) : '',
+            diagnosisStage: profile.diagnosisStage || '',
+            address: profile.address || ''
+          });
+        } else if (identity) {
+          this.careProfileForm.patchValue({
+            fullName: `${identity.firstName || ''} ${identity.lastName || ''}`.trim(),
+            dateOfBirth: identity.dateOfBirth ? String(identity.dateOfBirth).slice(0, 10) : '',
+            diagnosisStage: identity.alzheimerStage || '',
+            address: identity.address || ''
+          });
+        }
+        this.loading = false;
+        this.loadCaregivers();
+        this.loadChecklist();
+      },
+      error: () => {
+        this.loading = false;
+        this.loadCaregivers();
+        this.loadChecklist();
+      }
+    });
+  }
+
+  saveCareProfile(): void {
+    const v = this.careProfileForm.value;
+    this.savingCareProfile = true;
+    this.careTeamService
+      .updatePatientCareProfile(this.patientId, {
+        fullName: v.fullName || null,
+        dateOfBirth: v.dateOfBirth || null,
+        diagnosisStage: v.diagnosisStage || null,
+        address: v.address || null
+      })
+      .subscribe({
+        next: () => {
+          this.toastService.success('Care profile saved');
+          this.savingCareProfile = false;
+        },
+        error: (err) => {
+          this.toastService.error(err.error?.message || 'Could not save care profile');
+          this.savingCareProfile = false;
+        }
+      });
+  }
+
+  onChecklistDateChange(): void {
+    this.checklistForm.patchValue({ date: this.checklistViewDate });
     this.loadChecklist();
-    this.loading = false;
+  }
+
+  generateDailyChecklist(): void {
+    const doctorId = this.authService.getCurrentUserId();
+    if (!doctorId) {
+      this.toastService.error('Not signed in');
+      return;
+    }
+    this.generatingChecklist = true;
+    this.careTeamService
+      .generateDailyChecklist({
+        doctorId,
+        patientId: this.patientId,
+        date: this.checklistViewDate
+      })
+      .subscribe({
+        next: () => {
+          this.toastService.success('Daily checklist generated');
+          this.loadChecklist();
+          this.generatingChecklist = false;
+        },
+        error: (err) => {
+          this.toastService.error(err.error?.message || 'Could not generate checklist');
+          this.generatingChecklist = false;
+        }
+      });
+  }
+
+  revokeCaregiverAssignment(assignment: CaregiverAssignment): void {
+    this.revokingAssignmentId = assignment.id;
+    this.careTeamService.revokeCaregiverAccess(assignment.id).subscribe({
+      next: () => {
+        this.toastService.success('Assignment revoked');
+        this.revokingAssignmentId = null;
+        this.loadCaregivers();
+      },
+      error: (err) => {
+        const msg =
+          err.error?.error ||
+          err.error?.message ||
+          err.error?.detail ||
+          'Could not revoke';
+        this.toastService.error(msg);
+        this.revokingAssignmentId = null;
+      }
+    });
+  }
+
+  generateCaregiverInvite(): void {
+    this.generatingInvite = true;
+    this.lastInvite = null;
+    this.careTeamService
+      .generateCaregiverInvite({ patientId: this.patientId, role: this.inviteRole })
+      .subscribe({
+        next: (res) => {
+          this.lastInvite = res;
+          this.toastService.success('Invite link ready — share with the caregiver');
+          this.generatingInvite = false;
+          this.loadCaregivers();
+        },
+        error: (err) => {
+          const msg =
+            err.error?.error ||
+            err.error?.message ||
+            err.error?.detail ||
+            (typeof err.error === 'string' ? err.error : null) ||
+            'Could not create invite';
+          this.toastService.error(msg);
+          this.generatingInvite = false;
+        }
+      });
+  }
+
+  copyInviteLink(): void {
+    const url = this.lastInvite?.inviteUrl;
+    if (!url) return;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => this.toastService.success('Copied invite link'))
+      .catch(() => this.toastService.warning('Copy the link manually'));
+  }
+
+  lookupRxNorm(): void {
+    const q = this.rxNormQuery.trim();
+    if (!q) return;
+    this.rxNormLoading = true;
+    this.rxNormHint = null;
+    this.careTeamService.rxNormSearch(q).subscribe({
+      next: (text) => {
+        this.rxNormHint = text;
+        this.rxNormLoading = false;
+      },
+      error: () => {
+        this.rxNormHint = 'RxNorm lookup unavailable (check network or API).';
+        this.rxNormLoading = false;
+      }
+    });
   }
 
   loadCaregivers(): void {
     this.loadingCaregivers = true;
     this.careTeamService.getPatientCaregivers(this.patientId).subscribe({
-      next: (caregivers) => {
-        this.caregivers = caregivers.filter(c => c.status === 'ACTIVE');
+      next: (rows) => {
+        const st = (s: unknown) => String(s ?? '').toUpperCase();
+        this.caregivers = rows.filter((c) => st(c.status) === 'ACTIVE');
+        this.pendingCaregiverInvites = rows.filter((c) => st(c.status) === 'PENDING');
         this.loadingCaregivers = false;
       },
       error: (error) => {
@@ -114,8 +318,8 @@ export class DoctorPatientDetailComponent implements OnInit {
 
   loadChecklist(): void {
     this.loadingChecklist = true;
-    const today = this.getTodayDate();
-    this.careTeamService.getPatientChecklist(this.patientId, today).subscribe({
+    const doctorId = this.authService.getCurrentUserId() || undefined;
+    this.careTeamService.getPatientChecklist(this.patientId, this.checklistViewDate, doctorId).subscribe({
       next: (items) => {
         this.checklistItems = items;
         this.loadingChecklist = false;
@@ -143,7 +347,10 @@ export class DoctorPatientDetailComponent implements OnInit {
     if (caregiver.caregiverFirstName && caregiver.caregiverLastName) {
       return `${caregiver.caregiverFirstName} ${caregiver.caregiverLastName}`;
     }
-    return `Caregiver #${caregiver.caregiverId}`;
+    if (caregiver.caregiverId) {
+      return `Caregiver #${caregiver.caregiverId}`;
+    }
+    return 'Not linked yet';
   }
 
   getPriorityClass(priority: ChecklistPriority): string {
@@ -222,7 +429,7 @@ export class DoctorPatientDetailComponent implements OnInit {
 
     const formValue = this.checklistForm.value;
     const request: CreateChecklistItemRequest = {
-      doctorId: '', // Will be set by backend based on authenticated user
+      doctorId: this.authService.getCurrentUserId() || '',
       patientId: this.patientId,
       description: formValue.description,
       priority: formValue.priority,

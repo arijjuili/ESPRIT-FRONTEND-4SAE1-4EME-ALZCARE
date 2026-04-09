@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../core/services/auth.service';
-import { DataService } from '../../core/services/data.service';
-import { StatCardComponent } from '../../shared/components/stat-card.component';
-import { AlertCardComponent } from '../../shared/components/alert-card.component';
-import { Patient, Appointment, CareTask, HealthMetric } from '../../core/models/user.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { DataService } from '../../../core/services/data.service';
+import { StatCardComponent } from '../../../shared/components/stat-card.component';
+import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { Patient, Appointment, CareTask, HealthMetric } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-patient-dashboard',
@@ -24,10 +24,10 @@ export class PatientDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (currentUser) {
       this.patientName = currentUser.name.split(' ')[0];
-      
+
       const patient = this.dataService.getPatients()[0];
       if (patient) {
         this.medications = patient.currentMedications;
@@ -40,6 +40,12 @@ export class PatientDashboardComponent implements OnInit {
         this.healthMetrics = this.dataService.getHealthMetrics(patient.id);
       }
     }
+
+    this.authService.currentUser$.subscribe((user: any) => {
+      if (user) {
+        this.patientName = user.name.split(' ')[0];
+      }
+    });
   }
 
   toggleTask(taskId: string): void {

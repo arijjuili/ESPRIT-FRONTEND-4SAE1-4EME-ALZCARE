@@ -3,9 +3,10 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Subject, forkJoin, of } from 'rxjs';
-import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { takeUntil, catchError, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
   CaregiverAssignment,
@@ -28,6 +29,8 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
 
   caregiverId!: string;
   assignments: CaregiverAssignment[] = [];
+  /** Keycloak userId -> display name from identity */
+  patientProfilesByUserId: Record<string, { firstName: string; lastName: string }> = {};
   allTasks: ChecklistItem[] = [];
   filteredTasks: ChecklistItem[] = [];
   completedTasks: ChecklistItem[] = [];
@@ -67,6 +70,7 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private careTeamService: CareTeamService,
+    private patientService: PatientService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {
@@ -110,9 +114,46 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
           return of([]);
         })
       )
-      .subscribe(assignments => {
-        // Filter only active assignments
-        this.assignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
+      .subscribe((assignments) => {
+        this.assignments = assignments.filter((a) => a.status === AssignmentStatus.ACTIVE);
+        if (this.assignments.length === 0) {
+          this.patientProfilesByUserId = {};
+          this.allTasks = [];
+          this.applyFilters();
+          this.loading = false;
+          return;
+        }
+        this.loadPatientProfilesThenTasks();
+      });
+  }
+
+  /** Resolve patient names for tasks and filter dropdown (care-team rarely sends patient names). */
+  private loadPatientProfilesThenTasks(): void {
+    const ids = [...new Set(this.assignments.map((a) => a.patientId))];
+    forkJoin(
+      ids.map((id) =>
+        this.patientService.getPatientById(id).pipe(
+          map((profile) => ({ id, profile })),
+          catchError(() => of({ id, profile: null as PatientProfileResponse | null }))
+        )
+      )
+    )
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((rows) => {
+        this.patientProfilesByUserId = {};
+        for (const row of rows) {
+          if (row.profile?.firstName != null || row.profile?.lastName != null) {
+            this.patientProfilesByUserId[row.id] = {
+              firstName: row.profile.firstName || '',
+              lastName: row.profile.lastName || ''
+            };
+          }
+        }
+        const hasDirectoryProfile = (patientId: string): boolean => {
+          const p = this.patientProfilesByUserId[patientId];
+          return !!(p && (p.firstName?.trim() || p.lastName?.trim()));
+        };
+        this.assignments = this.assignments.filter((a) => hasDirectoryProfile(a.patientId));
         this.loadTasksForAllPatients();
       });
   }
@@ -205,15 +246,20 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
   }
 
   getPatientName(patientId: string): string {
-    const assignment = this.assignments.find(a => a.patientId === patientId);
+    const prof = this.patientProfilesByUserId[patientId];
+    if (prof) {
+      const full = `${prof.firstName || ''} ${prof.lastName || ''}`.trim();
+      if (full.length > 0) return full;
+    }
+    const assignment = this.assignments.find((a) => a.patientId === patientId);
     if (assignment?.patientFirstName) {
       return `${assignment.patientFirstName} ${assignment.patientLastName || ''}`.trim();
     }
-    const task = this.allTasks.find(t => t.patientId === patientId);
+    const task = this.allTasks.find((t) => t.patientId === patientId);
     if (task?.patientFirstName) {
       return `${task.patientFirstName} ${task.patientLastName || ''}`.trim();
     }
-    return `Patient ${patientId}`;
+    return `Patient ${patientId.slice(0, 8)}…`;
   }
 
   getRoleForPatient(patientId: string): CaregiverRole | null {

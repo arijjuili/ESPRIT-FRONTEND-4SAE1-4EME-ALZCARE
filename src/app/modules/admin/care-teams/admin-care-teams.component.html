@@ -370,7 +370,7 @@
   <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
     <div class="px-6 py-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">Invite Caregiver</h3>
-      <p class="text-sm text-gray-600">Generate an invitation for a caregiver to join a patient's care team.</p>
+      <p class="text-sm text-gray-600">Create a shareable link so a caregiver can join this patient’s team after they sign up.</p>
     </div>
     <form [formGroup]="inviteForm" (ngSubmit)="generateInvite()" class="p-6 space-y-4">
       <!-- Loading Users State -->
@@ -394,20 +394,18 @@
           No patients found. Please create patients first.
         </p>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Caregiver *</label>
-        <select 
-          formControlName="caregiverId"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
-          [disabled]="loadingUsers">
-          <option value="">Select a caregiver</option>
-          <option *ngFor="let caregiver of caregivers" [value]="caregiver.id">
-            {{ caregiver.firstName }} {{ caregiver.lastName }} ({{ caregiver.email }})
-          </option>
-        </select>
-        <p *ngIf="caregivers.length === 0 && !loadingUsers" class="text-sm text-amber-600 mt-1">
-          No caregivers found. Please create caregivers first.
-        </p>
+      <div *ngIf="lastGeneratedInvite" class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 space-y-2">
+        <p class="text-sm font-medium text-emerald-900">Invite link</p>
+        <p class="text-xs text-emerald-800 break-all font-mono">{{ lastGeneratedInvite.inviteUrl }}</p>
+        <p class="text-xs text-emerald-700">Expires: {{ lastGeneratedInvite.expiresAt }}</p>
+        <div class="flex gap-2 pt-1">
+          <button type="button" (click)="copyInviteLink()" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
+            Copy link
+          </button>
+          <button type="button" (click)="lastGeneratedInvite = null" class="px-3 py-1.5 border border-emerald-300 rounded-lg text-sm text-emerald-800 hover:bg-emerald-100">
+            Generate another
+          </button>
+        </div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
@@ -431,7 +429,7 @@
           [disabled]="inviteForm.invalid || loadingAction"
           class="px-4 py-2 bg-gradient-to-r from-violet-600 to-violet-700 text-white rounded-lg hover:from-violet-700 hover:to-violet-800 font-medium disabled:opacity-50 flex items-center gap-2">
           <span *ngIf="loadingAction" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-          Generate Invite
+          {{ lastGeneratedInvite ? 'Regenerate link' : 'Generate invite link' }}
         </button>
       </div>
     </form>

@@ -16,6 +16,15 @@ export const routes: Routes = [
     loadComponent: () => import('./modules/auth/login.component').then(m => m.LoginComponent)
   },
   {
+    path: 'accept-invite',
+    loadComponent: () => import('./modules/auth/accept-invite.component').then(m => m.AcceptInviteComponent)
+  },
+  {
+    path: 'accept/:token',
+    loadComponent: () =>
+      import('./modules/auth/accept-invite-redirect.component').then(m => m.AcceptInviteRedirectComponent)
+  },
+  {
     path: 'patient',
     canActivate: [AuthGuard],
     loadComponent: () => import('./modules/patient/layout/patient-layout.component').then(m => m.PatientLayoutComponent),

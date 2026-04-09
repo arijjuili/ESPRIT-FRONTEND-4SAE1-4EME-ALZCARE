@@ -260,7 +260,7 @@
               </div>
               <div class="rounded-xl bg-gradient-to-br from-sky-50 to-blue-50 border border-sky-200 px-3 py-2">
                 <p class="text-xs text-sky-500">Patient Score</p>
-                <p class="font-bold text-sky-700 text-sm">{{ record.unifiedScore ?? '—' }}</p>
+                <p class="font-bold text-sky-700 text-sm">{{ record.reviewedScore ?? record.unifiedScore ?? '—' }}</p>
               </div>
             </div>
 
@@ -505,7 +505,7 @@
               <div class="flex gap-2">
                 <button (click)="viewAssessment(record)" *ngFor="let record of completedAssessmentRecords.slice(-3).reverse()" 
                         class="px-3 py-1 text-xs rounded-lg bg-violet-100 text-violet-700 hover:bg-violet-200 transition">
-                  {{ formatDate(record.completedAt || record.date) }}: {{ record.unifiedScore }}
+                  {{ formatDate(record.completedAt || record.date) }}: {{ record.reviewedScore ?? record.unifiedScore }}
                 </button>
               </div>
             </div>
@@ -694,11 +694,11 @@
               </div>
             </div>
             <span class="font-bold" [ngClass]="{
-              'text-emerald-600': getScoreTone(record.unifiedScore ?? null) === 'high',
-              'text-amber-600': getScoreTone(record.unifiedScore ?? null) === 'medium',
-              'text-rose-600': getScoreTone(record.unifiedScore ?? null) === 'low',
-              'text-slate-400': getScoreTone(record.unifiedScore ?? null) === 'na'
-            }">{{ record.unifiedScore ?? (record.mood ? 'Mood: ' + record.mood : '—') }}</span>
+              'text-emerald-600': getScoreTone(record.reviewedScore ?? record.unifiedScore ?? null) === 'high',
+              'text-amber-600': getScoreTone(record.reviewedScore ?? record.unifiedScore ?? null) === 'medium',
+              'text-rose-600': getScoreTone(record.reviewedScore ?? record.unifiedScore ?? null) === 'low',
+              'text-slate-400': getScoreTone(record.reviewedScore ?? record.unifiedScore ?? null) === 'na'
+            }">{{ record.reviewedScore ?? record.unifiedScore ?? (record.mood ? 'Mood: ' + record.mood : '—') }}</span>
           </div>
         </div>
       </div>
@@ -726,7 +726,7 @@
         <div class="flex items-center justify-between mb-6 p-4 bg-violet-50 rounded-2xl">
           <div>
             <p class="text-sm text-violet-600 uppercase tracking-wide">Recalculated Score</p>
-            <p class="text-3xl font-bold text-violet-700">{{ selectedAssessmentForView?.unifiedScore ?? '—' }}<span class="text-lg text-violet-400">/10</span></p>
+            <p class="text-3xl font-bold text-violet-700">{{ selectedAssessmentForView?.reviewedScore ?? selectedAssessmentForView?.unifiedScore ?? '—' }}<span class="text-lg text-violet-400">/10</span></p>
           </div>
           <div class="text-right">
             <p class="text-sm text-violet-600 uppercase tracking-wide">Original Score</p>
@@ -801,6 +801,9 @@
       <div class="p-6 border-t border-slate-200 flex justify-end gap-3">
         <button (click)="closeAssessmentModal()" class="px-6 py-2 rounded-xl bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition">
           Close
+        </button>
+        <button (click)="submitReview()" [disabled]="isSubmittingReview" class="px-6 py-2 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition disabled:bg-slate-300 disabled:text-slate-500">
+          {{ isSubmittingReview ? 'Saving...' : 'Submit Review' }}
         </button>
       </div>
     </div>

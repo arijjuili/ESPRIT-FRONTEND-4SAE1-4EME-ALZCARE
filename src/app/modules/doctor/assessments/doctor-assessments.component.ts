@@ -61,6 +61,7 @@ export class DoctorAssessmentsComponent implements OnInit {
   selectedAssessmentForView: HealthRecord | null = null;
   showAssessmentModal = false;
   reviewAnswers: Record<string, { correct: boolean; answer: string }> = {};
+  isSubmittingReview = false;
 
   selectedCheckInForView: HealthRecord | null = null;
   showCheckInModal = false;
@@ -305,7 +306,7 @@ export class DoctorAssessmentsComponent implements OnInit {
       language: r.languageScore,
       neurospatial: r.neurospatialScore,
       executive: r.executiveScore,
-      unified: r.unifiedScore,
+      unified: r.reviewedScore ?? r.unifiedScore,
       decline: r.declineRatePercent
     }));
 
@@ -398,7 +399,7 @@ export class DoctorAssessmentsComponent implements OnInit {
       return { trend: 'stable' as const, change: 0, firstScore: null as number | null, lastScore: null as number | null };
     }
 
-    const scores = records.map(r => r.unifiedScore).filter((s): s is number => typeof s === 'number');
+    const scores = records.map(r => r.reviewedScore ?? r.unifiedScore).filter((s): s is number => typeof s === 'number');
     if (scores.length < 2) {
       return { trend: 'stable' as const, change: 0, firstScore: null as number | null, lastScore: null as number | null };
     }
@@ -768,9 +769,10 @@ export class DoctorAssessmentsComponent implements OnInit {
     for (let i = 0; i < questionCount; i++) {
       const key = `q_${i + 1}`;
       const answer = record.responses ? String(record.responses[key] || '') : '';
-      this.reviewAnswers[key] = { correct: false, answer };
+      const reviewedCorrect = record.reviewedAnswers ? Boolean(record.reviewedAnswers[key]) : false;
+      this.reviewAnswers[key] = { correct: reviewedCorrect, answer };
     }
-    
+
     this.showAssessmentModal = true;
   }
 
@@ -778,6 +780,48 @@ export class DoctorAssessmentsComponent implements OnInit {
     this.showAssessmentModal = false;
     this.selectedAssessmentForView = null;
     this.reviewAnswers = {};
+  }
+
+  submitReview(): void {
+    if (!this.selectedAssessmentForView) return;
+    this.isSubmittingReview = true;
+
+    const reviewedAnswers: Record<string, boolean> = {};
+    Object.entries(this.reviewAnswers).forEach(([key, value]) => {
+      reviewedAnswers[key] = value.correct;
+    });
+
+    const entries = Object.entries(this.reviewAnswers);
+    let earned = 0;
+    let maxPossible = 0;
+    entries.forEach(([key, value]) => {
+      const index = Number(key.replace('q_', '')) - 1;
+      const weight = index === 0 ? 2 : 1;
+      maxPossible += weight;
+      if (value.correct) earned += weight;
+    });
+    const reviewedScore = maxPossible > 0 ? Math.round(((earned / maxPossible) * 10) * 10) / 10 : 0;
+
+    this.apiService.updateHealthRecord(this.selectedAssessmentForView.id, {
+      reviewedScore,
+      reviewedAnswers
+    } as any).subscribe({
+      next: (updated) => {
+        this.selectedAssessmentForView = updated;
+        const idx = this.assessments.findIndex(r => r.id === updated.id);
+        if (idx !== -1) this.assessments[idx] = updated;
+        const allIdx = this.allRecords.findIndex(r => r.id === updated.id);
+        if (allIdx !== -1) this.allRecords[allIdx] = updated;
+        this.isSubmittingReview = false;
+        this.showAssessmentModal = false;
+        this.selectedAssessmentForView = null;
+        this.reviewAnswers = {};
+      },
+      error: () => {
+        this.error = 'Failed to submit review.';
+        this.isSubmittingReview = false;
+      }
+    });
   }
 
   toggleAnswerCorrect(questionKey: string): void {
@@ -851,21 +895,21 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   getAssessmentChartData(): { x: number; y: number; value: number; date: string }[] {
     const records = this.completedAssessmentRecords
-      .filter(r => r.unifiedScore != null)
+      .filter(r => r.unifiedScore != null || r.reviewedScore != null)
       .sort((a, b) => new Date(a.completedAt || a.date).getTime() - new Date(b.completedAt || b.date).getTime())
       .slice(-10);
-    
+
     if (records.length === 0) return [];
-    
+
     const data: { x: number; y: number; value: number; date: string }[] = [];
     const width = 260;
     const height = 100;
     const startX = 30;
     const startY = 20;
-    
+
     records.forEach((record, index) => {
       const x = startX + (index / Math.max(records.length - 1, 1)) * width;
-      const score = record.unifiedScore || 0;
+      const score = record.reviewedScore ?? record.unifiedScore ?? 0;
       const y = startY + ((10 - score) / 10) * height;
       data.push({
         x,
@@ -874,7 +918,7 @@ export class DoctorAssessmentsComponent implements OnInit {
         date: this.formatDate(record.completedAt || record.date)
       });
     });
-    
+
     return data;
   }
 
@@ -885,7 +929,7 @@ export class DoctorAssessmentsComponent implements OnInit {
 
   getAssessmentChartDateRange(): { start: string; end: string } {
     const records = this.completedAssessmentRecords
-      .filter(r => r.unifiedScore != null)
+      .filter(r => r.unifiedScore != null || r.reviewedScore != null)
       .sort((a, b) => new Date(a.completedAt || a.date).getTime() - new Date(b.completedAt || b.date).getTime());
     
     if (records.length === 0) {
