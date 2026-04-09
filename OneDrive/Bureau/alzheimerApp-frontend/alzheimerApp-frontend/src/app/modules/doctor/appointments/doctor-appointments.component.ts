@@ -2,7 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
@@ -24,7 +24,8 @@ import {
   AppointmentPriority,
   AppointmentMode,
   AttendanceStatus,
-  OutcomeType
+  OutcomeType,
+  PresenceConfirmationStatus
 } from '../../../core/models/medical-followup.model';
 
 /**
@@ -72,6 +73,7 @@ export class DoctorAppointmentsComponent implements OnInit {
   attendanceStatuses = Object.values(AttendanceStatus);
   outcomeTypes = Object.values(OutcomeType);
   attendanceOutcomeOptions: AttendanceStatus[] = [AttendanceStatus.CONFIRMED, AttendanceStatus.NO_SHOW];
+  readonly presenceStatuses = PresenceConfirmationStatus;
 
   // Modal Dialog state
   showModal = false;
@@ -1172,6 +1174,72 @@ export class DoctorAppointmentsComponent implements OnInit {
    * 🆕 Recharger un seul appointment pour récupérer le meetingUrl
    * Utilisé après confirmation d'un RDV ONLINE
    */
+  markAttendanceConfirmed(appointmentId: number): void {
+    this.runAttendanceAction(
+      appointmentId,
+      () => this.medicalService.markAppointmentAttended(appointmentId),
+      'Attendance marked as confirmed.'
+    );
+  }
+
+  markNoShow(appointmentId: number): void {
+    this.runAttendanceAction(
+      appointmentId,
+      () => this.medicalService.markAppointmentNoShow(appointmentId),
+      'Appointment marked as no-show.'
+    );
+  }
+
+  triggerAutoCancel(appointmentId: number): void {
+    this.runAttendanceAction(
+      appointmentId,
+      () => this.medicalService.autoCancelAppointment(appointmentId),
+      'Attendance workflow auto-cancel executed.'
+    );
+  }
+
+  private runAttendanceAction(
+    appointmentId: number,
+    action: () => Observable<Appointment>,
+    successMessage: string
+  ): void {
+    this.loading = true;
+    this.error = null;
+    this.successMessage = null;
+    this.activeActionId = appointmentId;
+
+    action().subscribe({
+      next: (updatedAppointment) => {
+        this.applyAttendanceUpdate(updatedAppointment);
+        this.successMessage = successMessage;
+        this.loading = false;
+        this.activeActionId = null;
+      },
+      error: (err) => {
+        console.error('Attendance action failed:', err);
+        this.error = err?.error?.message || 'Failed to update attendance workflow.';
+        this.loading = false;
+        this.activeActionId = null;
+      }
+    });
+  }
+
+  private applyAttendanceUpdate(updatedAppointment: Appointment): void {
+    const index = this.appointments.findIndex(appointment => appointment.id === updatedAppointment.id);
+
+    if (index === -1) {
+      return;
+    }
+
+    this.appointments[index] = {
+      ...this.appointments[index],
+      ...updatedAppointment,
+      meetingUrl: updatedAppointment.meetingUrl || this.appointments[index].meetingUrl
+    };
+
+    this.appointments = [...this.appointments].sort((a, b) => this.compareAppointments(a, b));
+  }
+
   reloadSingleAppointment(appointmentId: number): void {
     console.log('[DoctorAppointments] Reloading single appointment:', appointmentId);
     
@@ -1272,6 +1340,29 @@ export class DoctorAppointmentsComponent implements OnInit {
     return appointment.status === AppointmentStatus.CONFIRMED;
   }
 
+  canMarkAttended(appointment: Appointment): boolean {
+    return appointment.status !== AppointmentStatus.CANCELLED &&
+      appointment.status !== AppointmentStatus.REJECTED &&
+      appointment.attendanceStatus !== AttendanceStatus.CONFIRMED &&
+      appointment.attendanceStatus !== AttendanceStatus.NO_SHOW;
+  }
+
+  canMarkNoShow(appointment: Appointment): boolean {
+    return appointment.status !== AppointmentStatus.CANCELLED &&
+      appointment.status !== AppointmentStatus.REJECTED &&
+      appointment.attendanceStatus !== AttendanceStatus.CONFIRMED &&
+      appointment.attendanceStatus !== AttendanceStatus.NO_SHOW &&
+      new Date(appointment.startAt) <= new Date();
+  }
+
+  canTriggerAutoCancel(appointment: Appointment): boolean {
+    return appointment.status !== AppointmentStatus.CANCELLED &&
+      appointment.status !== AppointmentStatus.REJECTED &&
+      appointment.status !== AppointmentStatus.COMPLETED &&
+      appointment.presenceConfirmationStatus !== PresenceConfirmationStatus.CONFIRMED &&
+      new Date(appointment.startAt) > new Date();
+  }
+
   canCancel(appointment: Appointment): boolean {
     return appointment.status !== AppointmentStatus.CANCELLED &&
       appointment.status !== AppointmentStatus.COMPLETED &&
@@ -1286,6 +1377,42 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   isActionLoading(appointmentId: number): boolean {
     return this.activeActionId === appointmentId;
+  }
+
+  getPresenceStatusClass(status?: PresenceConfirmationStatus): string {
+    switch (status) {
+      case PresenceConfirmationStatus.CONFIRMED:
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case PresenceConfirmationStatus.DECLINED:
+        return 'bg-rose-100 text-rose-700 border-rose-200';
+      default:
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+    }
+  }
+
+  getAttendanceStatusClass(status?: AttendanceStatus): string {
+    switch (status) {
+      case AttendanceStatus.CONFIRMED:
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case AttendanceStatus.NO_SHOW:
+        return 'bg-rose-100 text-rose-700 border-rose-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  }
+
+  formatAttendanceDateTime(date?: string): string {
+    if (!date) {
+      return 'Not sent yet';
+    }
+
+    return new Date(date).toLocaleString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   shouldSuggestFollowUp(appointment: Appointment): boolean {

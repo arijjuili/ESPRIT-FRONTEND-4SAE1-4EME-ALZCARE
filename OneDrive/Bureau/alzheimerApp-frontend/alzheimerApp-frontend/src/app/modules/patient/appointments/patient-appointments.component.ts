@@ -5,7 +5,10 @@ import { MedicalFollowupService } from '../../../core/services/medical-followup.
 import { 
   Appointment, 
   AppointmentMode, 
-  AppointmentStatus 
+  AppointmentStatus,
+  AppointmentSchedulingRecommendation,
+  AttendanceStatus,
+  PresenceConfirmationStatus
 } from '../../../core/models/medical-followup.model';
 
 @Component({
@@ -20,7 +23,12 @@ export class PatientAppointmentsComponent implements OnInit {
   appointments: Appointment[] = [];
   loading = true;
   error: string | null = null;
+  successMessage: string | null = null;
   filterStatus: 'ALL' | AppointmentStatus = 'ALL';
+  actionAppointmentId: number | null = null;
+  recommendationLoading = false;
+  schedulingRecommendation: AppointmentSchedulingRecommendation | null = null;
+  readonly presenceStatuses = PresenceConfirmationStatus;
 
   constructor(
     private authService: AuthService,
@@ -40,6 +48,7 @@ export class PatientAppointmentsComponent implements OnInit {
     this.patientId = user.id; // Same as PatientMedicationsComponent
     console.log('[PatientAppointments] Using patientId:', this.patientId);
     this.loadAppointments();
+    this.loadSchedulingRecommendation();
   }
 
   loadAppointments(): void {
@@ -124,6 +133,90 @@ export class PatientAppointmentsComponent implements OnInit {
   // Method to set filter
   setFilter(status: string): void {
     this.filterStatus = status as 'ALL' | AppointmentStatus;
+  }
+
+  canManagePresence(appointment: Appointment): boolean {
+    if (!this.patientId) {
+      return false;
+    }
+
+    const isFutureAppointment = new Date(appointment.startAt) > new Date();
+    const lifecycleClosed = appointment.status === AppointmentStatus.CANCELLED ||
+      appointment.status === AppointmentStatus.COMPLETED ||
+      appointment.status === AppointmentStatus.REJECTED;
+
+    return appointment.patientId === this.patientId &&
+      isFutureAppointment &&
+      !lifecycleClosed &&
+      appointment.attendanceStatus !== AttendanceStatus.NO_SHOW;
+  }
+
+  confirmPresence(appointment: Appointment): void {
+    if (!this.patientId || this.isActionLoading(appointment.id)) {
+      return;
+    }
+
+    this.error = null;
+    this.successMessage = null;
+    this.actionAppointmentId = appointment.id;
+
+    this.medicalService.confirmPresence(appointment.id, this.patientId).subscribe({
+      next: (updatedAppointment) => {
+        this.updateAppointmentInList(updatedAppointment);
+        this.successMessage = 'Your attendance has been confirmed.';
+        this.actionAppointmentId = null;
+      },
+      error: (err) => {
+        console.error('Error confirming presence:', err);
+        this.error = 'Failed to confirm your attendance.';
+        this.actionAppointmentId = null;
+      }
+    });
+  }
+
+  declinePresence(appointment: Appointment): void {
+    if (!this.patientId || this.isActionLoading(appointment.id)) {
+      return;
+    }
+
+    this.error = null;
+    this.successMessage = null;
+    this.actionAppointmentId = appointment.id;
+
+    this.medicalService.declinePresence(appointment.id, this.patientId).subscribe({
+      next: (updatedAppointment) => {
+        this.updateAppointmentInList(updatedAppointment);
+        this.successMessage = 'Your absence has been recorded.';
+        this.actionAppointmentId = null;
+      },
+      error: (err) => {
+        console.error('Error declining presence:', err);
+        this.error = 'Failed to update your attendance response.';
+        this.actionAppointmentId = null;
+      }
+    });
+  }
+
+  isActionLoading(appointmentId: number): boolean {
+    return this.actionAppointmentId === appointmentId;
+  }
+
+  private updateAppointmentInList(updatedAppointment: Appointment): void {
+    const index = this.appointments.findIndex(appointment => appointment.id === updatedAppointment.id);
+
+    if (index === -1) {
+      return;
+    }
+
+    this.appointments[index] = {
+      ...this.appointments[index],
+      ...updatedAppointment,
+      meetingUrl: updatedAppointment.meetingUrl || this.appointments[index].meetingUrl
+    };
+
+    this.appointments = [...this.appointments].sort((a, b) =>
+      new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    );
   }
 
   // Helper methods
@@ -260,6 +353,25 @@ export class PatientAppointmentsComponent implements OnInit {
     });
   }
 
+  loadSchedulingRecommendation(): void {
+    if (!this.patientId) {
+      return;
+    }
+
+    this.recommendationLoading = true;
+
+    this.medicalService.getAppointmentSchedulingRecommendation(this.patientId).subscribe({
+      next: (recommendation) => {
+        this.schedulingRecommendation = recommendation;
+        this.recommendationLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading scheduling recommendation:', err);
+        this.recommendationLoading = false;
+      }
+    });
+  }
+
   getModeBadgeClass(mode: AppointmentMode): string {
     return mode === AppointmentMode.ONLINE 
       ? 'bg-purple-100 text-purple-700 border-purple-200'
@@ -292,6 +404,54 @@ export class PatientAppointmentsComponent implements OnInit {
       [AppointmentStatus.CANCELLED]: '🚫'
     };
     return icons[status];
+  }
+
+  getPresenceStatusClass(status?: PresenceConfirmationStatus): string {
+    switch (status) {
+      case PresenceConfirmationStatus.CONFIRMED:
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case PresenceConfirmationStatus.DECLINED:
+        return 'bg-rose-100 text-rose-700 border-rose-200';
+      default:
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+    }
+  }
+
+  getAttendanceStatusClass(status?: AttendanceStatus): string {
+    switch (status) {
+      case AttendanceStatus.CONFIRMED:
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      case AttendanceStatus.NO_SHOW:
+        return 'bg-rose-100 text-rose-700 border-rose-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  }
+
+  formatDateTime(dateStr?: string): string {
+    if (!dateStr) {
+      return 'Not sent yet';
+    }
+
+    return new Date(dateStr).toLocaleString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getPreferredWindowLabel(preferredWindow?: string): string {
+    if (preferredWindow === 'AFTERNOON') {
+      return 'Afternoon recommended';
+    }
+
+    if (preferredWindow === 'MORNING') {
+      return 'Morning recommended';
+    }
+
+    return 'Flexible schedule';
   }
 
   formatDate(dateStr: string): string {

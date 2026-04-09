@@ -362,6 +362,36 @@
                     <span class="aside-summary__value">{{ appt.priority }}</span>
                   </div>
 
+                  <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold uppercase tracking-wide text-amber-700">Presence confirmation</span>
+                      <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                            [ngClass]="getPresenceStatusClass(appt.presenceConfirmationStatus)">
+                        {{ appt.presenceConfirmationStatus || presenceStatuses.PENDING }}
+                      </span>
+                    </div>
+                    <div class="mt-3 space-y-1 text-xs text-slate-600">
+                      <p>First reminder: {{ formatAttendanceDateTime(appt.firstReminderSentAt) }}</p>
+                      <p>Second reminder: {{ formatAttendanceDateTime(appt.secondReminderSentAt) }}</p>
+                      <p *ngIf="appt.presenceConfirmationRespondedAt">
+                        Patient response: {{ formatAttendanceDateTime(appt.presenceConfirmationRespondedAt) }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold uppercase tracking-wide text-slate-600">Attendance result</span>
+                      <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                            [ngClass]="getAttendanceStatusClass(appt.attendanceStatus)">
+                        {{ appt.attendanceStatus || 'PENDING' }}
+                      </span>
+                    </div>
+                    <p class="mt-3 text-xs text-slate-600">
+                      Use the buttons below to validate attended / no-show and to test the auto-cancel endpoint without changing the existing appointment lifecycle actions.
+                    </p>
+                  </div>
+
                   <div class="appointment-actions">
                     <button
                       *ngIf="canAccept(appt)"
@@ -406,6 +436,33 @@
                       [disabled]="isActionLoading(appt.id)"
                       class="action-button action-button--cancel">
                       {{ isActionLoading(appt.id) ? 'Working...' : 'Cancel' }}
+                    </button>
+
+                    <button
+                      *ngIf="canMarkAttended(appt)"
+                      type="button"
+                      (click)="markAttendanceConfirmed(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Mark attended' }}
+                    </button>
+
+                    <button
+                      *ngIf="canMarkNoShow(appt)"
+                      type="button"
+                      (click)="markNoShow(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Mark no-show' }}
+                    </button>
+
+                    <button
+                      *ngIf="canTriggerAutoCancel(appt)"
+                      type="button"
+                      (click)="triggerAutoCancel(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Test auto-cancel' }}
                     </button>
 
                     <p *ngIf="!canReschedule(appt)" class="appointment-actions__note">

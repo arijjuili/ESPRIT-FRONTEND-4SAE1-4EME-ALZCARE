@@ -41,6 +41,12 @@ export enum AttendanceStatus {
   NO_SHOW = 'NO_SHOW'
 }
 
+export enum PresenceConfirmationStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  DECLINED = 'DECLINED'
+}
+
 export enum OutcomeType {
   STABLE = 'STABLE',
   FOLLOW_UP_NEEDED = 'FOLLOW_UP_NEEDED',
@@ -112,6 +118,11 @@ export interface Appointment {
   endAt: string; // ISO datetime
   confirmedByRole?: ValidatorRole;
   attendanceStatus?: AttendanceStatus;
+  presenceConfirmationStatus?: PresenceConfirmationStatus;
+  presenceConfirmationRespondedAt?: string;
+  presenceConfirmationRespondedByUserId?: string;
+  firstReminderSentAt?: string;
+  secondReminderSentAt?: string;
   outcomeType?: OutcomeType;
   meetingUrl?: string;
   createdAt: string;
@@ -296,4 +307,13 @@ export interface AppointmentDashboardStats {
   upcomingAppointments: number;
   completedAppointments: number;
   cancelledAppointments: number;
+}
+
+export interface AppointmentSchedulingRecommendation {
+  patientId: string;
+  preferredWindow: 'MORNING' | 'AFTERNOON' | 'FLEXIBLE';
+  morningNoShows: number;
+  afternoonNoShows: number;
+  totalNoShows: number;
+  reason: string;
 }

@@ -11,6 +11,7 @@ import {
   AppointmentUpdateRequest,
   AppointmentQueryParams,
   AppointmentStatus,
+  AppointmentSchedulingRecommendation,
   // Medication
   MedicationPlan,
   MedicationPlanCreateRequest,
@@ -175,6 +176,40 @@ export class MedicalFollowupService {
    */
   cancelAppointment(id: number): Observable<Appointment> {
     return this.changeAppointmentStatus(id, AppointmentStatus.CANCELLED);
+  }
+
+  confirmPresence(id: number, patientId: string): Observable<Appointment> {
+    return this.http.post<Appointment>(
+      `${this.baseUrl}/appointments/${id}/presence/confirm`,
+      null,
+      { params: new HttpParams().set('patientId', patientId) }
+    );
+  }
+
+  declinePresence(id: number, patientId: string): Observable<Appointment> {
+    return this.http.post<Appointment>(
+      `${this.baseUrl}/appointments/${id}/presence/decline`,
+      null,
+      { params: new HttpParams().set('patientId', patientId) }
+    );
+  }
+
+  autoCancelAppointment(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.baseUrl}/appointments/${id}/presence/auto-cancel`, null);
+  }
+
+  markAppointmentNoShow(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.baseUrl}/appointments/${id}/presence/no-show`, null);
+  }
+
+  markAppointmentAttended(id: number): Observable<Appointment> {
+    return this.http.post<Appointment>(`${this.baseUrl}/appointments/${id}/attendance/confirm`, null);
+  }
+
+  getAppointmentSchedulingRecommendation(patientId: string): Observable<AppointmentSchedulingRecommendation> {
+    return this.http.get<AppointmentSchedulingRecommendation>(
+      `${this.baseUrl}/appointments/patient/${patientId}/scheduling-recommendation`
+    );
   }
 
   /**
