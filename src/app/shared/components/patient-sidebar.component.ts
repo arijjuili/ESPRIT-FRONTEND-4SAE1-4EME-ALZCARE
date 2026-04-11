@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
@@ -21,37 +21,42 @@ export class PatientSidebarComponent {
     {
       label: 'Dashboard',
       path: '/patient/dashboard',
-      icon: '📊',
+      icon: 'ðŸ“Š',
       description: 'Overview & metrics'
     },
     {
       label: 'Activities',
       path: '/patient/activities',
-      icon: '📋',
+      icon: 'ðŸ“‹',
       description: 'Daily tasks & logs'
     },
     {
       label: 'Medications',
       path: '/patient/medications',
-      icon: '💊',
+      icon: 'ðŸ’Š',
       description: 'Prescriptions & schedule'
     },
-    {
+        {
+      label: 'Appointments',
+      path: '/patient/appointments',
+      icon: '📅',
+      description: 'Visits & schedule'
+    },{
       label: 'Brain Games',
       path: '/patient/games',
-      icon: '🎮',
+      icon: 'ðŸŽ®',
       description: 'Cognitive exercises'
     },
     {
       label: 'Community',
       path: '/patient/community',
-      icon: '👥',
+      icon: 'ðŸ‘¥',
       description: 'Connect & support'
     },
     {
       label: 'Profile',
       path: '/patient/profile',
-      icon: '👤',
+      icon: 'ðŸ‘¤',
       description: 'My information'
     }
   ];
@@ -61,3 +66,4 @@ export class PatientSidebarComponent {
     return false;
   }
 }
+

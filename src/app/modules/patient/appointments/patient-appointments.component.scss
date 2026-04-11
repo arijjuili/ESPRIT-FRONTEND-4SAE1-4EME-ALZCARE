@@ -1,0 +1,181 @@
+// Patient Appointments Component Styles
+:host {
+  display: block;
+}
+
+// Appointment card hover effect
+.appointment-card {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+// Mode badge styles
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  
+  &.mode-online {
+    background-color: #f3e8ff;
+    color: #7c3aed;
+    border-color: #ddd6fe;
+  }
+  
+  &.mode-onsite {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border-color: #bfdbfe;
+  }
+}
+
+// Status badge styles
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+// Teleconsultation section
+.teleconsultation-section {
+  background: linear-gradient(135deg, #f3e8ff 0%, #dbeafe 100%);
+  border: 1px solid #c4b5fd;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  
+  .teleconsultation-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    
+    h4 {
+      font-weight: 700;
+      color: #1f2937;
+    }
+  }
+  
+  .teleconsultation-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.75rem;
+    
+    &.status-ready {
+      background-color: #dcfce7;
+      color: #15803d;
+    }
+    
+    &.status-pending {
+      background-color: #fef9c3;
+      color: #a16207;
+    }
+    
+    &.status-cancelled {
+      background-color: #fee2e2;
+      color: #b91c1c;
+    }
+    
+    &.status-completed {
+      background-color: #dbeafe;
+      color: #1d4ed8;
+    }
+  }
+  
+  .btn-join-meeting {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #9333ea;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+      background-color: #7e22ce;
+    }
+    
+    &:disabled {
+      background-color: #d1d5db;
+      color: #9ca3af;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Onsite section
+.onsite-section {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+// Filter tabs
+.filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background-color: #f3f4f6;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  width: fit-content;
+  
+  button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    
+    &.active {
+      background-color: white;
+      color: #111827;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    &:not(.active) {
+      color: #6b7280;
+      
+      &:hover {
+        color: #374151;
+      }
+    }
+  }
+}
+
+// Stats cards
+.stats-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  text-align: center;
+  border-top: 4px solid;
+  
+  .stats-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+  }
+  
+  .stats-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+}

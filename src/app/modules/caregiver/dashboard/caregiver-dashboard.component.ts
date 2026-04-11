@@ -5,23 +5,26 @@ import { Subject, of, forkJoin } from 'rxjs';
 import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { DataService } from '../../../core/services/data.service';
+import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
+import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import { BehaviorLogFormComponent } from '../../../shared/components/behavior-log-form.component';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { CareTask } from '../../../core/models/user.model';
+import { Appointment } from '../../../core/models/medical-followup.model';
 import { BehaviorLogResponse, BehaviorSeverity } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
@@ -45,6 +48,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   caregiverId = '';
   patients: PatientProfileResponse[] = [];
   allTasks: CareTask[] = [];
+  patientAppointments: Map<string, Appointment[]> = new Map();
+  loadingAppointments = false;
   
   // Care Team - My Patients
   caregiverAssignments: CaregiverAssignment[] = [];
@@ -71,6 +76,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService, 
     private dataService: DataService,
+    private medicalService: MedicalFollowupService,
     private safetyAlertService: SafetyAlertService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
@@ -131,6 +137,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       )
       .subscribe(patients => {
         this.patients = patients;
+        this.loadPatientAppointments();
         // Load behaviors after patients are loaded
         this.loadRecentBehaviors();
       });
@@ -207,6 +214,69 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   
   viewPatientTasks(patientId: string): void {
     this.router.navigate(['/caregiver/tasks'], { queryParams: { patientId } });
+  }
+
+  getAppointmentsForPatient(patientId: string): Appointment[] {
+    return this.patientAppointments.get(patientId) || [];
+  }
+
+  handleAppointmentRequestCreated(patientId: string, appointment: Appointment): void {
+    const existingAppointments = this.patientAppointments.get(patientId) || [];
+    this.patientAppointments.set(
+      patientId,
+      [...existingAppointments, appointment].sort(
+        (left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime()
+      )
+    );
+  }
+
+  getAssignmentPatientName(assignment: CaregiverAssignment): string {
+    const fullName = `${assignment.patientFirstName || ''} ${assignment.patientLastName || ''}`.trim();
+    if (fullName) {
+      return fullName;
+    }
+
+    const patient = this.patients.find(p => (p.userId || p.id) === assignment.patientId);
+    if (patient) {
+      return `${patient.firstName} ${patient.lastName}`.trim();
+    }
+
+    return 'Patient';
+  }
+
+  private loadPatientAppointments(): void {
+    const patientIds = [...new Set(this.caregiverAssignments.map(a => a.patientId).filter(Boolean))];
+
+    if (patientIds.length === 0) {
+      this.patientAppointments.clear();
+      return;
+    }
+
+    this.loadingAppointments = true;
+    const today = new Date();
+    const ninetyDaysLater = new Date();
+    ninetyDaysLater.setDate(today.getDate() + 90);
+    const fromDate = today.toISOString();
+    const toDate = ninetyDaysLater.toISOString();
+
+    const appointmentRequests = patientIds.map(patientId =>
+      this.medicalService.getPatientAppointments(patientId, fromDate, toDate).pipe(
+        catchError(() => of([] as Appointment[]))
+      )
+    );
+
+    forkJoin(appointmentRequests).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (appointmentsArray) => {
+        this.patientAppointments.clear();
+        patientIds.forEach((patientId, index) => {
+          this.patientAppointments.set(patientId, appointmentsArray[index]);
+        });
+        this.loadingAppointments = false;
+      },
+      error: () => {
+        this.loadingAppointments = false;
+      }
+    });
   }
 
   toggleTask(taskId: string): void {

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostBinding } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -99,148 +99,181 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Dashboard',
       path: '/patient/dashboard',
-      icon: '📊',
+      icon: 'ðŸ“Š',
       roles: ['patient']
     },
     {
       label: 'Activities',
       path: '/patient/activities',
-      icon: '📋',
+      icon: 'ðŸ“‹',
       roles: ['patient']
     },
     {
       label: 'Medications',
       path: '/patient/medications',
-      icon: '💊',
+      icon: 'ðŸ’Š',
       roles: ['patient']
     },
-    {
+        {
+      label: 'Appointments',
+      path: '/patient/appointments',
+      icon: '📅',
+      roles: ['patient']
+    },{
       label: 'Brain Games',
       path: '/patient/games',
-      icon: '🎮',
+      icon: 'ðŸŽ®',
       roles: ['patient']
     },
     {
       label: 'Community',
       path: '/patient/community',
-      icon: '👥',
+      icon: 'ðŸ‘¥',
       roles: ['patient']
     },
     {
       label: 'Profile',
       path: '/patient/profile',
-      icon: '👤',
+      icon: 'ðŸ‘¤',
       roles: ['patient']
     },
     // Caregiver routes
     {
       label: 'Dashboard',
       path: '/caregiver/dashboard',
-      icon: '📊',
+      icon: 'ðŸ“Š',
       roles: ['caregiver']
     },
     {
       label: 'Patients',
       path: '/caregiver/patients',
-      icon: '👥',
+      icon: 'ðŸ‘¥',
       roles: ['caregiver']
     },
-    {
+        {
+      label: 'Medications',
+      path: '/caregiver/medications',
+      icon: '💊',
+      roles: ['caregiver']
+    },{
       label: 'Behaviors',
       path: '/caregiver/behaviors',
-      icon: '📊',
+      icon: 'ðŸ“Š',
       roles: ['caregiver']
     },
     {
       label: 'Tasks',
       path: '/caregiver/tasks',
-      icon: '📋',
+      icon: 'ðŸ“‹',
       roles: ['caregiver']
     },
     {
       label: 'Handovers',
       path: '/caregiver/handovers',
-      icon: '📝',
+      icon: 'ðŸ“',
       roles: ['caregiver']
     },
     {
       label: 'Schedule',
       path: '/caregiver/schedule',
-      icon: '📅',
+      icon: 'ðŸ“…',
       roles: ['caregiver']
     },
     // Doctor routes
     {
       label: 'Dashboard',
       path: '/doctor/dashboard',
-      icon: '📊',
+      icon: 'ðŸ“Š',
+      roles: ['doctor']
+    },
+        {
+      label: 'Patients',
+      path: '/doctor/patients',
+      icon: '👥',
       roles: ['doctor']
     },
     {
+      label: 'Appointments',
+      path: '/doctor/appointments',
+      icon: '📅',
+      roles: ['doctor']
+    },
+    {
+      label: 'Prescriptions',
+      path: '/doctor/prescriptions',
+      icon: '💊',
+      roles: ['doctor']
+    },
+    {
+      label: 'Records',
+      path: '/doctor/records',
+      icon: '📄',
+      roles: ['doctor']
+    },{
       label: 'Checklist',
       path: '/doctor/checklist',
-      icon: '📋',
+      icon: 'ðŸ“‹',
       roles: ['doctor']
     },
     // Admin routes - 12 Axes Management
     {
       label: 'Dashboard',
       path: '/admin/dashboard',
-      icon: '📊',
+      icon: 'ðŸ“Š',
       roles: ['admin']
     },
     {
       label: 'Medical',
       path: '/admin/medical',
-      icon: '🏥',
+      icon: 'ðŸ¥',
       roles: ['admin']
     },
     {
       label: 'Caregivers',
       path: '/admin/caregivers',
-      icon: '🤝',
+      icon: 'ðŸ¤',
       roles: ['admin']
     },
     {
       label: 'Interactive',
       path: '/admin/interactive',
-      icon: '🧩',
+      icon: 'ðŸ§©',
       roles: ['admin']
     },
     {
       label: 'Community',
       path: '/admin/community',
-      icon: '💬',
+      icon: 'ðŸ’¬',
       roles: ['admin']
     },
     {
       label: 'Users',
       path: '/admin/users',
-      icon: '👥',
+      icon: 'ðŸ‘¥',
       roles: ['admin']
     },
     {
       label: 'Care Teams',
       path: '/admin/care-teams',
-      icon: '👨‍⚕️',
+      icon: 'ðŸ‘¨â€âš•ï¸',
       roles: ['admin']
     },
     {
       label: 'Analytics',
       path: '/admin/analytics',
-      icon: '📈',
+      icon: 'ðŸ“ˆ',
       roles: ['admin']
     },
     {
       label: 'Schedules',
       path: '/admin/schedules',
-      icon: '📅',
+      icon: 'ðŸ“…',
       roles: ['admin']
     },
     {
       label: 'Settings',
       path: '/admin/settings',
-      icon: '⚙️',
+      icon: 'âš™ï¸',
       roles: ['admin']
     }
   ];
@@ -336,3 +369,4 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 }
+

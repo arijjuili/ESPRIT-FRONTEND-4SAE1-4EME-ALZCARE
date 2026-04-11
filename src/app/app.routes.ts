@@ -47,6 +47,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/medications/patient-medications.component').then(m => m.PatientMedicationsComponent)
       },
       {
+        path: 'appointments',
+        loadComponent: () => import('./modules/patient/appointments/patient-appointments.component').then(m => m.PatientAppointmentsComponent)
+      },
+      {
         path: 'games',
         loadComponent: () => import('./modules/patient/games/patient-games.component').then(m => m.PatientGamesComponent)
       },
@@ -97,6 +101,10 @@ export const routes: Routes = [
       {
         path: 'patients',
         loadComponent: () => import('./modules/caregiver/patients/caregiver-patients.component').then(m => m.CaregiverPatientsComponent)
+      },
+      {
+        path: 'medications',
+        loadComponent: () => import('./modules/caregiver/medications/caregiver-medications.component').then(m => m.CaregiverMedicationsComponent)
       }
     ]
   },
@@ -115,8 +123,36 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/doctor/dashboard/doctor-dashboard.component').then(m => m.DoctorDashboardComponent)
       },
       {
+        path: 'appointments',
+        loadComponent: () => import('./modules/doctor/appointments/doctor-appointments.component').then(m => m.DoctorAppointmentsComponent)
+      },
+      {
+        path: 'prescriptions',
+        loadComponent: () => import('./modules/doctor/prescriptions/doctor-prescriptions.component').then(m => m.DoctorPrescriptionsComponent)
+      },
+      {
+        path: 'patients',
+        loadComponent: () => import('./modules/doctor/patients/doctor-patients.component').then(m => m.DoctorPatientsComponent)
+      },
+      {
         path: 'patients/:patientId',
         loadComponent: () => import('./modules/doctor/patient-detail/doctor-patient-detail.component').then(m => m.DoctorPatientDetailComponent)
+      },
+      {
+        path: 'patients/:id/prescriptions',
+        loadComponent: () => import('./modules/doctor/prescriptions/doctor-prescriptions.component').then(m => m.DoctorPrescriptionsComponent)
+      },
+      {
+        path: 'patients/:id/appointments',
+        loadComponent: () => import('./modules/doctor/appointments/doctor-appointments.component').then(m => m.DoctorAppointmentsComponent)
+      },
+      {
+        path: 'records',
+        loadComponent: () => import('./modules/doctor/records/doctor-records.component').then(m => m.DoctorRecordsComponent)
+      },
+      {
+        path: 'patients/:id/records',
+        loadComponent: () => import('./modules/doctor/records/doctor-records.component').then(m => m.DoctorRecordsComponent)
       },
       {
         path: 'checklist',

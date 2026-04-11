@@ -84,6 +84,22 @@
             <p class="text-gray-500 text-sm">⏰ {{ appt.date | date: 'MMM d, y • h:mm a' }}</p>
           </div>
         </div>
+
+        <div class="mt-6 border-t border-gray-100 pt-5">
+          <app-appointment-request-card
+            *ngIf="patientId"
+            [patientId]="patientId"
+            [patientName]="patientName"
+            [existingAppointments]="appointments"
+            [fallbackDoctorId]="fallbackDoctorId"
+            requesterRole="PATIENT"
+            buttonTone="patient"
+            buttonLabel="Request Appointment"
+            title="Request a doctor appointment"
+            description="Send an appointment request directly from your dashboard."
+            (requestCreated)="handleAppointmentRequestCreated($event)">
+          </app-appointment-request-card>
+        </div>
       </div>
 
       <!-- Medications -->
@@ -170,3 +186,4 @@
     </div>
   </div>
 </div>
+

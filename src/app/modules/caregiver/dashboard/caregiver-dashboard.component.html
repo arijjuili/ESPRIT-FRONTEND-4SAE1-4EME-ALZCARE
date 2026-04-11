@@ -202,10 +202,24 @@
                 <span>Log Behavior</span>
               </button>
             </div>
+
+            <div class="mt-4">
+              <app-appointment-request-card
+                [patientId]="assignment.patientId"
+                [patientName]="getAssignmentPatientName(assignment)"
+                [caregiverId]="caregiverId"
+                [existingAppointments]="getAppointmentsForPatient(assignment.patientId)"
+                requesterRole="CAREGIVER"
+                buttonTone="caregiver"
+                buttonLabel="Request Appointment for Patient"
+                title="Request a patient appointment"
+                description="Use the doctor appointment fields to send a caregiver request directly from this dashboard."
+                (requestCreated)="handleAppointmentRequestCreated(assignment.patientId, $event)">
+              </app-appointment-request-card>
+            </div>
           </div>
         </div>
         
-        <!-- Empty State -->
         <div *ngIf="!loadingAssignments && caregiverAssignments.length === 0" class="text-center py-8">
           <span class="text-5xl mb-3 block">👥</span>
           <h3 class="text-lg font-semibold text-gray-900 mb-1">No Patient Assignments</h3>
@@ -414,3 +428,4 @@
   (close)="closeBehaviorLogModal()"
   (saved)="onBehaviorLogged()">
 </app-behavior-log-form>
+

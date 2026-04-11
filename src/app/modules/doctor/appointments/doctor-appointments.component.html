@@ -1,0 +1,883 @@
+<div class="appointments-page">
+  <div class="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
+    <section class="hero-panel mb-6 md:mb-8">
+      <div class="hero-panel__content">
+        <div>
+          <p class="hero-panel__eyebrow">Doctor workspace</p>
+          <h1 class="hero-panel__title">Appointment Management</h1>
+          <p class="hero-panel__subtitle">
+            A calmer view of your consultations, priorities, and teleconsultation links.
+          </p>
+        </div>
+
+        <button
+          (click)="openModal()"
+          class="hero-panel__button">
+          <span class="text-lg leading-none">+</span>
+          <span>New Appointment</span>
+        </button>
+      </div>
+    </section>
+
+    <div *ngIf="error" class="alert-banner alert-banner--error mb-6">
+      <div>
+        <p class="alert-banner__title">Error</p>
+        <p class="alert-banner__text">{{ error }}</p>
+      </div>
+    </div>
+
+    <div *ngIf="successMessage" class="alert-banner alert-banner--success mb-6">
+      <div>
+        <p class="alert-banner__title">Updated</p>
+        <p class="alert-banner__text">{{ successMessage }}</p>
+      </div>
+    </div>
+
+    <section class="toolbar-panel mb-6">
+      <div class="toolbar-panel__header">
+        <div>
+          <p class="toolbar-panel__eyebrow">Filters</p>
+          <h2 class="toolbar-panel__title">Focus the schedule</h2>
+        </div>
+
+        <button
+          (click)="loadAppointments()"
+          class="toolbar-panel__refresh">
+          Refresh
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <label class="field-shell">
+          <span class="field-shell__label">Day</span>
+          <input
+            type="date"
+            [(ngModel)]="filterDay"
+            (change)="applyDayFilter(filterDay)"
+            class="field-shell__control">
+        </label>
+
+        <label class="field-shell">
+          <span class="field-shell__label">Status</span>
+          <select
+            [(ngModel)]="filterStatus"
+            class="field-shell__control">
+            <option value="ALL">All</option>
+            <option *ngFor="let status of appointmentStatuses" [value]="status">{{ status }}</option>
+          </select>
+        </label>
+
+        <label class="toggle-shell">
+          <span class="toggle-shell__label">List</span>
+          <span class="toggle-shell__control">
+            <input
+              type="checkbox"
+              [(ngModel)]="hideClosed"
+              class="h-4 w-4">
+            <span>Hide completed/cancelled</span>
+          </span>
+        </label>
+
+        <div class="toolbar-summary">
+          <span class="toolbar-summary__label">Visible appointments</span>
+          <span class="toolbar-summary__value">{{ filteredAppointments.length }}</span>
+        </div>
+      </div>
+
+      <div class="toolbar-quick mt-4">
+        <button type="button" (click)="setDayToToday()" class="secondary-button secondary-button--compact">
+          Today
+        </button>
+        <button type="button" (click)="clearDayFilter()" class="secondary-button secondary-button--compact">
+          Clear day
+        </button>
+      </div>
+    </section>
+
+    <div *ngIf="loading" class="loading-panel">
+      <div class="inline-block h-12 w-12 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+      <p class="mt-4 text-sm font-medium text-slate-600">Loading appointments...</p>
+    </div>
+
+    <ng-container *ngIf="!loading">
+      <section class="stats-grid mb-6">
+        <div class="stat-panel">
+          <span class="stat-panel__label">Total</span>
+          <span class="stat-panel__value text-primary-600">{{ appointments.length }}</span>
+          <span class="stat-panel__hint">All appointments in range</span>
+        </div>
+
+        <div class="stat-panel">
+          <span class="stat-panel__label">Confirmed</span>
+          <span class="stat-panel__value text-emerald-600">{{ confirmedCount }}</span>
+          <span class="stat-panel__hint">Ready to happen</span>
+        </div>
+
+        <div class="stat-panel">
+          <span class="stat-panel__label">Completed</span>
+          <span class="stat-panel__value text-violet-600">{{ completedCount }}</span>
+          <span class="stat-panel__hint">Finished visits</span>
+        </div>
+
+        <div class="stat-panel">
+          <span class="stat-panel__label">Cancelled</span>
+          <span class="stat-panel__value text-slate-400">{{ cancelledCount }}</span>
+          <span class="stat-panel__hint">No longer active</span>
+        </div>
+      </section>
+
+      <section *ngIf="filteredAppointments.length === 0" class="empty-panel">
+        <div class="empty-panel__icon">📅</div>
+        <h3 class="empty-panel__title">No appointments found</h3>
+        <p class="empty-panel__text">
+          Adjust the filters or create a new appointment to populate this schedule.
+        </p>
+      </section>
+
+      <section *ngIf="filteredAppointments.length > 0" class="space-y-6">
+        <div *ngFor="let group of appointmentsByDay" class="day-group">
+          <div class="day-group__header">
+            <div>
+              <p class="day-group__label">{{ group.dayLabel }}</p>
+              <p class="day-group__meta">{{ group.items.length }} appointment(s)</p>
+            </div>
+            <span class="day-group__key">{{ group.dayKey }}</span>
+          </div>
+
+          <div class="space-y-5">
+            <article
+              *ngFor="let appt of group.items"
+              class="appointment-card"
+              [class.appointment-card--critical]="appt.priority === 'CRITICAL' || appt.type === 'EMERGENCY'"
+              [class.appointment-card--confirmed]="appt.status === 'CONFIRMED'"
+              [class.appointment-card--requested]="appt.status === 'REQUESTED' || appt.status === 'ACCEPTED'"
+              [class.appointment-card--completed]="appt.status === 'COMPLETED'"
+              [class.appointment-card--cancelled]="appt.status === 'CANCELLED'">
+
+              <div class="appointment-card__layout">
+                <div class="appointment-card__content">
+                  <div class="appointment-card__header">
+                    <div class="appointment-card__identity">
+                      <div class="appointment-card__icon">
+                        <span>{{ getTypeIcon(appt.type) }}</span>
+                      </div>
+
+                      <div>
+                        <p class="appointment-card__eyebrow">Patient consultation</p>
+                        <h3 class="appointment-card__title">{{ getPatientNameById(appt.patientId) }}</h3>
+                        <p class="appointment-card__subtitle">
+                          {{ formatDateDisplay(appt.startAt) }} • {{ getDurationMinutes(appt.startAt, appt.endAt) }} min
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="appointment-card__badges">
+                      <span class="px-3 py-1 rounded-full text-xs font-bold" [class]="getStatusClass(appt.status)">
+                        {{ appt.status }}
+                      </span>
+                      <span class="px-3 py-1 rounded-full text-xs font-bold" [class]="getPriorityClass(appt.priority)">
+                        {{ getPriorityLabel(appt.priority) }}
+                      </span>
+                      <span class="px-3 py-1 rounded-full border text-xs font-bold" [class]="getModeClass(appt.mode)">
+                        {{ getModeIcon(appt.mode) }} {{ appt.mode }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="appointment-card__facts">
+                    <div class="fact-tile">
+                      <span class="fact-tile__label">Start</span>
+                      <span class="fact-tile__value">{{ formatDateDisplay(appt.startAt) }}</span>
+                    </div>
+
+                    <div class="fact-tile">
+                      <span class="fact-tile__label">End</span>
+                      <span class="fact-tile__value">{{ formatDateDisplay(appt.endAt) }}</span>
+                    </div>
+
+                    <div class="fact-tile">
+                      <span class="fact-tile__label">Type</span>
+                      <span class="fact-tile__value">{{ appt.type }}</span>
+                    </div>
+
+                    <div class="fact-tile">
+                      <span class="fact-tile__label">Duration</span>
+                      <span class="fact-tile__value">{{ getDurationMinutes(appt.startAt, appt.endAt) }} min</span>
+                    </div>
+                  </div>
+
+                  <div *ngIf="appt.status === 'COMPLETED'" class="mt-4 rounded-xl border border-slate-200 bg-white/80 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p class="text-xs font-bold tracking-widest uppercase text-slate-500">Outcome</p>
+                        <p *ngIf="appt.outcomeType" class="mt-1 text-sm font-semibold text-slate-900">
+                          {{ appt.outcomeType.replace('_', ' ') }}
+                          <span *ngIf="appt.attendanceStatus" class="ml-2 text-xs font-bold text-slate-500">
+                            ({{ appt.attendanceStatus }})
+                          </span>
+                        </p>
+                        <p *ngIf="!appt.outcomeType" class="mt-1 text-sm text-slate-600">
+                          Outcome not recorded yet.
+                        </p>
+                      </div>
+
+                      <button
+                        *ngIf="!appt.outcomeType"
+                        type="button"
+                        (click)="openOutcomeModal(appt)"
+                        class="secondary-button secondary-button--compact">
+                        Record outcome
+                      </button>
+                    </div>
+
+                    <div *ngIf="shouldSuggestFollowUp(appt)" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                      <p class="text-sm font-semibold text-emerald-900">{{ getFollowUpSuggestionLabel(appt) }}</p>
+                      <p class="mt-1 text-xs text-emerald-800" *ngIf="getSuggestedFollowUpStartAt(appt)">
+                        Suggested start: <span class="font-mono">{{ getSuggestedFollowUpStartAt(appt) }}</span>
+                      </p>
+                      <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          (click)="openSuggestedFollowUp(appt)"
+                          class="primary-button primary-button--compact flex-1">
+                          Schedule follow-up
+                        </button>
+                        <button
+                          type="button"
+                          (click)="openModal()"
+                          class="secondary-button secondary-button--compact flex-1">
+                          Create manually
+                        </button>
+                      </div>
+                      <p class="mt-2 text-xs text-emerald-700">
+                        The follow-up opens as a suggestion. You can adjust the slot and run availability check before saving.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div *ngIf="appt.mode === 'ONLINE'" class="telehealth-panel">
+                    <div class="telehealth-panel__header">
+                      <div>
+                        <p class="telehealth-panel__eyebrow">Teleconsultation</p>
+                        <h4 class="telehealth-panel__title">Online meeting access</h4>
+                      </div>
+                    </div>
+
+                    <div *ngIf="isTeleconsultationActive(appt); else teleconsultationNotActive" class="space-y-3">
+                      <div class="telehealth-state telehealth-state--ready">
+                        <span>Ready to join</span>
+                      </div>
+
+                      <div class="telehealth-link">
+                        <p class="telehealth-link__label">Meeting link</p>
+                        <a
+                          [href]="appt.meetingUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="telehealth-link__value">
+                          {{ appt.meetingUrl }}
+                        </a>
+                      </div>
+
+                      <div class="flex flex-col gap-2 md:flex-row">
+                        <button
+                          type="button"
+                          (click)="copyMeetingUrl(appt.meetingUrl)"
+                          class="secondary-button flex-1">
+                          Copy Link
+                        </button>
+                        <button
+                          type="button"
+                          (click)="joinMeeting(appt.meetingUrl)"
+                          class="primary-violet-button flex-1">
+                          Join Meeting
+                        </button>
+                      </div>
+                    </div>
+
+                    <ng-template #teleconsultationNotActive>
+                      <div *ngIf="isTeleconsultationPending(appt)" class="space-y-2">
+                        <div class="telehealth-state telehealth-state--pending">
+                          <span>Waiting for confirmation</span>
+                        </div>
+                        <p class="telehealth-copy">
+                          The meeting link will be generated automatically after confirmation.
+                        </p>
+                      </div>
+
+                      <div *ngIf="appt.status === 'CONFIRMED' && !appt.meetingUrl" class="space-y-3">
+                        <div class="telehealth-state telehealth-state--info">
+                          <span>Generating meeting link</span>
+                        </div>
+                        <p class="telehealth-copy">
+                          Refresh the list or request the link again if the backend has not returned it yet.
+                        </p>
+                        <div class="flex flex-col gap-2 md:flex-row">
+                          <button
+                            type="button"
+                            (click)="loadAppointments()"
+                            class="secondary-button flex-1">
+                            Refresh
+                          </button>
+                          <button
+                            type="button"
+                            (click)="fetchMeetingUrl(appt.id)"
+                            class="primary-violet-button flex-1">
+                            Get Link
+                          </button>
+                        </div>
+                      </div>
+
+                      <div *ngIf="isAppointmentCancelled(appt)" class="space-y-2">
+                        <div class="telehealth-state telehealth-state--danger">
+                          <span>Appointment cancelled</span>
+                        </div>
+                        <div *ngIf="appt.meetingUrl" class="telehealth-link telehealth-link--muted">
+                          <p class="telehealth-link__label">Inactive meeting link</p>
+                          <p class="telehealth-link__value">{{ appt.meetingUrl }}</p>
+                        </div>
+                      </div>
+
+                      <div *ngIf="appt.status === 'COMPLETED'" class="space-y-2">
+                        <div class="telehealth-state telehealth-state--info">
+                          <span>Session completed</span>
+                        </div>
+                        <div *ngIf="appt.meetingUrl" class="telehealth-link telehealth-link--muted">
+                          <p class="telehealth-link__label">Expired meeting link</p>
+                          <p class="telehealth-link__value">{{ appt.meetingUrl }}</p>
+                        </div>
+                      </div>
+                    </ng-template>
+                  </div>
+                </div>
+
+                <aside class="appointment-card__aside">
+                  <div class="aside-summary">
+                    <span class="aside-summary__label">Mode</span>
+                    <span class="aside-summary__value">{{ appt.mode }}</span>
+                  </div>
+
+                  <div class="aside-summary">
+                    <span class="aside-summary__label">Priority</span>
+                    <span class="aside-summary__value">{{ appt.priority }}</span>
+                  </div>
+
+                  <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold uppercase tracking-wide text-amber-700">Presence confirmation</span>
+                      <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                            [ngClass]="getPresenceStatusClass(appt.presenceConfirmationStatus)">
+                        {{ appt.presenceConfirmationStatus || presenceStatuses.PENDING }}
+                      </span>
+                    </div>
+                    <div class="mt-3 space-y-1 text-xs text-slate-600">
+                      <p>First reminder: {{ formatAttendanceDateTime(appt.firstReminderSentAt) }}</p>
+                      <p>Second reminder: {{ formatAttendanceDateTime(appt.secondReminderSentAt) }}</p>
+                      <p *ngIf="appt.presenceConfirmationRespondedAt">
+                        Patient response: {{ formatAttendanceDateTime(appt.presenceConfirmationRespondedAt) }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left">
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold uppercase tracking-wide text-slate-600">Attendance result</span>
+                      <span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold"
+                            [ngClass]="getAttendanceStatusClass(appt.attendanceStatus)">
+                        {{ appt.attendanceStatus || 'PENDING' }}
+                      </span>
+                    </div>
+                    <p class="mt-3 text-xs text-slate-600">
+                      Use the buttons below to validate attended / no-show and to test the auto-cancel endpoint without changing the existing appointment lifecycle actions.
+                    </p>
+                  </div>
+
+                  <div class="appointment-actions">
+                    <button
+                      *ngIf="canAccept(appt)"
+                      type="button"
+                      (click)="acceptAppointment(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="action-button action-button--accept">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Accept' }}
+                    </button>
+
+                    <button
+                      *ngIf="canConfirm(appt)"
+                      type="button"
+                      (click)="confirmAppointment(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="action-button action-button--confirm">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Confirm' }}
+                    </button>
+
+                    <button
+                      *ngIf="canReschedule(appt)"
+                      type="button"
+                      (click)="openRescheduleModal(appt)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="action-button action-button--reschedule">
+                      Reschedule
+                    </button>
+
+                    <button
+                      *ngIf="canComplete(appt)"
+                      type="button"
+                      (click)="completeAppointment(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="action-button action-button--complete">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Complete' }}
+                    </button>
+
+                    <button
+                      *ngIf="canCancel(appt)"
+                      type="button"
+                      (click)="cancelAppointment(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="action-button action-button--cancel">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Cancel' }}
+                    </button>
+
+                    <button
+                      *ngIf="canMarkAttended(appt)"
+                      type="button"
+                      (click)="markAttendanceConfirmed(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Mark attended' }}
+                    </button>
+
+                    <button
+                      *ngIf="canMarkNoShow(appt)"
+                      type="button"
+                      (click)="markNoShow(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Mark no-show' }}
+                    </button>
+
+                    <button
+                      *ngIf="canTriggerAutoCancel(appt)"
+                      type="button"
+                      (click)="triggerAutoCancel(appt.id)"
+                      [disabled]="isActionLoading(appt.id)"
+                      class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      {{ isActionLoading(appt.id) ? 'Working...' : 'Test auto-cancel' }}
+                    </button>
+
+                    <p *ngIf="!canReschedule(appt)" class="appointment-actions__note">
+                      Lifecycle closed
+                    </p>
+                  </div>
+                </aside>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+  </div>
+</div>
+
+<div *ngIf="showOutcomeModal"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     (click)="closeOutcomeModal()">
+  <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto"
+       (click)="$event.stopPropagation()">
+
+    <div class="bg-emerald-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-bold text-white">Appointment Outcome</h2>
+        <p class="text-xs text-emerald-100 mt-1">Record what happened after the consultation.</p>
+      </div>
+      <button
+        type="button"
+        (click)="closeOutcomeModal()"
+        class="text-white hover:text-emerald-100 transition text-2xl leading-none">
+        X
+      </button>
+    </div>
+
+    <div class="p-6 space-y-6">
+      <div *ngIf="outcomeModalAppointment" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <p class="text-sm font-semibold text-slate-900">{{ getPatientNameById(outcomeModalAppointment.patientId) }}</p>
+        <p class="text-xs text-slate-600 mt-1">
+          {{ formatDateDisplay(outcomeModalAppointment.startAt) }} • {{ getDurationMinutes(outcomeModalAppointment.startAt, outcomeModalAppointment.endAt) }} min
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block">
+          <span class="block text-sm font-semibold text-gray-700 mb-2">Attendance</span>
+          <select
+            [(ngModel)]="outcomeAttendance"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <option *ngFor="let status of attendanceOutcomeOptions" [value]="status">{{ status }}</option>
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="block text-sm font-semibold text-gray-700 mb-2">Outcome</span>
+          <select
+            [(ngModel)]="outcomeType"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <option *ngFor="let outcome of outcomeTypes" [value]="outcome">{{ outcome }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div *ngIf="isOutcomeModalFollowUpNeeded()" class="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <p class="text-sm font-semibold text-emerald-900">System suggestion</p>
+        <p class="mt-1 text-xs text-emerald-800" *ngIf="getOutcomeModalFollowUpPreviewStartAt()">
+          Suggested start: <span class="font-mono">{{ getOutcomeModalFollowUpPreviewStartAt() }}</span>
+        </p>
+        <div class="mt-3">
+          <button
+            type="button"
+            (click)="openSuggestedFollowUpFromOutcomeModal()"
+            class="primary-button primary-button--compact w-full">
+            Open follow-up suggestion
+          </button>
+        </div>
+        <p class="mt-2 text-xs text-emerald-700">
+          This opens a pre-filled follow-up appointment. You can adjust the slot and run availability check before saving.
+        </p>
+      </div>
+    </div>
+
+    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
+      <button
+        type="button"
+        (click)="saveOutcomeAndMaybeComplete()"
+        [disabled]="outcomeSaving || !outcomeModalAppointment"
+        class="flex-1 bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        {{ outcomeSaving ? 'Saving...' : (completeAfterOutcomeSave ? 'Save & Complete' : 'Save Outcome') }}
+      </button>
+      <button
+        type="button"
+        (click)="closeOutcomeModal()"
+        [disabled]="outcomeSaving"
+        class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showModal"
+     class="modal-overlay fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+     (click)="closeModal()">
+  <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+       (click)="$event.stopPropagation()">
+
+    <div class="bg-primary-600 px-6 py-4 rounded-t-xl flex justify-between items-center">
+      <h2 class="text-xl font-bold text-white">{{ modalTitle }}</h2>
+      <button
+        (click)="closeModal()"
+        class="text-white hover:text-gray-200 transition text-2xl leading-none">
+        X
+      </button>
+    </div>
+
+    <div class="p-6">
+      <div class="bg-gray-50 rounded-lg p-4 mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+            <span class="text-primary-600 text-lg">👨‍⚕️</span>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Doctor</p>
+            <p class="font-semibold text-gray-800">
+              {{ currentUser?.name || 'Current Doctor' }}
+            </p>
+            <p class="text-xs text-gray-500 mt-1">
+              {{
+                modalMode === 'reschedule'
+                  ? 'Adjusting an existing appointment.'
+                  : (modalIntent === 'followup' ? 'Scheduling a system-suggested follow-up.' : 'Creating a new appointment.')
+              }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="md:col-span-2 relative">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Patient <span class="text-red-500">*</span>
+          </label>
+          <div class="relative">
+            <input
+              type="text"
+              [value]="patientSearchQuery"
+              (input)="onPatientSearch($event)"
+              (focus)="!patientLocked && !routePatientId && modalMode !== 'reschedule' && (showPatientDropdown = true)"
+              (blur)="hidePatientDropdown()"
+              [disabled]="patientLocked || (routePatientId && selectedPatient) || modalMode === 'reschedule'"
+              class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-700"
+              [placeholder]="modalMode === 'reschedule'
+                ? 'Patient locked while rescheduling'
+                : (patientLocked ? 'Patient locked (follow-up suggestion)' : (routePatientId && selectedPatient ? 'Patient pre-selected from the patient list' : 'Search patient by name, email, or ID...'))"
+              autocomplete="off">
+            <span class="absolute left-3 top-3.5 text-gray-400">🔍</span>
+
+            <button
+              *ngIf="selectedPatient && !patientLocked && !routePatientId && modalMode !== 'reschedule'"
+              (click)="clearPatientSelection()"
+              class="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
+              X
+            </button>
+
+            <div *ngIf="loadingPatients" class="absolute right-3 top-3.5">
+              <div class="animate-spin h-5 w-5 border-2 border-gray-300 border-t-primary-500 rounded-full"></div>
+            </div>
+          </div>
+
+          <div *ngIf="!patientLocked && showPatientDropdown && filteredPatients.length > 0"
+               class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            <div *ngFor="let patient of filteredPatients"
+                 (click)="selectPatient(patient)"
+                 class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="font-semibold text-gray-800">
+                    {{ patient.fullName || patient.firstName + ' ' + patient.lastName || patient.username }}
+                  </p>
+                  <p class="text-sm text-gray-500">{{ patient.email }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="!patientLocked && showPatientDropdown && patientSearchQuery && filteredPatients.length === 0 && !loadingPatients"
+               class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500">
+            No patients found
+          </div>
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Linked Caregiver</label>
+          <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 flex items-center gap-2">
+            <span *ngIf="linkedCaregiverName" class="text-green-600">👤</span>
+            <span *ngIf="!linkedCaregiverName" class="text-gray-400">👤</span>
+            <span [class]="linkedCaregiverName ? 'text-gray-800' : 'text-gray-400'">
+              {{ linkedCaregiverName || (selectedPatient ? 'No caregiver assigned' : 'Select a patient to view caregiver') }}
+            </span>
+          </div>
+          <p class="text-xs text-gray-500 mt-1" *ngIf="!routePatientId || !selectedPatient">
+            Caregiver is automatically linked from the patient's profile
+          </p>
+          <p class="text-xs text-green-600 mt-1" *ngIf="routePatientId && selectedPatient">
+            Selected from the patient list
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Consultation Type</label>
+          <select
+            [(ngModel)]="newAppointment.type"
+            (change)="onTypeChange()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let type of appointmentTypes" [value]="type">{{ type }}</option>
+          </select>
+          <p *ngIf="newAppointment.type === 'EMERGENCY'" class="mt-2 text-xs font-semibold text-red-600">
+            Emergency visits are automatically treated as urgent.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
+          <select
+            [(ngModel)]="newAppointment.priority"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let priority of appointmentPriorities" [value]="priority">{{ priority }}</option>
+          </select>
+          <p *ngIf="isUrgentSelection()" class="mt-2 text-xs font-semibold text-red-600">
+            Urgent appointments can preempt routine consultations if the slot conflicts.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">Mode</label>
+          <select
+            [(ngModel)]="newAppointment.mode"
+            (change)="onModeChange()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option *ngFor="let mode of appointmentModes" [value]="mode">{{ mode }}</option>
+          </select>
+        </div>
+
+        <div *ngIf="newAppointment.mode === 'ONLINE'" class="md:col-span-2">
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl">💻</span>
+              <div>
+                <p class="font-semibold text-purple-900">Online Consultation</p>
+                <p class="text-sm text-purple-700 mt-1">
+                  A Jitsi meeting link will be automatically generated when you confirm this appointment.
+                  The patient will be able to join once the appointment is confirmed.
+                </p>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" [(ngModel)]="newAppointment.meetingUrl">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Start Date & Time <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="datetime-local"
+            [(ngModel)]="newAppointment.startAt"
+            (change)="calculateEndDate()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Duration (minutes)
+          </label>
+          <select
+            [(ngModel)]="appointmentDuration"
+            (change)="onDurationChange()"
+            class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            <option [value]="15">15 min</option>
+            <option [value]="30">30 min</option>
+            <option [value]="45">45 min</option>
+            <option [value]="60">1 hour</option>
+            <option [value]="90">1h 30min</option>
+            <option [value]="120">2 hours</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2">
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <p class="font-semibold text-gray-800">Smart Scheduling</p>
+                <p class="text-xs text-gray-500 mt-1">
+                  Detect conflicts (doctor, patient, caregiver), propose alternatives, and allow urgent visits to override routine ones.
+                </p>
+              </div>
+              <button
+                type="button"
+                (click)="checkAvailability()"
+                [disabled]="availabilityLoading || !newAppointment.patientId || !newAppointment.startAt || !newAppointment.endAt"
+                class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ availabilityLoading ? 'Checking...' : 'Check availability' }}
+              </button>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="caregiverMustBeAvailable"
+                  [disabled]="newAppointment.mode === 'ONLINE'"
+                  (change)="onConstraintsChange()"
+                  class="h-4 w-4">
+                <span>Caregiver must be available</span>
+              </label>
+
+              <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="transportDependency"
+                  [disabled]="newAppointment.mode === 'ONLINE' || !caregiverMustBeAvailable"
+                  (change)="onConstraintsChange()"
+                  class="h-4 w-4">
+                <span>Transport dependency (adds {{ transportBufferMinutes }} min buffer)</span>
+              </label>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-2" *ngIf="linkedCaregiverId">
+              Linked caregiver: <span class="font-mono">{{ linkedCaregiverId }}</span>
+            </p>
+            <p class="text-xs text-amber-700 mt-2" *ngIf="!linkedCaregiverId && caregiverMustBeAvailable && newAppointment.mode === 'ONSITE'">
+              No caregiver linked. Onsite scheduling will be blocked until a caregiver is assigned.
+            </p>
+          </div>
+        </div>
+
+        <div *ngIf="availabilityChecked" class="md:col-span-2 space-y-3">
+          <div *ngIf="availabilityError" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded">
+            <p class="font-bold">Availability check failed</p>
+            <p>{{ availabilityError }}</p>
+          </div>
+
+          <div *ngIf="!availabilityError && availabilityConflicts.length === 0" class="bg-green-50 border border-green-200 text-green-800 p-4 rounded">
+            <p class="font-semibold">No conflicts detected for the selected slot.</p>
+          </div>
+
+          <div *ngIf="preemptibleConflicts.length > 0" class="bg-red-50 border border-red-200 text-red-900 p-4 rounded">
+            <p class="font-semibold">Urgent priority override available</p>
+            <p class="mt-1 text-sm text-red-800">
+              This urgent appointment may take precedence over routine consultations. Review the impacted visits below and reschedule them after saving.
+            </p>
+            <div class="mt-2 space-y-2">
+              <div *ngFor="let c of preemptibleConflicts" class="text-sm">
+                <span class="font-semibold">{{ c.party }}</span>:
+                <span>{{ getPatientNameById(c.withAppointment.patientId) }}</span>
+                <span>-</span>
+                <span>{{ formatDateDisplay(c.withAppointment.startAt) }} - {{ formatDateDisplay(c.withAppointment.endAt) }}</span>
+                <span class="text-red-700" *ngIf="c.reason">({{ c.reason }})</span>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="blockingConflicts.length > 0" class="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded">
+            <p class="font-semibold">Blocking conflicts detected</p>
+            <div class="mt-2 space-y-2">
+              <div *ngFor="let c of blockingConflicts" class="text-sm">
+                <span class="font-semibold">{{ c.party }}</span>:
+                <span>{{ getPatientNameById(c.withAppointment.patientId) }}</span>
+                <span>-</span>
+                <span>{{ formatDateDisplay(c.withAppointment.startAt) }} - {{ formatDateDisplay(c.withAppointment.endAt) }}</span>
+                <span class="text-amber-700" *ngIf="c.reason">({{ c.reason }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="suggestedSlots.length > 0" class="md:col-span-2">
+          <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <p class="font-semibold text-gray-800 mb-2">Suggested alternative time slots</p>
+            <div class="space-y-2">
+              <div *ngFor="let s of suggestedSlots" class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <div class="text-sm text-gray-800">
+                  <span class="font-semibold">{{ formatDateDisplay(s.startAt) }}</span>
+                  <span class="text-gray-500">({{ getDurationMinutes(s.startAt, s.endAt) }} min)</span>
+                  <p *ngIf="s.note" class="text-xs text-gray-500 mt-1">{{ s.note }}</p>
+                </div>
+                <button
+                  type="button"
+                  (click)="applySuggestedSlot(s)"
+                  class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold">
+                  Choose slot
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+              Choosing a slot updates the form. Then save the appointment lifecycle action.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gray-50 px-6 py-4 rounded-b-xl flex gap-4">
+      <button
+        (click)="createAppointment()"
+        [disabled]="loading || availabilityLoading || !newAppointment.patientId"
+        class="flex-1 bg-success text-white py-3 rounded-lg hover:bg-opacity-90 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+        {{ modalSubmitLabel }}
+      </button>
+      <button
+        (click)="closeModal()"
+        class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

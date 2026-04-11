@@ -1,0 +1,198 @@
+<!-- Overlay backdrop -->
+<div class="modal-overlay" (click)="onCancel()">
+  <!-- Modal container -->
+  <div 
+    class="modal-container" 
+    (click)="onModalClick($event)"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+    aria-describedby="modal-description"
+  >
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-icon">
+        <span class="icon-medication">💊</span>
+      </div>
+      <div class="header-content">
+        <h2 id="modal-title" class="modal-title">
+          Active Treatment Detected
+        </h2>
+        <p id="modal-description" class="modal-subtitle">
+          This patient already has an active medication plan
+        </p>
+      </div>
+      <button 
+        class="btn-close" 
+        (click)="onClose()"
+        aria-label="Close"
+        [disabled]="loading"
+      >
+        <span aria-hidden="true">✕</span>
+      </button>
+    </div>
+
+    <!-- Active Plan Info Card -->
+    <div class="plan-info-card">
+      <div class="plan-header">
+        <h3 class="plan-title">{{ activePlan?.title }}</h3>
+        <span 
+          class="plan-status"
+          [class.status-active]="activePlan?.status === 'ACTIVE'"
+          [class.status-suspended]="activePlan?.status === 'SUSPENDED'"
+        >
+          {{ activePlan?.status === 'ACTIVE' ? 'Active' : activePlan?.status }}
+        </span>
+      </div>
+      
+      <div class="plan-details">
+        <div class="detail-item">
+          <span class="detail-icon">📅</span>
+          <span class="detail-text">{{ getPlanDateRange() }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-icon">💊</span>
+          <span class="detail-text">
+            {{ getMedicationCount() }} medication(s) in this plan
+          </span>
+        </div>
+        <div class="detail-item" *ngIf="activePlan?.notes">
+          <span class="detail-icon">📝</span>
+          <span class="detail-text note-text">{{ activePlan?.notes }}</span>
+        </div>
+      </div>
+
+      <!-- View/Hide Medications Toggle -->
+      <div class="medications-toggle">
+        <button 
+          class="btn-toggle-medications"
+          (click)="toggleMedications()"
+          [disabled]="loadingMedications"
+        >
+          <span class="toggle-icon">{{ showMedications ? '🔼' : '🔽' }}</span>
+          <span class="toggle-text">
+            {{ showMedications ? 'Hide medications' : 'View medications' }}
+          </span>
+          <span class="spinner-small" *ngIf="loadingMedications"></span>
+        </button>
+      </div>
+
+      <!-- Medications List -->
+      <div class="medications-section" *ngIf="showMedications">
+        <!-- Error Message -->
+        <div class="medications-error" *ngIf="medicationsError">
+          <span class="error-icon">⚠️</span>
+          <span class="error-text">{{ medicationsError }}</span>
+        </div>
+
+        <!-- Medications List -->
+        <div class="medications-list" *ngIf="!medicationsError && activePlan?.items?.length">
+          <div class="medication-item" *ngFor="let item of activePlan.items">
+            <div class="medication-header">
+              <span class="medication-name">{{ item.name }}</span>
+              <span class="medication-risk" *ngIf="item.isHighRisk" title="High risk medication">⚠️</span>
+            </div>
+            <div class="medication-details">
+              <span class="medication-dosage">{{ item.dosage }}</span>
+              <span class="detail-separator">•</span>
+              <span class="medication-frequency">{{ formatFrequency(item.frequency) }}</span>
+            </div>
+            <div class="medication-times" *ngIf="item.timesOfDay">
+              <span class="times-label">Times:</span>
+              <span 
+                class="time-badge" 
+                *ngFor="let time of parseTimesOfDay(item.timesOfDay)"
+              >
+                {{ time | lowercase }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="medications-empty" *ngIf="!medicationsError && !loadingMedications && !activePlan?.items?.length">
+          <span class="empty-icon">📋</span>
+          <span class="empty-text">No medications in this plan</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Options -->
+    <div class="action-options">
+      <p class="options-label">What would you like to do?</p>
+      
+      <div class="options-grid">
+        <!-- Option 1: Adjust Current Plan -->
+        <button 
+          class="option-card option-adjust"
+          (click)="onAdjustPlan()"
+          [disabled]="loading"
+        >
+          <div class="option-icon">
+            <span>✏️</span>
+          </div>
+          <div class="option-content">
+            <h4 class="option-title">Adjust Plan</h4>
+            <p class="option-description">
+              Modify dates, notes, or settings of the current plan
+            </p>
+          </div>
+          <div class="option-arrow">→</div>
+        </button>
+
+        <!-- Option 2: Add Medication -->
+        <button 
+          class="option-card option-add"
+          (click)="onAddMedication()"
+          [disabled]="loading"
+        >
+          <div class="option-icon">
+            <span>➕</span>
+          </div>
+          <div class="option-content">
+            <h4 class="option-title">Add Medication</h4>
+            <p class="option-description">
+              Add a new medication to the existing plan
+            </p>
+          </div>
+          <div class="option-arrow">→</div>
+        </button>
+
+        <!-- Option 3: Replace Treatment -->
+        <button 
+          class="option-card option-replace"
+          (click)="onReplaceTreatment()"
+          [disabled]="loading"
+        >
+          <div class="option-icon">
+            <span>🔄</span>
+          </div>
+          <div class="option-content">
+            <h4 class="option-title">Replace Treatment</h4>
+            <p class="option-description">
+              Create a new plan (the old one will be stopped)
+            </p>
+          </div>
+          <div class="option-arrow">→</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button 
+        class="btn-cancel"
+        (click)="onCancel()"
+        [disabled]="loading"
+      >
+        Cancel
+      </button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" *ngIf="loading">
+      <div class="spinner"></div>
+      <span>Loading...</span>
+    </div>
+  </div>
+</div>
