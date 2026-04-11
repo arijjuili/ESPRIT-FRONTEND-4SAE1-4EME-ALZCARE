@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
@@ -23,11 +25,11 @@ import { DoctorAssignment, DoctorAssignmentStatus } from '../../../core/models/c
   templateUrl: './doctor-dashboard.component.html',
   styleUrls: ['./doctor-dashboard.component.scss']
 })
-export class DoctorDashboardComponent implements OnInit {
+export class DoctorDashboardComponent implements OnInit, OnDestroy {
   doctorName = '';
   doctorId: string | null = null;
+  private destroy$ = new Subject<void>();
   
-  // Role theme for notification bell (blue for doctor)
   currentTheme: RoleTheme = {
     name: 'Doctor',
     primary: '#3b82f6',
@@ -103,19 +105,30 @@ export class DoctorDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (currentUser) {
       this.doctorName = currentUser.name;
       this.doctorId = currentUser.id || null;
-      
+
       // Get all patients and appointments (legacy)
       this.patients = this.dataService.getPatients();
       this.appointments = this.dataService.getAppointments();
-      
+
       // Load doctor's assigned patients from care team service
       this.loadDoctorPatients();
       this.loadResearchNews();
     }
+
+    this.authService.currentUser$.pipe(takeUntil(this.destroy$)).subscribe(user => {
+      if (user) {
+        this.doctorName = user.name;
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private loadResearchNews(): void {

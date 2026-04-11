@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   PatientProfile,
@@ -10,7 +10,33 @@ import {
   CaregiverProfile,
   AutonomyAssessment,
   AutonomyAssessmentRequest,
-  TokenResponse
+  CaregiverDailyCheckInRequest,
+  DailyCheckInStatus,
+  PatientDailyCheckInRequest,
+  TokenResponse,
+  RecordType,
+  HealthRecord,
+  HealthRecordCreateRequest,
+  AssessmentSubmissionRequest,
+  MemoryItem,
+  MemoryConversationRequest,
+  MemoryConversationResponse,
+  MemoryStorybookRequest,
+  MemoryStorybookResponse,
+  MemoryItemCreateRequest,
+  MemoryItemUpdateRequest,
+  GameCatalogItem,
+  GameType,
+  GameActivity,
+  GamificationBadgeEvent,
+  GamificationDailyChallenge,
+  GamificationLeaderboardEntry,
+  GamificationSummary,
+  GameAdaptationProfile,
+  GameActivityCreateRequest,
+  QuizAttempt,
+  QuizAttemptCreateRequest,
+  QuizAttemptAnswerRequest
 } from '../models/api.model';
 
 @Injectable({
@@ -20,6 +46,7 @@ export class ApiService {
   private apiBaseUrl = `${environment.apiUrl}/v1`;
   private keycloakUrl = environment.keycloak.url;
   private clientId = environment.keycloak.clientId;
+  private cognitiveBaseUrl = `${environment.apiUrl}/v1/cognitive`;
 
   constructor(private http: HttpClient) {}
 
@@ -70,6 +97,42 @@ export class ApiService {
    */
   getPatientByKeycloakId(keycloakId: string): Observable<PatientProfile> {
     return this.http.get<PatientProfile>(`${this.apiBaseUrl}/patients/${keycloakId}`);
+  }
+
+  /**
+   * Get all patient profiles (optionally filtered by active status)
+   */
+  getPatients(isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(`${this.apiBaseUrl}/patients`, { params });
+  }
+
+  /**
+   * Get caregiver patients by caregiver user ID (optionally filtered by active status)
+   */
+  getCaregiverPatients(caregiverUserId: string, isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(
+      `${this.apiBaseUrl}/caregivers/user/${caregiverUserId}/patients`,
+      { params }
+    );
+  }
+
+  /**
+   * Get doctor patients by doctor user ID (optionally filtered by active status)
+   */
+  getDoctorPatients(doctorUserId: string, isActive?: boolean): Observable<PatientProfile[]> {
+    const params = typeof isActive === 'boolean'
+      ? new HttpParams().set('isActive', String(isActive))
+      : undefined;
+    return this.http.get<PatientProfile[]>(
+      `${this.apiBaseUrl}/doctors/user/${doctorUserId}/patients`,
+      { params }
+    );
   }
 
   /**
@@ -142,5 +205,229 @@ export class ApiService {
     return this.http.get<AutonomyAssessment[]>(
       `${this.apiBaseUrl}/patients/${patientId}/autonomy/history`
     );
+  }
+
+  // ==================== COGNITIVE MEMORY ====================
+
+  /**
+   * Create a health record (daily check-in or assessment)
+   */
+  createHealthRecord(request: HealthRecordCreateRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records`, request);
+  }
+
+  /**
+   * Get computed daily check-in status for a patient
+   */
+  getDailyCheckInStatus(patientId: string): Observable<DailyCheckInStatus> {
+    return this.http.get<DailyCheckInStatus>(`${this.cognitiveBaseUrl}/health-records/daily-checkin-status`, {
+      params: new HttpParams().set('patientId', patientId)
+    });
+  }
+
+  submitPatientDailyCheckIn(request: PatientDailyCheckInRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/daily-checkin/patient`, request);
+  }
+
+  submitCaregiverDailyCheckIn(request: CaregiverDailyCheckInRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/daily-checkin/caregiver`, request);
+  }
+
+  /**
+   * List health records (optionally filtered)
+   */
+  getHealthRecords(patientId?: string, doctorUserId?: string, recordType?: RecordType): Observable<HealthRecord[]> {
+    let params = new HttpParams();
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (doctorUserId) {
+      params = params.set('doctorUserId', doctorUserId);
+    }
+    if (recordType) {
+      params = params.set('recordType', recordType);
+    }
+    return this.http.get<HealthRecord[]>(`${this.cognitiveBaseUrl}/health-records`, {
+      params: params.keys().length ? params : undefined
+    });
+  }
+
+  /**
+   * Get health record by ID
+   */
+  getHealthRecordById(id: string): Observable<HealthRecord> {
+    return this.http.get<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}`);
+  }
+
+  /**
+   * Update a health record (doctor/admin)
+   */
+  updateHealthRecord(id: string, request: Partial<HealthRecordCreateRequest>): Observable<HealthRecord> {
+    return this.http.put<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}`, request);
+  }
+
+  /**
+   * Delete a health record
+   */
+  deleteHealthRecord(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.cognitiveBaseUrl}/health-records/${id}`);
+  }
+
+  /**
+   * Submit assessment responses
+   */
+  submitAssessment(id: string, request: AssessmentSubmissionRequest): Observable<HealthRecord> {
+    return this.http.post<HealthRecord>(`${this.cognitiveBaseUrl}/health-records/${id}/submit`, request);
+  }
+
+  /**
+   * Get memory items (optionally filtered by patientId)
+   */
+  getMemoryItems(patientId?: string): Observable<MemoryItem[]> {
+    const params = patientId ? new HttpParams().set('patientId', patientId) : undefined;
+    return this.http.get<MemoryItem[]>(`${this.cognitiveBaseUrl}/memory-items`, { params });
+  }
+
+  /**
+   * Get available games catalog
+   */
+  getGameCatalog(): Observable<GameCatalogItem[]> {
+    return this.http.get<GameCatalogItem[]>(`${this.cognitiveBaseUrl}/game-activities/catalog`);
+  }
+
+  /**
+   * List game activities (optionally filtered by patientId)
+   */
+  getGameActivities(patientId?: string): Observable<GameActivity[]> {
+    const params = patientId ? new HttpParams().set('patientId', patientId) : undefined;
+    return this.http.get<GameActivity[]>(`${this.cognitiveBaseUrl}/game-activities`, { params });
+  }
+
+  /**
+   * Create a game activity
+   */
+  createGameActivity(request: GameActivityCreateRequest): Observable<GameActivity> {
+    return this.http.post<GameActivity>(`${this.cognitiveBaseUrl}/game-activities`, request);
+  }
+
+  /**
+   * Get adaptive profile for a patient and game
+   */
+  getGameAdaptation(patientId: string, gameType: GameType): Observable<GameAdaptationProfile> {
+    const params = new HttpParams()
+      .set('patientId', patientId)
+      .set('gameType', gameType);
+    return this.http.get<GameAdaptationProfile>(`${this.cognitiveBaseUrl}/game-activities/adaptation`, { params });
+  }
+
+  /**
+   * Get available memory items for quiz (filtered server-side)
+   */
+  getAvailableMemoryItems(patientId: string): Observable<MemoryItem[]> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<MemoryItem[]>(`${this.cognitiveBaseUrl}/memory-items/available`, { params });
+  }
+
+  /**
+   * Create a new memory item
+   */
+  createMemoryItem(request: MemoryItemCreateRequest): Observable<MemoryItem> {
+    return this.http.post<MemoryItem>(`${this.cognitiveBaseUrl}/memory-items`, request);
+  }
+
+  /**
+   * Update an existing memory item
+   */
+  updateMemoryItem(id: string, request: MemoryItemUpdateRequest): Observable<MemoryItem> {
+    return this.http.put<MemoryItem>(`${this.cognitiveBaseUrl}/memory-items/${id}`, request);
+  }
+
+  /**
+   * Delete a memory item
+   */
+  deleteMemoryItem(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.cognitiveBaseUrl}/memory-items/${id}`);
+  }
+
+  /**
+   * Ask the memory conversation assistant using stored memory items as context
+   */
+  askMemoryConversation(request: MemoryConversationRequest): Observable<MemoryConversationResponse> {
+    return this.http.post<MemoryConversationResponse>(`${this.cognitiveBaseUrl}/memory-items/conversation`, request);
+  }
+
+  generateMemoryStorybook(request: MemoryStorybookRequest): Observable<MemoryStorybookResponse> {
+    return this.http.post<MemoryStorybookResponse>(`${this.cognitiveBaseUrl}/memory-items/storybook`, request);
+  }
+
+  // ==================== QUIZ ATTEMPTS ====================
+
+  /**
+   * Create a quiz attempt
+   */
+  createQuizAttempt(request: QuizAttemptCreateRequest): Observable<QuizAttempt> {
+    return this.http.post<QuizAttempt>(`${this.cognitiveBaseUrl}/quiz-attempts`, request);
+  }
+
+  /**
+   * Get quiz attempts (optionally filtered by patientId or memoryItemId)
+   */
+  getQuizAttempts(patientId?: string, memoryItemId?: string): Observable<QuizAttempt[]> {
+    let params = new HttpParams();
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (memoryItemId) {
+      params = params.set('memoryItemId', memoryItemId);
+    }
+    return this.http.get<QuizAttempt[]>(`${this.cognitiveBaseUrl}/quiz-attempts`, {
+      params: params.keys().length ? params : undefined
+    });
+  }
+
+  /**
+   * Submit a quiz answer
+   */
+  submitQuizAnswer(attemptId: string, request: QuizAttemptAnswerRequest): Observable<QuizAttempt> {
+    return this.http.patch<QuizAttempt>(`${this.cognitiveBaseUrl}/quiz-attempts/${attemptId}/answer`, request);
+  }
+
+  // ==================== GAMIFICATION ====================
+
+  getGamificationSummary(patientId: string): Observable<GamificationSummary> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<GamificationSummary>(`${this.cognitiveBaseUrl}/gamification/summary`, { params });
+  }
+
+  getRecentBadges(patientId: string, limit = 10): Observable<GamificationBadgeEvent[]> {
+    const params = new HttpParams().set('patientId', patientId).set('limit', String(limit));
+    return this.http.get<GamificationBadgeEvent[]>(`${this.cognitiveBaseUrl}/gamification/recent-badges`, { params });
+  }
+
+  getGamificationLeaderboard(scope: 'doctor' | 'caregiver' | 'global', ownerId?: string, limit = 20): Observable<GamificationLeaderboardEntry[]> {
+    let params = new HttpParams().set('scope', scope).set('limit', String(limit));
+    if (ownerId) {
+      params = params.set('ownerId', ownerId);
+    }
+    return this.http.get<GamificationLeaderboardEntry[]>(`${this.cognitiveBaseUrl}/gamification/leaderboard`, { params });
+  }
+
+  getBadgeTimeline(caregiverId: string, patientId?: string, gameType?: GameType, days = 30, limit = 200): Observable<GamificationBadgeEvent[]> {
+    let params = new HttpParams()
+      .set('caregiverId', caregiverId)
+      .set('days', String(days))
+      .set('limit', String(limit));
+    if (patientId) {
+      params = params.set('patientId', patientId);
+    }
+    if (gameType) {
+      params = params.set('gameType', gameType);
+    }
+    return this.http.get<GamificationBadgeEvent[]>(`${this.cognitiveBaseUrl}/gamification/badge-timeline`, { params });
+  }
+
+  getDailyChallenge(patientId: string): Observable<GamificationDailyChallenge> {
+    const params = new HttpParams().set('patientId', patientId);
+    return this.http.get<GamificationDailyChallenge>(`${this.cognitiveBaseUrl}/gamification/daily-challenge`, { params });
   }
 }

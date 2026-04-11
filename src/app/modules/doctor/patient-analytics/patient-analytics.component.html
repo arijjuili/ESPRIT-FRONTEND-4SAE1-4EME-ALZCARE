@@ -1,0 +1,203 @@
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mb-2">
+      <div class="flex items-center gap-4">
+        <a [routerLink]="backToAnalyticsRoute" class="p-2 rounded-lg bg-white shadow hover:shadow-md transition">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">Patient Progress</h1>
+      </div>
+      <button
+        (click)="exportPdfReport()"
+        class="self-start rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-blue-700 hover:to-indigo-700">
+        Export PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="flex justify-center items-center h-64">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+    <p class="text-red-600">{{ error }}</p>
+    <a [routerLink]="backToAnalyticsRoute" class="text-blue-600 hover:underline mt-2 inline-block">
+      Back to Game Analytics
+    </a>
+  </div>
+
+  <!-- Content -->
+  <div id="patient-progress-analysis" *ngIf="!isLoading && !error && patient" class="space-y-6">
+    <p class="text-gray-600">
+      Detailed game analytics for {{ patient.firstName }} {{ patient.lastName }}
+    </p>
+
+    <!-- Overall Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-blue-100">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">🎮</div>
+          <span class="text-gray-500 text-sm">Total Games</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-900">{{ overallStats.totalGames }}</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-purple-100">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">📊</div>
+          <span class="text-gray-500 text-sm">Avg Score</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-900">{{ overallStats.avgScore }}%</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-emerald-100">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">⏱️</div>
+          <span class="text-gray-500 text-sm">Total Time</span>
+        </div>
+        <p class="text-3xl font-bold text-gray-900">{{ formatTime(overallStats.totalTime) }}</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-amber-100">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">⭐</div>
+          <span class="text-gray-500 text-sm">Favorite Game</span>
+        </div>
+        <p class="text-xl font-bold text-gray-900 truncate">{{ overallStats.favoriteGame || 'N/A' }}</p>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Cognitive Skills Radar -->
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-blue-100">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Cognitive Skills Overview</h3>
+        <div class="h-64">
+          <canvas baseChart
+            [data]="radarChartData"
+            [options]="radarChartOptions"
+            type="radar">
+          </canvas>
+        </div>
+      </div>
+
+      <!-- Progress Over Time -->
+      <div class="bg-white rounded-2xl p-6 shadow-lg border border-purple-100">
+        <h3 class="text-xl font-bold text-gray-900 mb-6">Performance Trends</h3>
+        <div class="h-80">
+          <canvas baseChart
+            [data]="lineChartData"
+            [options]="lineChartOptions"
+            type="line">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Individual Game Details -->
+    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+      <h3 class="text-xl font-bold text-gray-900 mb-6">Game Performance Details</h3>
+      
+      <div *ngIf="gameDetails.length === 0" class="text-center py-12 text-gray-500">
+        No game data available for this patient yet.
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div *ngFor="let game of gameDetails" 
+             class="rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+          <!-- Game Header -->
+          <div class="p-4" [style.backgroundColor]="game.color + '10'">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                     [style.backgroundColor]="game.color + '20'">
+                  {{ game.icon }}
+                </div>
+                <div>
+                  <h4 class="font-bold text-gray-900">{{ game.gameName }}</h4>
+                  <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                        [class.bg-green-100]="game.trend === 'improving'"
+                        [class.text-green-700]="game.trend === 'improving'"
+                        [class.bg-red-100]="game.trend === 'declining'"
+                        [class.text-red-700]="game.trend === 'declining'"
+                        [class.bg-gray-100]="game.trend === 'stable'"
+                        [class.text-gray-700]="game.trend === 'stable'">
+                    {{ game.trend | titlecase }}
+                  </span>
+                </div>
+              </div>
+              <span class="text-2xl font-bold" [style.color]="game.color">{{ game.avgScore }}%</span>
+            </div>
+          </div>
+
+          <!-- Game Stats -->
+          <div class="p-4 space-y-3">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Total Plays</span>
+              <span class="font-semibold text-gray-900">{{ game.totalPlays }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Best Score</span>
+              <span class="font-semibold text-gray-900">{{ game.bestScore }}%</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Current Trend</span>
+              <span [class]="getTrendClass(game.trend)" class="font-semibold">
+                {{ getTrendIcon(game.trend) }} {{ game.trend | titlecase }}
+              </span>
+            </div>
+
+            <!-- Mini Progress Bar -->
+            <div class="mt-4">
+              <p class="text-xs text-gray-500 mb-1">Recent Performance</p>
+              <div class="flex gap-1 h-8">
+                <div *ngFor="let score of game.recentScores.slice(0, 10)" 
+                     class="flex-1 rounded-sm transition-all hover:opacity-80"
+                     [style.backgroundColor]="score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444'"
+                     [title]="score + '%'">
+                </div>
+              </div>
+              <p class="text-xs text-gray-400 mt-1" *ngIf="game.recentScores.length === 0">No recent plays</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations 
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+      <h3 class="text-xl font-bold text-gray-900 mb-4">💡 Recommendations</h3>
+      <div class="space-y-3">
+        <div *ngIf="overallStats.trend === 'declining'" 
+             class="flex items-start gap-3 p-4 bg-white rounded-xl border border-red-100">
+          <span class="text-2xl">⚠️</span>
+          <div>
+            <p class="font-semibold text-gray-900">Declining Performance Detected</p>
+            <p class="text-sm text-gray-600">Consider scheduling a cognitive assessment session.</p>
+          </div>
+        </div>
+        <div *ngIf="overallStats.trend === 'improving'" 
+             class="flex items-start gap-3 p-4 bg-white rounded-xl border border-green-100">
+          <span class="text-2xl">🎉</span>
+          <div>
+            <p class="font-semibold text-gray-900">Great Progress!</p>
+            <p class="text-sm text-gray-600">The patient is showing improvement. Keep up the good work!</p>
+          </div>
+        </div>
+        <div *ngIf="gameDetails.length < 3" 
+             class="flex items-start gap-3 p-4 bg-white rounded-xl border border-amber-100">
+          <span class="text-2xl">📝</span>
+          <div>
+            <p class="font-semibold text-gray-900">More Variety Needed</p>
+            <p class="text-sm text-gray-600">Encourage the patient to try more different games for comprehensive cognitive training.</p>
+          </div>
+        </div>
+      </div>
+    </div> -->
+  </div>
+</div>

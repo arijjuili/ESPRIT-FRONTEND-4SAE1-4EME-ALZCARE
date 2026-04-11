@@ -1,0 +1,129 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8 space-y-6">
+  <section class="relative overflow-hidden rounded-3xl border border-cyan-100 bg-gradient-to-br from-sky-50 via-cyan-50 to-emerald-50 p-6 sm:p-8">
+    <div class="absolute -top-14 -right-16 h-44 w-44 rounded-full bg-cyan-200/40 blur-3xl"></div>
+    <div class="relative z-10 space-y-3">
+      <a routerLink="/doctor/assessments" class="inline-flex items-center gap-2 text-sm font-semibold text-sky-700 hover:text-sky-900">
+        <span aria-hidden="true">←</span>
+        <span>Back to Assessments</span>
+      </a>
+      <p class="text-xs uppercase tracking-[0.2em] text-sky-700 font-semibold">Doctor View</p>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Assessment Review</h1>
+      <p class="text-sm sm:text-base text-slate-600 max-w-2xl">Review patient responses and mark each answer as correct or incorrect. The final score will be calculated based on your review.</p>
+    </div>
+  </section>
+
+  <section class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+    <p class="text-sm text-slate-500" *ngIf="isLoading">Loading assessment...</p>
+    <p class="text-sm text-rose-600" *ngIf="error">{{ error }}</p>
+
+    <div *ngIf="assessment" class="space-y-5">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <article class="lg:col-span-2 rounded-2xl border border-slate-200 p-4 bg-slate-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Your Reviewed Score</p>
+              <div class="mt-2 flex items-end gap-2">
+                <p class="text-3xl font-extrabold" [ngClass]="{
+                  'text-emerald-700': getScoreTone() === 'high',
+                  'text-amber-700': getScoreTone() === 'medium',
+                  'text-rose-700': getScoreTone() === 'low',
+                  'text-slate-700': getScoreTone() === 'na'
+                }">{{ getScoreValue() ?? 'N/A' }}</p>
+                <p class="text-sm text-slate-500 pb-1">/ 10</p>
+              </div>
+              <p class="mt-1 text-sm font-semibold" [ngClass]="{
+                'text-emerald-700': getScoreTone() === 'high',
+                'text-amber-700': getScoreTone() === 'medium',
+                'text-rose-700': getScoreTone() === 'low',
+                'text-slate-600': getScoreTone() === 'na'
+              }">{{ getScoreLabel() }}</p>
+            </div>
+            <div class="text-right" *ngIf="isReviewed">
+              <span class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+                ✓ Reviewed
+              </span>
+            </div>
+          </div>
+          <div class="mt-3 h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500" [style.width.%]="getScorePercent()" [ngClass]="{
+              'bg-emerald-500': getScoreTone() === 'high',
+              'bg-amber-500': getScoreTone() === 'medium',
+              'bg-rose-500': getScoreTone() === 'low',
+              'bg-slate-400': getScoreTone() === 'na'
+            }"></div>
+          </div>
+        </article>
+
+        <article class="rounded-2xl border border-slate-200 p-4 bg-gradient-to-br from-white to-slate-50">
+          <div class="space-y-3 text-sm">
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Patient Submitted Score</p>
+              <p class="font-semibold text-slate-900">{{ assessment.unifiedScore ?? 'N/A' }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Completed at</p>
+              <p class="font-semibold text-slate-900">{{ formatDate(assessment.completedAt) }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">Assessment type</p>
+              <p class="font-semibold text-slate-900">{{ assessment.assessmentType || 'MMSE' }}</p>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="flex items-center justify-between p-4 bg-violet-50 rounded-2xl border border-violet-200">
+        <div>
+          <p class="text-sm font-semibold text-violet-900">Review Progress</p>
+          <p class="text-sm text-violet-700">{{ getCorrectCount() }} of {{ getTotalQuestions() }} marked as correct</p>
+        </div>
+        <button 
+          (click)="submitReview()" 
+          [disabled]="isSubmitting || !isReviewed"
+          class="px-6 py-2 rounded-xl font-semibold transition-all duration-300"
+          [ngClass]="{
+            'bg-violet-600 text-white hover:bg-violet-700 shadow-lg shadow-violet-500/30': isReviewed && !isSubmitting,
+            'bg-slate-300 text-slate-500 cursor-not-allowed': !isReviewed || isSubmitting
+          }">
+          {{ isSubmitting ? 'Saving...' : 'Submit Review' }}
+        </button>
+      </div>
+
+      <article class="rounded-2xl border border-slate-200 p-4 sm:p-5">
+        <div class="flex items-center justify-between gap-2 mb-4">
+          <h2 class="text-lg font-bold text-slate-900">Patient Responses</h2>
+          <span class="text-xs font-semibold text-slate-500">{{ getTotalQuestions() }} questions</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" *ngIf="getTotalQuestions(); else noResponses">
+          <div 
+            *ngFor="let review of answerReviews; let i = index" 
+            class="rounded-xl border-2 p-4 transition cursor-pointer"
+            [ngClass]="review.correct ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-violet-300 hover:bg-violet-50'"
+            (click)="toggleAnswerCorrect(i)">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                [ngClass]="review.correct ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'">
+                {{ review.correct ? '✓' : (i + 1) }}
+              </span>
+              <div class="flex-1">
+                <p class="text-xs uppercase tracking-wide text-slate-500 font-semibold">{{ review.prompt }}</p>
+                <p class="mt-1 text-sm text-slate-800" [ngClass]="{'line-through opacity-50': review.correct}">{{ review.value || '(No answer)' }}</p>
+              </div>
+            </div>
+            <p class="text-xs mt-2" [ngClass]="review.correct ? 'text-emerald-600' : 'text-slate-400'">
+              {{ review.correct ? 'Click to mark as incorrect' : 'Click to mark as correct' }}
+            </p>
+          </div>
+        </div>
+
+        <ng-template #noResponses>
+          <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center">
+            <h3 class="text-sm font-semibold text-slate-900">No responses submitted yet</h3>
+            <p class="text-sm text-slate-500 mt-1">The assessment exists, but answers have not been recorded.</p>
+          </div>
+        </ng-template>
+      </article>
+    </div>
+  </section>
+</div>

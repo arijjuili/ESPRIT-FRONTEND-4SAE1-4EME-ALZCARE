@@ -908,6 +908,27 @@ export class ValidationUtils {
 
 ---
 
+## Session 14 (2026-02-21) - Caregiver Memory Items CRUD
+
+### Feature: Memory Items Management (Caregiver)
+**Goal:** Allow caregivers to create, view, update, and delete Memory Items via cognitive-memory service.
+
+**Frontend Changes:**
+| Area | File | Change |
+|------|------|--------|
+| Models | `src/app/core/models/api.model.ts` | Added `MemoryCategory`, `MemoryItem`, create/update request types |
+| API | `src/app/core/services/api.service.ts` | Added memory item CRUD methods |
+| UI | `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.ts` | CRUD logic, filters, state handling |
+| UI | `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.html` | List + form layout, filters, actions |
+| UI | `src/app/modules/caregiver/memory-items/caregiver-memory-items.component.scss` | Minimal styles (Tailwind-driven) |
+| Routing | `src/app/app.routes.ts` | Added `/caregiver/memory-items` route |
+| Navigation | `src/app/shared/components/navbar.component.ts` | Added caregiver nav entry |
+
+**Notes:**
+- CreatedAt is set client-side at creation time to satisfy backend validation.
+
+---
+
 ## Session 13 (2026-02-17) - Profile Creation Bug Fixes
 
 ### Critical Fix: User Creation Profile Synchronization

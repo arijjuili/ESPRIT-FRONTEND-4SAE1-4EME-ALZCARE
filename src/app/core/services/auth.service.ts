@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, map, catchError, throwError, Subject } from 'rxjs';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { BehaviorSubject, Observable, tap, map, catchError, throwError, Subject, of } from 'rxjs';
 import { AuthUser, UserRole } from '../models/user.model';
 import { TokenResponse, KeycloakUserInfo } from '../models/api.model';
 import { environment } from '../../../environments/environment';
@@ -118,6 +118,10 @@ export class AuthService {
         this.currentUserSubject.next(authUser);
         this.isAuthenticatedSubject.next(true);
         localStorage.setItem('currentUser', JSON.stringify(authUser));
+
+        if (role !== 'admin') {
+          this.fetchAndUpdateUserName(userInfo.sub, role, response.access_token);
+        }
 
         return authUser;
       }),
@@ -309,6 +313,35 @@ export class AuthService {
     if (allRoles.includes('DOCTOR')) return 'doctor';
     if (allRoles.includes('CAREGIVER')) return 'caregiver';
     return 'patient';
+  }
+
+  private fetchAndUpdateUserName(userId: string, role: UserRole, token: string): void {
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    let url = '';
+
+    if (role === 'doctor') {
+      url = `${environment.apiUrl}/v1/doctors/user/${userId}`;
+    } else if (role === 'caregiver') {
+      url = `${environment.apiUrl}/v1/caregivers/user/${userId}`;
+    } else if (role === 'patient') {
+      url = `${environment.apiUrl}/v1/patients/${userId}`;
+    } else {
+      return;
+    }
+
+    this.http.get<{ firstName: string; lastName: string }>(url, { headers }).pipe(
+      catchError(() => of(null))
+    ).subscribe(profile => {
+      if (profile && (profile.firstName || profile.lastName)) {
+        const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ');
+        const current = this.currentUserSubject.value;
+        if (current) {
+          const updated = { ...current, name: fullName };
+          this.currentUserSubject.next(updated);
+          localStorage.setItem('currentUser', JSON.stringify(updated));
+        }
+      }
+    });
   }
 
   /**

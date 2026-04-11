@@ -1,62 +1,148 @@
-<div class="p-8">
-  <h1 class="text-4xl font-bold text-gray-900 mb-2">🎮 Brain Games</h1>
-  <p class="text-gray-600 mb-8">Keep your mind sharp with fun cognitive exercises</p>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-    <div *ngFor="let game of games" class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-lg transition transform hover:-translate-y-1 duration-200 cursor-pointer">
-      <div class="h-32 bg-gradient-to-br p-6 flex items-center justify-center text-5xl" [ngClass]="game.color">
-        {{ game.icon }}
+<div class="min-h-screen px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+  <div *ngIf="showBadgePopup && latestEarnedBadge" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" (click)="closeBadgePopup()">
+    <div class="w-full max-w-sm rounded-3xl border border-amber-200 bg-white p-6 shadow-2xl text-center" (click)="$event.stopPropagation()">
+      <div class="mx-auto mb-3 h-14 w-14 rounded-full bg-amber-100 flex items-center justify-center text-2xl overflow-hidden">
+        <img *ngIf="isBadgeImageUrl(latestEarnedBadge.badgeIconUrl)" [src]="latestEarnedBadge.badgeIconUrl" alt="Badge icon" class="h-full w-full object-cover" />
+        <span *ngIf="!isBadgeImageUrl(latestEarnedBadge.badgeIconUrl)">{{ getBadgeIconText(latestEarnedBadge.badgeIconUrl) }}</span>
       </div>
-      <div class="p-6">
-        <h3 class="text-xl font-bold text-gray-900">{{ game.name }}</h3>
-        <p class="text-gray-600 text-sm mt-2">{{ game.description }}</p>
-        <div class="flex items-center justify-between mt-4">
-          <span class="text-xs font-bold text-gray-500">⏱️ {{ game.duration }}</span>
-          <span class="text-xs font-bold text-primary-600">Level: {{ game.level }}</span>
-        </div>
-        <button class="w-full mt-4 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
-          Play Now
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stats Section -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="bg-white rounded-2xl shadow-md p-6">
-      <h3 class="text-lg font-bold text-gray-900 mb-4">📊 Your Stats</h3>
-      <div class="space-y-3">
-        <div class="flex justify-between">
-          <span class="text-gray-600">Games Played</span>
-          <span class="font-bold text-gray-900">24</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Total Minutes</span>
-          <span class="font-bold text-gray-900">185</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-600">Avg. Score</span>
-          <span class="font-bold text-success">87%</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-md p-6">
-      <h3 class="text-lg font-bold text-gray-900 mb-4">🏆 Achievements</h3>
-      <div class="space-y-2">
-        <p class="text-sm">🥇 First Win - Completed a game</p>
-        <p class="text-sm">⭐ Perfect Score - 100% on any game</p>
-        <p class="text-sm">🔥 7-Day Streak - Played 7 days straight</p>
-        <p class="text-sm">🎖️ Brain Master - Completed all games</p>
-      </div>
-    </div>
-
-    <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200">
-      <h3 class="text-lg font-bold text-primary-900 mb-4">💡 Tip</h3>
-      <p class="text-sm text-primary-800">Play consistently to see improvements in memory and concentration. Even 10-15 minutes daily can make a difference!</p>
-      <button class="w-full mt-4 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
-        Learn More
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-amber-700">New Badge Earned</p>
+      <h3 class="mt-2 text-xl font-black text-slate-900">{{ latestEarnedBadge.badgeEarned || 'Badge' }}</h3>
+      <a *ngIf="getVerifiableBadgeUrl(latestEarnedBadge)" [href]="getVerifiableBadgeUrl(latestEarnedBadge)!" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex text-xs font-semibold text-sky-700 hover:text-sky-800 underline">
+        Verify badge
+      </a>
+      <p class="mt-2 text-[11px] text-slate-500">{{ latestEarnedBadge.earnedAt | date:'MMM d, y • h:mm a' }}</p>
+      <button (click)="closeBadgePopup()" class="mt-5 inline-flex items-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition">
+        Awesome
       </button>
     </div>
   </div>
+
+  <section class="relative overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-cyan-50 to-emerald-50 p-6 sm:p-8">
+    <div class="absolute -right-16 -top-16 h-52 w-52 rounded-full bg-indigo-200/40 blur-3xl animate-pulse"></div>
+    <div class="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-cyan-200/40 blur-2xl animate-pulse" style="animation-delay: 1s;"></div>
+    <div class="absolute top-1/2 right-1/4 w-20 h-20 rounded-full bg-emerald-200/30 blur-xl" style="animation: float 4s ease-in-out infinite;"></div>
+    
+    <div class="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+      <div>
+        <p class="text-xs uppercase tracking-[0.2em] text-indigo-700 font-semibold flex items-center gap-2">
+          <span class="inline-block w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+          Brain Games
+        </p>
+        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mt-2">
+          Play. <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500">Score.</span> Level Up.
+        </h1>
+        <p class="text-sm sm:text-base text-slate-600 mt-3 max-w-2xl">Choose a challenge to train memory, focus, and attention with short daily sessions.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 w-full sm:w-auto">
+        <div class="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 hover:scale-105 transition-transform duration-300">
+          <p class="text-xs text-slate-500">Daily Focus</p>
+          <p class="text-2xl font-bold text-indigo-700">{{ todaySessions }}/{{ dailyTarget }}</p>
+          <div class="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-full transition-all duration-500" [style.width.%]="(todaySessions/dailyTarget)*100"></div>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-white/70 bg-white/85 px-4 py-3 hover:scale-105 transition-transform duration-300">
+          <p class="text-xs text-slate-500">Latest Badge</p>
+          <p class="text-base font-bold text-slate-900 truncate max-w-[120px] sm:max-w-none">{{ latestBadge?.icon || '' }} {{ latestBadge?.title || '—' }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="relative z-10 mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button
+        (click)="toggleVoiceCommands()"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all duration-300 hover:scale-105"
+        [ngClass]="voiceListening ? 'border-emerald-300 bg-emerald-50 text-emerald-700 shadow-lg shadow-emerald-100' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:shadow-md'"
+      >
+        <span aria-hidden="true" [class.animate-pulse]="voiceListening">{{ voiceListening ? '🎙️' : '🎤' }}</span>
+        <span>{{ voiceListening ? 'Stop Voice Commands' : 'Start Voice Commands' }}</span>
+      </button>
+      <p class="text-xs text-slate-600" *ngIf="voiceStatus">{{ voiceStatus }}</p>
+      <p class="text-xs text-slate-500" *ngIf="!voiceStatus && voiceSupported">Try: "play attention task".</p>
+      <p class="text-xs text-rose-600" *ngIf="!voiceSupported">Voice commands are not supported in this browser.</p>
+    </div>
+  </section>
+
+  <div *ngIf="error" class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 animate-shake">{{ error }}</div>
+  <div *ngIf="loading" class="text-center text-slate-500 py-10">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+    <p class="mt-3">Loading games...</p>
+  </div>
+  <div *ngIf="!loading && games.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-600">No games available right now.</div>
+
+  <div *ngIf="!loading && games.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <article *ngFor="let game of games; let i = index" 
+             class="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+             [style.animation-delay]="i * 0.1 + 's'">
+      <div class="h-36 bg-gradient-to-br relative overflow-hidden" [ngClass]="game.accent">
+        <div class="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition duration-300"></div>
+        <div class="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/10 group-hover:scale-150 transition duration-500"></div>
+        <div class="absolute top-2 left-2 w-3 h-3 bg-white/30 rounded-full animate-pulse"></div>
+        
+        <div class="flex items-center justify-between px-5 py-4 relative z-10">
+          <div class="text-5xl transform group-hover:scale-110 group-hover:rotate-6 transition duration-300">{{ game.icon }}</div>
+          <span class="rounded-full px-3 py-1 text-xs font-semibold text-white shadow-lg" [ngClass]="game.badge">{{ game.difficulty }}</span>
+        </div>
+      </div>
+      <div class="p-5">
+        <h3 class="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition duration-300">{{ game.name }}</h3>
+        <p class="text-sm text-slate-600 mt-2">{{ game.description }}</p>
+        <div class="mt-4 flex items-center justify-between text-xs font-semibold">
+          <span class="text-slate-500 flex items-center gap-1">
+            <span>⏱</span> {{ game.durationMinutes }} min
+          </span>
+          <span class="rounded-full bg-indigo-100 px-2 py-1 text-indigo-700">Adaptive: {{ game.recommendedDifficulty }}</span>
+        </div>
+        <button (click)="playGame(game)" 
+                class="mt-4 w-full rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-500 py-2.5 text-sm font-semibold text-white hover:from-indigo-700 hover:to-cyan-600 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-200">
+          Play Now ✨
+        </button>
+      </div>
+    </article>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <article class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center text-white text-xl shadow-lg">🎯</div>
+        <h3 class="text-lg font-bold text-slate-900">Daily Focus</h3>
+      </div>
+      <p class="text-sm text-slate-600">Complete {{ dailyTarget }} games today to unlock a bonus badge.</p>
+      <div class="mt-4 h-3 rounded-full bg-slate-200 overflow-hidden">
+        <div class="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 transition-all duration-700 ease-out" [style.width.%]="dailyProgressPercent"></div>
+      </div>
+      <p class="mt-2 text-xs text-slate-500">Progress: {{ todaySessions }} / {{ dailyTarget }}</p>
+    </article>
+
+    <article class="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-6 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white text-xl shadow-lg">🏆</div>
+        <h3 class="text-lg font-bold text-slate-900">Latest Badge</h3>
+      </div>
+      <div *ngIf="latestBadge" class="flex items-center gap-3 p-3 bg-white/60 rounded-xl">
+        <div class="text-4xl transform hover:scale-110 transition duration-300">{{ latestBadge.icon }}</div>
+        <div>
+          <p class="text-sm font-semibold text-slate-900">{{ latestBadge.title }}</p>
+          <p class="text-xs text-slate-600">{{ latestBadge.description }}</p>
+        </div>
+      </div>
+      <p *ngIf="!latestBadge" class="text-sm text-slate-600">Play a game to earn your first badge.</p>
+    </article>
+  </div>
 </div>
+
+<style>
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+</style>

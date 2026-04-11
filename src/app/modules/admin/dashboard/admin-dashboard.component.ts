@@ -165,6 +165,12 @@ export class AdminDashboardComponent implements OnInit {
     if (currentUser) {
       this.adminName = currentUser.name || 'Administrator';
     }
+
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.adminName = user.name || 'Administrator';
+      }
+    });
   }
 
   getRoleClass(role: string): string {

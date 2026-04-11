@@ -55,6 +55,30 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/games/patient-games.component').then(m => m.PatientGamesComponent)
       },
       {
+        path: 'games/memory-match',
+        loadComponent: () => import('./modules/patient/games/memory-match/memory-match.component').then(m => m.MemoryMatchComponent)
+      },
+      {
+        path: 'games/pattern-recognition',
+        loadComponent: () => import('./modules/patient/games/pattern-recognition/pattern-recognition.component').then(m => m.PatternRecognitionComponent)
+      },
+      {
+        path: 'games/word-recall',
+        loadComponent: () => import('./modules/patient/games/word-recall/word-recall.component').then(m => m.WordRecallComponent)
+      },
+      {
+        path: 'games/spatial-navigation',
+        loadComponent: () => import('./modules/patient/games/spatial-navigation/spatial-navigation.component').then(m => m.SpatialNavigationComponent)
+      },
+      {
+        path: 'games/attention-task',
+        loadComponent: () => import('./modules/patient/games/attention-task/attention-task.component').then(m => m.AttentionTaskComponent)
+      },
+      {
+        path: 'memory-wallet',
+        loadComponent: () => import('./modules/patient/memory-wallet/patient-memory-wallet.component').then(m => m.PatientMemoryWalletComponent)
+      },
+      {
         path: 'community',
         loadComponent: () => import('./modules/patient/community/patient-community.component').then(m => m.PatientCommunityComponent)
       },
@@ -65,6 +89,10 @@ export const routes: Routes = [
       {
         path: 'profile',
         loadComponent: () => import('./modules/patient/profile/patient-profile.component').then(m => m.PatientProfileComponent)
+      },
+      {
+        path: 'assessment',
+        loadComponent: () => import('./modules/patient/assessment/patient-assessment.component').then(m => m.PatientAssessmentComponent)
       }
     ]
   },
@@ -81,6 +109,11 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () => import('./modules/caregiver/dashboard/caregiver-dashboard.component').then(m => m.CaregiverDashboardComponent)
+      },
+      {
+
+        path: 'memory-items',
+        loadComponent: () => import('./modules/caregiver/memory-items/caregiver-memory-items.component').then(m => m.CaregiverMemoryItemsComponent)
       },
       {
         path: 'behaviors',
@@ -105,6 +138,15 @@ export const routes: Routes = [
       {
         path: 'medications',
         loadComponent: () => import('./modules/caregiver/medications/caregiver-medications.component').then(m => m.CaregiverMedicationsComponent)
+
+      },
+      {
+        path: 'cognitive-analytics',
+        loadComponent: () => import('./modules/caregiver/game-analytics/caregiver-game-analytics.component').then(m => m.CaregiverGameAnalyticsComponent)
+      },
+      {
+        path: 'cognitive-patient/:id',
+        loadComponent: () => import('./modules/doctor/patient-analytics/patient-analytics.component').then(m => m.PatientAnalyticsComponent)
       }
     ]
   },
@@ -157,6 +199,22 @@ export const routes: Routes = [
       {
         path: 'checklist',
         loadComponent: () => import('./modules/doctor/checklist/doctor-checklist.component').then(m => m.DoctorChecklistComponent)
+      },
+      {
+        path: 'assessments',
+        loadComponent: () => import('./modules/doctor/assessments/doctor-assessments.component').then(m => m.DoctorAssessmentsComponent)
+      },
+      {
+        path: 'assessments/:id',
+        loadComponent: () => import('./modules/doctor/assessments/doctor-assessment-result.component').then(m => m.DoctorAssessmentResultComponent)
+      },
+      {
+        path: 'cognitive-analytics',
+        loadComponent: () => import('./modules/doctor/game-analytics/doctor-game-analytics.component').then(m => m.DoctorGameAnalyticsComponent)
+      },
+      {
+        path: 'cognitive-patient/:id',
+        loadComponent: () => import('./modules/doctor/patient-analytics/patient-analytics.component').then(m => m.PatientAnalyticsComponent)
       }
     ]
   },

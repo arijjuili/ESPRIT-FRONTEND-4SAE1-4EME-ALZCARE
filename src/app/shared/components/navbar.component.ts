@@ -126,6 +126,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['patient']
     },
     {
+      label: 'Memory Wallet',
+      path: '/patient/memory-wallet',
+      icon: '🧠',
+      roles: ['patient']
+    },
+    {
       label: 'Community',
       path: '/patient/community',
       icon: 'ðŸ‘¥',
@@ -179,6 +185,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: 'ðŸ“…',
       roles: ['caregiver']
     },
+    {
+      label: 'Memory Items',
+      path: '/caregiver/memory-items',
+      icon: '🧠',
+      roles: ['caregiver']
+    },
+    {
+      label: 'Game Analytics',
+      path: '/caregiver/cognitive-analytics',
+      icon: '📈',
+      roles: ['caregiver']
+    },
     // Doctor routes
     {
       label: 'Dashboard',
@@ -213,6 +231,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Checklist',
       path: '/doctor/checklist',
       icon: 'ðŸ“‹',
+      roles: ['doctor']
+    },
+    {
+      label: 'Health Records',
+      path: '/doctor/assessments',
+      icon: '🧠',
+      roles: ['doctor']
+    },
+    {
+      label: 'Game Analytics',
+      path: '/doctor/cognitive-analytics',
+      icon: '📈',
       roles: ['doctor']
     },
     // Admin routes - 12 Axes Management

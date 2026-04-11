@@ -10,6 +10,21 @@
     </div>
   </div>
 
+  <div *ngIf="caregiverCheckInSuccessMessage" class="mb-6">
+    <div class="relative overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 p-5 shadow-lg">
+      <div class="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/50 blur-2xl"></div>
+      <div class="absolute -left-6 -bottom-8 h-24 w-24 rounded-full bg-white/40 blur-2xl"></div>
+      <div class="relative flex items-start gap-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-2xl">🫶</div>
+        <div>
+          <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">Caregiver Check-In Saved</p>
+          <p class="mt-1 text-base font-black text-slate-900">{{ caregiverCheckInSuccessMessage }}</p>
+          <p class="mt-1 text-sm text-slate-600">Confusion, memory, and notes were added to today&apos;s shared patient check-in.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Pending Invitations Section -->
   <div *ngIf="pendingInvites.length > 0" class="mb-6 sm:mb-8">
     <div class="bg-gradient-to-r from-violet-500 to-violet-600 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 text-white">
@@ -55,7 +70,7 @@
     </div>
   </div>
 
-  <!-- Alerts Section -->
+  <!-- Alerts Section 
   <div class="mb-6 sm:mb-8 space-y-2 sm:space-y-4">
     <app-alert-card 
       type="warning"
@@ -68,7 +83,7 @@
       title="Upcoming Appointment"
       message="Margaret has a cognitive assessment scheduled for tomorrow at 10:00 AM">
     </app-alert-card>
-  </div>
+  </div> -->
 
   <!-- Stats Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
@@ -171,13 +186,13 @@
                [class.border-rose-200]="assignment.role === CaregiverRole.EMERGENCY"
                [class.bg-rose-50]="assignment.role === CaregiverRole.EMERGENCY">
             
-            <!-- Patient Info Header -->
+                <!-- Patient Info Header -->
             <div class="flex justify-between items-start mb-3">
               <div>
                 <h3 class="font-bold text-gray-900 text-lg">
-                  {{ assignment.patientFirstName }} {{ assignment.patientLastName }}
+                  {{ getAssignmentPatientName(assignment) }}
                 </h3>
-                <p class="text-sm text-gray-600">Patient ID: {{ assignment.patientId }}</p>
+                <p class="text-sm text-gray-600">Assigned patient</p>
               </div>
               <!-- Role Badge -->
               <span class="inline-block px-3 py-1 rounded-full text-xs font-bold border"
@@ -201,6 +216,29 @@
                 <span>📝</span>
                 <span>Log Behavior</span>
               </button>
+              <button
+                *ngIf="!hasTodayCaregiverCheckIn(assignment.patientId)"
+                (click)="openDailyCheckInModal(assignment.patientId.toString(), getAssignmentPatientName(assignment))"
+                class="flex-1 min-w-[100px] px-3 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-medium transition flex items-center justify-center gap-1">
+                <span>🧠</span>
+                <span>Daily Check-In</span>
+              </button>
+              <button
+                *ngIf="hasTodayCaregiverCheckIn(assignment.patientId)"
+                (click)="viewTodayCheckIn(assignment.patientId)"
+                class="flex-1 min-w-[180px] rounded-lg border border-cyan-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-cyan-300 hover:bg-cyan-50">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="text-[11px] font-bold uppercase tracking-wide text-cyan-700">Today&apos;s Check-In</p>
+                  <span class="rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold text-cyan-700">Open</span>
+                </div>
+                
+                <p class="mt-2 text-xs"
+                   [ngClass]="hasPatientSubmittedToday(assignment.patientId) ? 'text-emerald-600' : 'text-amber-600'">
+                  {{ hasPatientSubmittedToday(assignment.patientId)
+                    ? ''
+                    : 'Patient has not submitted today yet.' }}
+                </p>
+              </button>
             </div>
 
             <div class="mt-4">
@@ -217,6 +255,15 @@
                 (requestCreated)="handleAppointmentRequestCreated(assignment.patientId, $event)">
               </app-appointment-request-card>
             </div>
+
+            <button
+              *ngIf="hasMissedCheckIns(assignment.patientId)"
+              type="button"
+              (click)="openMissedCheckInCalendar(assignment.patientId)"
+              class="mt-3 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-50">
+              <span>📅</span>
+              <span>Missed {{ getMissedCheckInCount(assignment.patientId) }} daily check-in{{ getMissedCheckInCount(assignment.patientId) === 1 ? '' : 's' }}</span>
+            </button>
           </div>
         </div>
         
@@ -224,60 +271,6 @@
           <span class="text-5xl mb-3 block">👥</span>
           <h3 class="text-lg font-semibold text-gray-900 mb-1">No Patient Assignments</h3>
           <p class="text-gray-600 text-sm">You don't have any active patient assignments yet.</p>
-        </div>
-      </div>
-
-      <!-- Patients Under Care (Legacy) -->
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-        <div class="flex justify-between items-center mb-4 sm:mb-6">
-          <h2 class="text-lg sm:text-2xl font-bold text-gray-900">🏥 Patients Under Your Care</h2>
-        </div>
-        
-        <div *ngIf="patients.length > 0" class="space-y-3 sm:space-y-4">
-          <div *ngFor="let patient of patients" class="border-l-4 border-primary-500 bg-gradient-to-r from-primary-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-6 hover:shadow-lg transition">
-            <div class="flex justify-between items-start mb-3 sm:mb-4 gap-2">
-              <div class="min-w-0 flex-1">
-                <p class="text-lg sm:text-2xl font-bold text-gray-900 truncate">{{ patient.firstName }} {{ patient.lastName }}</p>
-                <p class="text-gray-600 text-xs sm:text-sm mt-1 truncate">{{ patient.gender }} • {{ patient.dateOfBirth | date:'mediumDate' }}</p>
-                
-                <!-- Show role badge if available -->
-                <span *ngIf="getAssignmentForPatient(patient.id) as assignment"
-                      class="inline-block mt-2 px-2 py-0.5 rounded-full text-xs font-bold border"
-                      [class]="getRoleBadgeClass(assignment.role)">
-                  {{ getRoleLabel(assignment.role) }}
-                </span>
-              </div>
-              <div class="flex flex-col gap-2 flex-shrink-0">
-                <span class="inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-bold bg-success bg-opacity-20 text-success text-center">
-                  ✓ Active
-                </span>
-                <button 
-                  (click)="openBehaviorLogModal(patient.id)"
-                  class="text-xs px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-medium transition">
-                  Log Behavior
-                </button>
-              </div>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Phone</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.phoneNumber || 'N/A' }}</p>
-              </div>
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Stage</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.alzheimerStage || 'N/A' }}</p>
-              </div>
-              <div class="bg-white rounded p-2 sm:p-3 min-w-0">
-                <p class="text-gray-600 text-xs font-bold">Emergency</p>
-                <p class="font-semibold text-gray-800 truncate text-xs sm:text-sm">{{ patient.emergencyContactName || 'N/A' }}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8">
-          No patients assigned
         </div>
       </div>
 
@@ -415,6 +408,343 @@
             <span class="font-bold text-blue-600">28</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showMissedCheckInAlertModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" (click)="closeMissedCheckInAlert()">
+  <div class="relative w-full max-w-md overflow-hidden rounded-3xl border border-rose-200 bg-white shadow-2xl" (click)="$event.stopPropagation()">
+    <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-rose-200/50 blur-3xl"></div>
+    <div class="absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-amber-200/40 blur-3xl"></div>
+
+    <div class="relative border-b border-rose-100 bg-gradient-to-r from-rose-500 via-orange-500 to-amber-400 px-6 py-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/90">Missed Daily Check-In</p>
+          <h2 class="mt-1 text-2xl font-black text-white">Caregiver Action Needed</h2>
+        </div>
+        <button
+          type="button"
+          (click)="closeMissedCheckInAlert()"
+          class="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30"
+          aria-label="Close alert">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <div class="relative px-6 py-6">
+      <div class="mb-5 flex items-start gap-4 rounded-2xl border border-rose-100 bg-rose-50 p-4">
+        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm">🚨</div>
+        <div>
+          <p class="text-sm font-bold text-rose-900">{{ getMissedAlertPatientName() }}</p>
+          <p class="mt-1 text-sm leading-6 text-slate-700">
+            did not complete the daily check-in for
+            <span class="font-extrabold text-rose-700">{{ getMissedAlertDays() }}</span>
+            day{{ getMissedAlertDays() === 1 ? '' : 's' }}. Please take action.
+          </p>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-slate-50 p-4">
+        <p class="text-sm font-semibold text-slate-700">
+          Review the missed dates, follow up with the patient, and decide if you need to log a behavior or escalate to the care team.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-3 border-t border-slate-200 px-6 py-4">
+      <button
+        type="button"
+        (click)="closeMissedCheckInAlert()"
+        class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
+        Dismiss
+      </button>
+      <button
+        type="button"
+        (click)="viewMissedCheckInAlertCalendar()"
+        class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700">
+        View Missed Days
+      </button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showMissedCheckInCalendarModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeMissedCheckInCalendar()">
+  <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden" (click)="$event.stopPropagation()">
+    <div class="bg-gradient-to-r from-rose-600 to-orange-500 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-white">Missed Daily Check-Ins</h2>
+          <p class="text-rose-100">{{ getMissedCalendarTitle() }}</p>
+        </div>
+        <button (click)="closeMissedCheckInCalendar()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="p-6">
+
+      <div class="mb-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <button
+          type="button"
+          (click)="goToPreviousMissedCalendarMonth()"
+          class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+          aria-label="Previous month">
+          ←
+        </button>
+        <div class="text-center">
+          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Viewing Month</p>
+          <p class="text-lg font-black text-slate-900">{{ getMissedCalendarMonthLabel() }}</p>
+        </div>
+        <button
+          type="button"
+          (click)="goToNextMissedCalendarMonth()"
+          class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900"
+          aria-label="Next month">
+          →
+        </button>
+      </div>
+
+      <div class="grid grid-cols-7 gap-2 text-center text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">
+        <span>Sun</span>
+        <span>Mon</span>
+        <span>Tue</span>
+        <span>Wed</span>
+        <span>Thu</span>
+        <span>Fri</span>
+        <span>Sat</span>
+      </div>
+
+      <div class="space-y-2">
+        <div *ngFor="let week of getMissedCalendarWeeks()" class="grid grid-cols-7 gap-2">
+          <div
+            *ngFor="let day of week"
+            class="h-12 rounded-xl border flex items-center justify-center text-sm font-semibold"
+            [ngClass]="day.isMissed
+              ? 'border-rose-300 bg-rose-100 text-rose-700'
+              : !day.isCurrentMonth
+                ? 'border-slate-100 bg-slate-50 text-slate-300'
+                : 'border-slate-100 bg-slate-50 text-slate-500'">
+            {{ day.date | date:'d' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 flex items-center gap-4 text-xs text-slate-500">
+        <div class="flex items-center gap-2">
+          <span class="h-3 w-3 rounded-full bg-rose-200 border border-rose-300"></span>
+          <span>Missed day</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showTodayCheckInModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" (click)="closeTodayCheckInModal()">
+  <div class="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl" (click)="$event.stopPropagation()">
+    <div class="bg-gradient-to-r from-violet-600 to-purple-600 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-white">Daily Check-in</h2>
+          <p class="text-violet-100">{{ selectedTodayCheckInForView ? (selectedTodayCheckInForView.completedAt || selectedTodayCheckInForView.date | date:'mediumDate') : '' }}</p>
+        </div>
+        <button (click)="closeTodayCheckInModal()" class="p-2 rounded-full bg-white/20 hover:bg-white/30 text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[60vh]">
+      <div class="flex items-center gap-4 mb-6 p-4 bg-violet-50 rounded-2xl">
+        <div class="w-14 h-14 rounded-full bg-gradient-to-br from-violet-200 to-purple-200 flex items-center justify-center text-2xl">
+          👤
+        </div>
+        <div>
+          <p class="text-sm text-violet-600 uppercase tracking-wide">Patient</p>
+          <p class="text-xl font-bold text-violet-900">{{ getPatientName(selectedTodayCheckInForView?.patientId || '') }}</p>
+        </div>
+      </div>
+
+      <div *ngIf="!hasPatientMetrics(selectedTodayCheckInForView)" class="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <p class="text-sm font-semibold text-amber-800">Patient has not submitted today&apos;s mood, sleep, and appetite check-in yet.</p>
+      </div>
+
+      <h3 class="text-lg font-bold text-slate-900 mb-4">Wellness Metrics</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+        <div class="p-4 bg-violet-50 rounded-2xl text-center">
+          <div class="text-3xl mb-2">😊</div>
+          <p class="text-xs text-violet-600 uppercase">Mood</p>
+          <p class="text-2xl font-bold text-violet-700">{{ selectedTodayCheckInForView?.mood ?? '—' }}<span class="text-sm text-violet-400">/5</span></p>
+        </div>
+        <div class="p-4 bg-blue-50 rounded-2xl text-center">
+          <div class="text-3xl mb-2">😴</div>
+          <p class="text-xs text-blue-600 uppercase">Sleep</p>
+          <p class="text-2xl font-bold text-blue-700">{{ selectedTodayCheckInForView?.sleep ?? '—' }}<span class="text-sm text-blue-400">/5</span></p>
+        </div>
+        <div class="p-4 bg-amber-50 rounded-2xl text-center">
+          <div class="text-3xl mb-2">🍽️</div>
+          <p class="text-xs text-amber-600 uppercase">Appetite</p>
+          <p class="text-2xl font-bold text-amber-700">{{ selectedTodayCheckInForView?.appetite ?? '—' }}<span class="text-sm text-amber-400">/5</span></p>
+        </div>
+        <div class="p-4 bg-rose-50 rounded-2xl text-center">
+          <div class="text-3xl mb-2">🧩</div>
+          <p class="text-xs text-rose-600 uppercase">Confusion</p>
+          <p class="text-2xl font-bold text-rose-700">{{ selectedTodayCheckInForView?.confusion ?? '—' }}<span class="text-sm text-rose-400">/5</span></p>
+        </div>
+        <div class="p-4 bg-cyan-50 rounded-2xl text-center">
+          <div class="text-3xl mb-2">🧠</div>
+          <p class="text-xs text-cyan-600 uppercase">Memory</p>
+          <p class="text-2xl font-bold text-cyan-700">{{ selectedTodayCheckInForView?.memory ?? '—' }}<span class="text-sm text-cyan-400">/5</span></p>
+        </div>
+      </div>
+
+      <div *ngIf="selectedTodayCheckInForView?.checkInNotes" class="pt-4 border-t border-slate-200">
+        <h3 class="text-lg font-bold text-slate-900 mb-2">Caregiver Check-In Notes</h3>
+        <p class="text-sm text-slate-600 bg-slate-50 p-4 rounded-xl">{{ selectedTodayCheckInForView?.checkInNotes }}</p>
+      </div>
+    </div>
+
+    <div class="p-6 border-t border-slate-200 flex justify-end gap-3">
+      <button (click)="closeTodayCheckInModal()" class="px-6 py-2 rounded-xl bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showDailyCheckInModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+  <div
+    class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
+    (touchstart)="handleCaregiverCheckInTouchStart($event)"
+    (touchend)="handleCaregiverCheckInTouchEnd($event)">
+    <div class="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-primary-50"></div>
+    <div class="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-primary-200/30 blur-2xl animate-pulse"></div>
+    <div class="absolute -bottom-16 -left-16 h-32 w-32 rounded-full bg-primary-200/30 blur-2xl animate-pulse" style="animation-delay: 1s;"></div>
+
+    <div class="relative z-10">
+      <div class="px-8 py-6 border-b border-primary-100 flex items-center justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-primary-600 font-extrabold">Caregiver Daily Check-In</p>
+          <h3 class="text-xl font-black text-gray-900 mt-1">{{ caregiverCheckInPatientName }}</h3>
+          <p class="mt-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-100 via-cyan-100 to-sky-100 px-3 py-1 text-xs font-bold text-emerald-700 shadow-sm">
+            <span>🌿</span>
+            <span>Save your observation for today.</span>
+          </p>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+         <!-- Close button -->
+         <button
+           type="button"
+           (click)="closeDailyCheckInModal()"
+           class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
+           title="Close">
+            ✕
+          </button>
+
+         <!-- Step indicators -->
+          <div class="flex gap-1">
+           <span *ngFor="let s of [1,2,3]"
+            class="w-2 h-2 rounded-full transition-all duration-300"
+            [ngClass]="caregiverCheckInStepIndex + 1 >= s ? 'bg-primary-500 scale-110' : 'bg-gray-200'">
+           </span>
+         </div>
+       </div>
+      </div>
+
+      <div class="h-1 bg-gray-100">
+        <div class="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full transition-all duration-500"
+             [style.width.%]="((caregiverCheckInStepIndex + 1) / getCaregiverCheckInStepCount()) * 100">
+        </div>
+      </div>
+
+      <div class="px-8 py-8">
+        <div *ngIf="caregiverCheckInStepIndex === 0" class="animate-fade-in">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">🧩</div>
+            <p class="text-gray-700 font-semibold text-lg">How confused did the patient seem today?</p>
+            <p class="text-xs text-gray-500 mt-1">1 = very clear, 5 = very confused</p>
+          </div>
+          <div class="flex flex-wrap justify-center gap-3">
+            <button
+              *ngFor="let value of [1,2,3,4,5]"
+              type="button"
+              class="h-14 w-14 rounded-2xl border-2 text-xl font-bold transition-all duration-300 hover:scale-110"
+              [ngClass]="caregiverCheckInAnswers.confusion === value
+                ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-lg shadow-primary-200 scale-110'
+                : 'border-gray-200 text-gray-600 hover:border-primary-300 hover:bg-primary-50'"
+              (click)="setCaregiverCheckInAnswer('confusion', value); autoAdvanceCaregiverCheckIn()">
+              {{ value }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="caregiverCheckInStepIndex === 1" class="animate-fade-in">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">🧠</div>
+            <p class="text-gray-700 font-semibold text-lg">How was the patient&apos;s memory today?</p>
+            <p class="text-xs text-gray-500 mt-1">1 = very difficult, 5 = very sharp</p>
+          </div>
+          <div class="flex flex-wrap justify-center gap-3">
+            <button
+              *ngFor="let value of [1,2,3,4,5]"
+              type="button"
+              class="h-14 w-14 rounded-2xl border-2 text-xl font-bold transition-all duration-300 hover:scale-110"
+              [ngClass]="caregiverCheckInAnswers.memory === value
+                ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white border-primary-500 shadow-lg shadow-primary-200 scale-110'
+                : 'border-gray-200 text-gray-600 hover:border-primary-300 hover:bg-primary-50'"
+              (click)="setCaregiverCheckInAnswer('memory', value); autoAdvanceCaregiverCheckIn()">
+              {{ value }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="caregiverCheckInStepIndex === 2" class="animate-fade-in">
+          <div class="text-center mb-6">
+            <div class="text-5xl mb-3">💬</div>
+            <p class="text-gray-700 font-semibold text-lg">Optional notes</p>
+            <p class="text-xs text-gray-500 mt-1">Anything you noticed that the care team should know</p>
+          </div>
+          <textarea
+            [ngModel]="caregiverCheckInAnswers.notes"
+            (ngModelChange)="setCaregiverCheckInNotes($event)"
+            rows="5"
+            maxlength="400"
+            placeholder="Examples: more forgetful this morning, repeated questions, seemed disoriented after lunch..."
+            class="w-full rounded-2xl border border-primary-100 bg-white/90 px-4 py-3 text-sm text-slate-700 shadow-inner outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-100"
+          ></textarea>
+          <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Optional</span>
+            <span>{{ caregiverCheckInAnswers.notes.length }}/400</span>
+          </div>
+        </div>
+
+        <p *ngIf="caregiverCheckInError" class="text-sm text-red-500 mt-4 text-center font-medium">{{ caregiverCheckInError }}</p>
+      </div>
+
+      <div class="px-8 py-6 border-t border-primary-100 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          (click)="prevCaregiverCheckInStep()"
+          [disabled]="caregiverCheckInStepIndex === 0"
+          [class.opacity-50]="caregiverCheckInStepIndex === 0"
+          class="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-105 flex items-center gap-2">
+          ← Back
+        </button>
+        <button
+          type="button"
+          (click)="nextCaregiverCheckInStep()"
+          [disabled]="!canAdvanceCaregiverCheckIn()"
+          [class.opacity-50]="!canAdvanceCaregiverCheckIn()"
+          class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold hover:from-primary-600 hover:to-primary-700 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary-200 flex items-center gap-2">
+          {{ getCaregiverCheckInPrimaryButtonLabel() }}
+        </button>
       </div>
     </div>
   </div>
