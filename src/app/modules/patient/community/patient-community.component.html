@@ -1,29 +1,19 @@
 <div class="p-8">
-  <!-- Header -->
-  <div class="mb-6">
-    <h1 class="text-4xl font-bold text-gray-900 mb-2">👥 Community</h1>
-    <p class="text-gray-600">Connect, share, and support one another</p>
-  </div>
+  <h1 class="text-4xl font-bold text-gray-900 mb-2">👥 Community</h1>
+  <p class="text-gray-600 mb-8">Connect, share, and support one another</p>
 
-  <!-- Main Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Main Feed -->
     <div class="lg:col-span-2">
-      <!-- Create Post Input/Trigger -->
+      <!-- Post Input -->
       <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
         <div class="flex gap-4">
           <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg">👤</div>
           <div class="flex-1">
-            <button 
-              (click)="toggleCreateForm()"
-              class="w-full px-4 py-3 border border-gray-200 rounded-lg text-left text-gray-400 hover:border-gray-300 hover:bg-gray-50 transition focus:outline-none focus:ring-2 focus:ring-primary-500">
-              Share your thoughts...
-            </button>
+            <input type="text" placeholder="Share your thoughts..." class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
             <div class="flex gap-2 mt-3">
-              <button 
-                (click)="toggleCreateForm()"
-                class="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
-                New Post
+              <button class="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
+                Share
               </button>
               <button class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                 📎
@@ -33,179 +23,26 @@
         </div>
       </div>
 
-      <!-- Create Post Form -->
-      <div *ngIf="showCreateForm" class="bg-white rounded-2xl shadow-md p-6 mb-6 border-2 border-primary-200">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">Create New Post</h3>
-        
-        <form [formGroup]="postForm" (ngSubmit)="createPost()" class="space-y-4">
-          <!-- Title Field -->
-          <div>
-            <label for="title" class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
-            <input 
-              type="text" 
-              id="title"
-              formControlName="title"
-              placeholder="Enter post title..."
-              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              [ngClass]="{'border-red-300': postForm.get('title')?.invalid && postForm.get('title')?.touched}">
-            
-            <!-- Title Error Messages -->
-            <div *ngIf="postForm.get('title')?.invalid && postForm.get('title')?.touched" class="mt-2 text-sm text-red-600">
-              <div *ngIf="postForm.get('title')?.errors?.['required']">Title is required</div>
-              <div *ngIf="postForm.get('title')?.errors?.['minlength']">Title must be at least 5 characters</div>
-              <div *ngIf="postForm.get('title')?.errors?.['maxlength']">Title must not exceed 200 characters</div>
-            </div>
-          </div>
-
-          <!-- Category Field -->
-          <div>
-            <label for="category" class="block text-sm font-semibold text-gray-700 mb-2">Category *</label>
-            <select 
-              id="category"
-              formControlName="category"
-              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              [ngClass]="{'border-red-300': postForm.get('category')?.invalid && postForm.get('category')?.touched}">
-              <option value="" disabled>Select a category...</option>
-              <option *ngFor="let cat of categories" [value]="cat.value">
-                {{ cat.icon }} {{ cat.label }}
-              </option>
-            </select>
-            
-            <!-- Category Error Messages -->
-            <div *ngIf="postForm.get('category')?.invalid && postForm.get('category')?.touched" class="mt-2 text-sm text-red-600">
-              <div *ngIf="postForm.get('category')?.errors?.['required']">Please select a category</div>
-            </div>
-          </div>
-
-          <!-- Content Field -->
-          <div>
-            <label for="content" class="block text-sm font-semibold text-gray-700 mb-2">Content *</label>
-            <textarea 
-              id="content"
-              formControlName="content"
-              placeholder="Share your thoughts, experiences, or questions..."
-              rows="5"
-              class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-              [ngClass]="{'border-red-300': postForm.get('content')?.invalid && postForm.get('content')?.touched}"></textarea>
-            
-            <!-- Content Error Messages -->
-            <div *ngIf="postForm.get('content')?.invalid && postForm.get('content')?.touched" class="mt-2 text-sm text-red-600">
-              <div *ngIf="postForm.get('content')?.errors?.['required']">Content is required</div>
-              <div *ngIf="postForm.get('content')?.errors?.['minlength']">Content must be at least 10 characters</div>
-            </div>
-          </div>
-
-          <!-- Form Actions -->
-          <div class="flex gap-3 pt-2">
-            <button 
-              type="submit"
-              [disabled]="postForm.invalid || isSubmitting"
-              class="flex-1 bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
-              <span *ngIf="!isSubmitting">Create Post</span>
-              <span *ngIf="isSubmitting" class="flex items-center justify-center">
-                <svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Creating...
-              </span>
-            </button>
-            <button 
-              type="button"
-              (click)="cancelCreatePost()"
-              class="px-6 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition font-semibold">
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Loading State -->
-      <div *ngIf="isLoading" class="bg-white rounded-2xl shadow-md p-12 text-center">
-        <div class="inline-flex items-center justify-center">
-          <svg class="animate-spin h-12 w-12 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </div>
-        <p class="mt-4 text-gray-600">Loading community posts...</p>
-      </div>
-
-      <!-- Error State -->
-      <div *ngIf="error && !isLoading" class="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-        <div class="text-red-500 text-5xl mb-4">⚠️</div>
-        <h3 class="text-lg font-bold text-red-900 mb-2">Unable to Load Posts</h3>
-        <p class="text-red-700 mb-6">{{ error }}</p>
-        <button 
-          (click)="retryLoadPosts()"
-          class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold">
-          Try Again
-        </button>
-      </div>
-
       <!-- Posts Feed -->
-      <div *ngIf="!isLoading && !error" class="space-y-6">
-        <!-- Empty State -->
-        <div *ngIf="posts.length === 0" class="bg-white rounded-2xl shadow-md p-12 text-center">
-          <div class="text-gray-300 text-6xl mb-4">💬</div>
-          <h3 class="text-xl font-bold text-gray-900 mb-2">No Posts Yet</h3>
-          <p class="text-gray-600 mb-6">Be the first to share something with the community!</p>
-          <button 
-            (click)="toggleCreateForm()"
-            class="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-semibold">
-            Create First Post
-          </button>
-        </div>
-
-        <!-- Posts List -->
+      <div class="space-y-6">
         <div *ngFor="let post of posts" class="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
-          <!-- Post Header -->
           <div class="flex items-start justify-between mb-4">
             <div class="flex gap-4 flex-1">
-              <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
-                👤
-              </div>
+              <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">{{ post.avatar }}</div>
               <div>
-                <!-- Category Badge -->
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-sm">{{ getCategoryIcon(post.category) }}</span>
-                  <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold">
-                    {{ getCategoryLabel(post.category) }}
-                  </span>
-                </div>
-                <p class="font-bold text-gray-900">{{ post.title }}</p>
-                <p class="text-sm text-gray-700 mb-1">{{ getAuthorName(post) }}</p>
-                <p class="text-gray-500 text-sm">{{ formatDate(post.creationDate) }}</p>
+                <p class="font-bold text-gray-900">{{ post.author }}</p>
+                <p class="text-gray-500 text-sm">{{ post.time }}</p>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <!-- Author Badge -->
-              <span *ngIf="isPostAuthor(post)" class="px-2 py-1 bg-success bg-opacity-20 text-success rounded-full text-xs font-semibold">
-                You
-              </span>
-              <button class="text-gray-400 hover:text-gray-600 p-1">⋯</button>
-            </div>
+            <button class="text-gray-400 hover:text-gray-600">⋯</button>
           </div>
 
-          <!-- Post Content -->
-          <p class="text-gray-800 mb-4 leading-relaxed">{{ post.content }}</p>
+          <p class="text-gray-800 mb-4">{{ post.content }}</p>
 
-          <!-- Post Actions -->
-          <div class="flex gap-4 text-gray-600 text-sm border-t border-gray-100 pt-4">
-            <button 
-              (click)="likePost(post.id)"
-              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50">
-              ❤️ <span>{{ post.likeCount }}</span>
-            </button>
-            <button 
-              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50">
-              💬 <span>{{ post.commentCount }}</span>
-            </button>
-            <button 
-              (click)="viewPost(post.id)"
-              class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50 ml-auto">
-              👁️ View Post
-            </button>
+          <div class="flex gap-4 text-gray-600 text-sm">
+            <button class="flex items-center gap-2 hover:text-primary-600 transition">❤️ {{ post.likes }}</button>
+            <button class="flex items-center gap-2 hover:text-primary-600 transition">💬 {{ post.comments }}</button>
+            <button class="flex items-center gap-2 hover:text-primary-600 transition">↗️ Share</button>
           </div>
         </div>
       </div>

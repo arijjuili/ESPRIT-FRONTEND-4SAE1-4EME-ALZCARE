@@ -9,86 +9,52 @@ A comprehensive care management platform designed to support patients with Alzhe
 - **Medications**: Organized prescription management and schedules
 - **Daily Activities**: Task tracking and activity logs
 - **Brain Games**: Cognitive exercises for mental stimulation
-- **Community Forum**: Discussion platform with post creation, comments, likes, and categories (Advice, Support, Resources, Success Stories, Questions)
+- **Community**: Connect with other patients for support
 - **Profile**: Personal health information management
 
 ### Caregiver Dashboard
-- **Dashboard**: Overview of assigned patients and key metrics
-  - Quick access "Log Behavior" button with patient pre-selection
-- **Behavior Tracking**: Log and monitor patient behaviors and incidents
-  - Behavior log form with **image upload** (drag-drop, gallery, camera)
-  - Behavior log list for reviewing history with photo thumbnails
-  - Full-screen lightbox/slideshow for viewing attached images
-  - Keyboard navigation (arrows, escape) in lightbox
-  - Patient-specific behavior tracking
+- **Patient Management**: Monitor multiple patients' health
+- **Task Management**: Assign and track care tasks
+- **Care Schedule**: Calendar view of care activities
+- **Patient List**: Quick access to patient information
 
-### Doctor Dashboard
-- **Dashboard**: Overview of patient cases *(Other features: Patient Records, Schedule Management - Not Implemented)*
-
-### Admin Dashboard
-- **Dashboard**: System overview and key metrics
-- **Medical Records**: Access and manage medical records
-- **Caregivers Management**: Manage caregiver accounts
-- **Interactive Features**: Interactive tools and features
-- **Community Management**: Moderate community content
-- **User Management**: Manage system users and roles
+### Doctor & Admin Dashboards
+- **Patient Records**: Access and manage medical records
+- **Schedule Management**: Appointment and consultation booking
+- **Teleconsultation**: Online video consultations via Jitsi integration
+  - Doctors can create ONLINE or ONSITE appointments
+  - Automatic Jitsi meeting link generation for confirmed online appointments
+  - One-click join meeting for patients and caregivers
+  - Copy meeting link functionality for doctors
+- **User Management** (Admin): Manage system users and roles
 - **Analytics**: Monitor system-wide metrics
-- **Settings**: System configuration
-- **Schedule Management**: Create and manage notification schedules
-
-### Shared Features
-- **Notification System**: Real-time notifications with polling
-  - Notification bell in navbar
-  - Notification list page (sorted latest → oldest)
-  - Toast notifications
-  - "Return to Dashboard" button on notification page
-- **Safety Alerts**: Safety alert management system
-- **Landing Page**: Public landing page for the application
-- **Dashboard Redirect**: Unified `/dashboard` route that redirects to role-appropriate dashboard
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: Angular 18+ (Standalone Components)
 - **Styling**: Tailwind CSS
 - **Language**: TypeScript
-- **Reactive Programming**: RxJS
-- **Authentication**: Keycloak OAuth2
 - **Build Tool**: Angular CLI
 - **Version Control**: Git
-
-## 🔧 Backend Services
-
-| Service | Port | Status |
-|---------|------|--------|
-| Identity Service | 8001 | ✅ Active |
-| Safety Alert Engine | 8003 | ✅ Active |
-| Notification Service | 8004 | ✅ Active |
-| Community Social | 8009 | ✅ Active |
 
 ## 📦 Project Structure
 
 ```
 src/
 ├── app/
-│   ├── core/              # Services, guards, interceptors, models
-│   │   ├── guards/        # Auth guards
-│   │   ├── interceptors/  # HTTP interceptors (auth)
-│   │   ├── models/        # Data models (user, notification, safety-alert, etc.)
-│   │   └── services/      # Core services (auth, api, notification, etc.)
-│   ├── modules/           # Feature modules
-│   │   ├── auth/          # Login component
-│   │   ├── landing/       # Landing page
-│   │   ├── patient/       # Patient dashboard, activities, medications, games, community, profile
-│   │   ├── caregiver/     # Caregiver dashboard, behavior tracking
-│   │   ├── doctor/        # Doctor dashboard *(limited features)*
-│   │   └── admin/         # Admin dashboard, medical, users, schedules, settings, etc.
-│   ├── shared/            # Shared components
-│   │   └── components/    # Navbar, sidebars, cards, notifications, toast, etc.
-│   ├── app.component.*    # Root component
-│   └── app.routes.ts      # Main routing configuration
+│   ├── core/              # Services, guards, interceptors
+│   │   ├── services/
+│   │   │   └── medical-followup.service.ts  # Appointments & teleconsultation API
+│   │   └── models/
+│   │       └── medical-followup.model.ts    # Appointment, AppointmentMode, etc.
+│   ├── modules/           # Feature modules (patient, caregiver, doctor, admin)
+│   │   ├── doctor/appointments/             # Doctor appointment management
+│   │   ├── patient/dashboard/               # Patient dashboard with teleconsultation
+│   │   └── caregiver/dashboard/             # Caregiver dashboard with appointments
+│   ├── shared/            # Shared components (navbar, sidebar, cards)
+│   └── models/            # Data models
 ├── assets/                # Images, icons, static files
-├── environments/          # Environment configurations
-└── styles.css             # Global styles and Tailwind imports
+└── styles/                # Global styles and Tailwind config
 ```
 
 ## 🚀 Getting Started
@@ -122,63 +88,140 @@ ng build --configuration production
 
 ## 🔐 Authentication
 
-The app supports role-based access control with **automatic token refresh** (no more 5-minute logout interruptions):
+The app supports role-based access control:
 - **Patient**: View own health data and activities
-- **Caregiver**: Manage assigned patients, track behaviors
-- **Doctor**: Access dashboard *(full medical records - Not Implemented)*
+- **Caregiver**: Manage assigned patients
+- **Doctor**: Access medical records and consultations
 - **Admin**: System administration and user management
 
-Authentication is handled via Keycloak OAuth2 with silent token refresh for seamless user experience.
+## 📹 Teleconsultation Module
+
+The teleconsultation feature enables secure online video consultations between doctors and patients using Jitsi Meet.
+
+### Jitsi Teleconsultation API (How It Works)
+
+This project does **not** host Jitsi itself. We generate a **Jitsi room URL** in the backend and store it on the appointment.
+
+**Where the link lives**
+- Backend persists the link in `appointment.meetingUrl` (DB column `meeting_url`).
+- Frontend reads `meetingUrl` (and also accepts `meetingLink` for backward compatibility).
+
+**When the link is generated**
+- Only for appointments with:
+  - `mode = ONLINE`
+  - `status = CONFIRMED`
+- The backend generates a unique room name and builds the URL as:
+  - `${JITSI_BASE_URL}/${roomName}` (default base: `https://meet.jit.si`)
+
+**Backend endpoints used for teleconsultation**
+All routes are under the medical-followup microservice (aka `medical-followup-ms` / `medical-management` service):
+
+```http
+PATCH /api/v1/appointments/{id}/status?status=CONFIRMED
+  - Confirms an appointment.
+  - For ONLINE appointments, the backend generates & persists `meetingUrl`.
+
+GET /api/v1/appointments/{id}
+  - Returns the appointment details (including `meetingUrl` when available).
+
+GET /api/v1/appointments/{id}/teleconsultation/link?userId={patientOrDoctorId}
+  - Returns the meeting link payload.
+  - Response may include `meetingUrl` and/or `meetingLink`.
+```
+
+Optional (doctor-only) endpoint (if enabled in your running backend):
+
+```http
+POST /api/v1/appointments/{id}/teleconsultation/regenerate?doctorId={doctorId}
+  - Forces a new link to be generated and persisted.
+```
+
+**Backend configuration**
+These are defined in `medical-followup-ms` config:
+
+```text
+JITSI_BASE_URL=https://meet.jit.si
+TELECONSULTATION_ROOM_PREFIX=alzcare
+```
+
+**Frontend integration points**
+- API client: `src/app/core/services/medical-followup.service.ts`
+- Doctor UI: `src/app/modules/doctor/appointments/doctor-appointments.component.ts`
+- Patient UI: `src/app/modules/patient/appointments/patient-appointments.component.ts`
+
+### Features
+
+| Feature | Doctor | Patient | Caregiver |
+|---------|--------|---------|-----------|
+| Create ONLINE appointment | ✅ | ❌ | ❌ |
+| View mode badges (ONLINE/ONSITE) | ✅ | ✅ | ✅ |
+| Confirm appointment | ✅ | ❌ | ❌ |
+| Auto-generate Jitsi link | ✅ (backend) | - | - |
+| Copy meeting link | ✅ | ❌ | ❌ |
+| Join meeting | ✅ | ✅ | ✅ |
+| View meeting status | ✅ | ✅ | ✅ |
+
+### Appointment Flow
+
+1. **Doctor** creates an appointment with mode `ONLINE` or `ONSITE`
+2. **Patient/Caregiver** sees the appointment with status `REQUESTED`
+3. **Doctor** confirms the ONLINE appointment
+4. **Backend** automatically generates a unique Jitsi meeting URL
+5. **Patient/Caregiver** sees "✅ Ready to join" with a "Join Meeting" button
+6. All participants click "Join Meeting" to open Jitsi in a new tab
+
+### Backend Integration
+
+The frontend communicates with the medical-followup-ms microservice:
+
+```typescript
+// Key API endpoints used
+POST   /appointments                    // Create appointment
+PATCH  /appointments/{id}/status        // Confirm/Cancel/Complete
+GET    /appointments/{id}               // Get appointment details
+GET    /appointments?patientId=...      // List patient appointments
+```
+
+### Data Models
+
+```typescript
+enum AppointmentMode {
+  ONSITE = 'ONSITE',  // In-person consultation
+  ONLINE = 'ONLINE'   // Video consultation
+}
+
+enum AppointmentStatus {
+  REQUESTED = 'REQUESTED',
+  CONFIRMED = 'CONFIRMED',
+  CANCELLED = 'CANCELLED',
+  COMPLETED = 'COMPLETED'
+}
+
+interface Appointment {
+  id: number;
+  patientId: string;
+  doctorId: number;
+  mode: AppointmentMode;      // ONLINE or ONSITE
+  status: AppointmentStatus;
+  meetingUrl?: string;        // Jitsi link (auto-generated for confirmed ONLINE)
+  startAt: string;
+  endAt: string;
+  // ... other fields
+}
+```
 
 ## 📝 Latest Updates
 
-### Session 27: 2026-03-02 (Community/Forum Integration)
-- ✅ **Complete Community/Forum System** - Full social platform for patient engagement
-  - Discussion threads with categories (Advice, Support, Resources, Success Stories, Questions)
-  - Post creation with rich text content
-  - Comment system with threaded replies
-  - Like/unlike functionality with real-time counts
-  - Post detail view with full comment thread
-  - Author badges ("You" indicator for own posts/comments)
-  - Category filtering and navigation
-  - Community guidelines and related categories sidebar
-  - Integration with community-social backend service (port 8009)
-  - Responsive design with loading states and error handling
-  - Form validation for posts and comments
-  - Pagination support for post lists
-
-### Session 23: 2026-02-22
-- ✅ **Cloudinary Image Upload** - Direct image uploads for behavior logging
-  - Drag & drop file upload
-  - Gallery selection (up to 5 images)
-  - Camera capture on mobile devices
-  - Full-screen lightbox viewer with slideshow navigation
-  - Image thumbnails in behavior lists
-  - Quick access behavior log fix (caregiver dashboard)
-
-### Session 22: 2026-02-22
-- ✅ Behavior log form fixes (reportedBy field, severity slider)
-
-### Session 21: 2026-02-21
-- ✅ Pre-push code quality fixes (validation, memory leaks, console logs)
-
-### Session 20: 2026-02-21
-- ✅ Notification Schedule Management - Admin UI for creating/managing scheduled notification campaigns
-
-### Session 19: 2026-02-20
-- ✅ Notification Bell Positioning & Real Service Integration
-
-### Session 18: 2026-02-19
-- ✅ Complete Frontend Notification System with toast, bell, list
-
-### Session 17: 2026-02-18
-- ✅ Automatic Token Refresh Implementation (no more 5-min logout)
-
-### Session 16: 2026-02-17
-- ✅ Behavior Severity Display & Filter Fix
-
-### Session 15: 2026-02-17
-- ✅ Caregiver Behaviors Page with filtering/sorting
+### Session 3: 2026-03-16 - Teleconsultation Module
+- ✅ **Teleconsultation Support**: Full integration of online video consultations
+  - Added `AppointmentMode` (ONSITE/ONLINE) and `meetingUrl` fields
+  - Doctor interface: Create online appointments with automatic Jitsi link generation
+  - Doctor interface: Copy link and Join meeting actions for confirmed appointments
+  - Patient interface: View appointment mode badges and join online consultations
+  - Caregiver interface: Monitor patient appointments and join teleconsultations
+  - Status indicators: REQUESTED, CONFIRMED, CANCELLED, COMPLETED
+  - Visual badges for ONLINE 💻 and ONSITE 🏥 appointments
+  - Responsive teleconsultation cards with state-based UI (ready/pending/cancelled)
 
 ### Session 2: 2026-02-07
 - ✅ Fixed NG5002 & TS2769 parser errors
@@ -187,42 +230,7 @@ Authentication is handled via Keycloak OAuth2 with silent token refresh for seam
 - ✅ Unified sidebar for all user roles
 - ✅ Fixed desktop layout issues (sidebar overlay)
 
-### Recent Additions
-- ✅ Community/Forum system with full CRUD for posts and comments
-- ✅ Notification system with real-time polling
-- ✅ Safety alert management
-- ✅ Schedule management (Admin)
-- ✅ Behavior tracking for caregivers
-- ✅ Landing page
-
 See `progress.md` for detailed changelog.
-
-## 📋 Feature Implementation Status
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Patient Dashboard | ✅ Complete | All features implemented |
-| Patient Activities | ✅ Complete | |
-| Patient Medications | ✅ Complete | |
-| Patient Games | ✅ Complete | |
-| Patient Community | ✅ Complete | |
-| Patient Profile | ✅ Complete | |
-| Caregiver Dashboard | ✅ Complete | |
-| Caregiver Behavior Tracking | ✅ Complete | Log, list, patient-specific views |
-| Caregiver Task Management | ⏳ Planned | Not implemented |
-| Caregiver Care Schedule | ⏳ Planned | Not implemented |
-| Doctor Dashboard | ✅ Complete | |
-| Doctor Patient Records | ⏳ Planned | Not implemented |
-| Doctor Schedule Management | ⏳ Planned | Not implemented |
-| Admin Dashboard | ✅ Complete | |
-| Admin Medical Records | ✅ Complete | |
-| Admin User Management | ✅ Complete | |
-| Admin Schedule Management | ✅ Complete | Create/edit notification schedules |
-| Admin Analytics | ✅ Complete | |
-| Admin Settings | ✅ Complete | |
-| Notification System | ✅ Complete | Polling, bell, list, toasts |
-| Safety Alert System | ✅ Complete | |
-| Landing Page | ✅ Complete | |
 
 ## 🤝 Contributing
 

@@ -15,20 +15,19 @@ alzheimerApp/src/app/
 │   │   ├── user.model.ts
 │   │   ├── api.model.ts
 │   │   └── user-management.model.ts
-│   ├── services/         # AuthService, TokenRefreshService, ApiService, DataService, UserManagementService
+│   ├── services/         # AuthService, ApiService, DataService, UserManagementService
 │   ├── guards/           # AuthGuard for protected routes
 │   └── interceptors/     # AuthInterceptor for JWT handling
 ├── modules/
 │   ├── auth/             # Login component
 │   ├── landing/          # Landing page
-│   ├── patient/          # 8 components organized by page folder
+│   ├── patient/          # 7 components organized by page folder
 │   │   ├── layout/
 │   │   ├── dashboard/
 │   │   ├── activities/
 │   │   ├── medications/
 │   │   ├── games/
-│   │   ├── community/    # NEW: Community forum with post detail
-│   │   │   ├── post-detail/
+│   │   ├── community/
 │   │   └── profile/
 │   ├── caregiver/        # 2 components organized by page folder
 │   │   ├── layout/
@@ -45,12 +44,9 @@ alzheimerApp/src/app/
 │       ├── community/
 │       ├── users/
 │       ├── analytics/
-│       ├── settings/
-│       └── schedules/    # Notification schedule management
-│           ├── schedule-list/
-│           └── schedule-form/
+│       └── settings/
 ├── shared/
-│   └── components/       # Reusable: Navbar, StatCard, AlertCard, PatientSidebar, NotificationBell, NotificationList, Toast
+│   └── components/       # Reusable: Navbar, StatCard, AlertCard, PatientSidebar
 ├── app.routes.ts         # Route definitions
 └── app.component.ts      # Root component
 ```
@@ -61,17 +57,15 @@ alzheimerApp/src/app/
 
 | Metric | Count |
 |--------|-------|
-| Total Components | 43+ |
-| Admin Dashboard Pages | 9 (Medical, Caregivers, Interactive, Community, Users, Analytics, Settings, Schedules) |
-| Patient Pages | 8 (Dashboard, Activities, Medications, Games, Community, Community Detail, Profile, Redesign) |
-| Caregiver Pages | 5 (Dashboard, Behaviors, Tasks, Handovers, Patients) |
-| Doctor Pages | 3 (Dashboard, Patient Detail, Checklist) |
-| Routes | 30+ |
-| Profile Types | 4 (Patient, Doctor, Caregiver, Admin) |
-| Services | 13 (Auth, TokenRefresh, Api, Data, UserManagement, **SafetyAlert**, Patient, CareTeam, Notification, NotificationSchedule, Toast, Community, **CameraDevice**) |
+| Total Components | 26+ |
+| Admin Dashboard Pages | 8 (Medical, Caregivers, Interactive, Community, Users, Analytics, Settings) |
+| Patient Pages | 6 (Dashboard, Activities, Medications, Games, Community, Profile) |
+| Caregiver Pages | 3 (Dashboard, Patients, Medications) |
+| Routes | 19+ |
+| Profile Types | 3 (Patient, Doctor, Caregiver) |
+| Services | 5 (Auth, Api, Data, UserManagement, MedicalFollowup) |
 | Guards/Interceptors | 2 (AuthGuard, AuthInterceptor) |
-| Models | 20+ TypeScript interfaces |
-| Utilities | 1 (ValidationUtils) |
+| Models | 10+ TypeScript interfaces |
 
 ---
 
@@ -82,7 +76,7 @@ alzheimerApp/src/app/
 - **Styling:** Tailwind CSS 3.3 + SCSS
 - **State:** RxJS BehaviorSubjects (Auth, Data services)
 - **Icons:** Unicode emoji
-- **Auth:** Keycloak OAuth2 + JWT with Automatic Token Refresh
+- **Auth:** Keycloak OAuth2 + JWT
 
 ---
 
@@ -113,7 +107,7 @@ Real API integration via `ApiService` with proper error handling and fallback to
 
 ## Module Details
 
-### Patient Module (8 Components)
+### Patient Module (7 Components)
 | Component | Purpose |
 |-----------|---------|
 | `patient-layout` | Layout wrapper with role-themed sidebar |
@@ -121,29 +115,10 @@ Real API integration via `ApiService` with proper error handling and fallback to
 | `patient-activities` | Daily tasks and activity tracking |
 | `patient-medications` | Medication schedule and management |
 | `patient-games` | Cognitive games hub (6 brain games) |
-| `patient-community` | Community forum with discussion threads and support groups |
-| `post-detail` | Detailed post view with comments and interactions |
+| `patient-community` | Social feed and support groups |
 | `patient-profile` | Personal info, settings, preferences |
 
-### Community/Forum Module (2 Components)
-This module provides social features for patients to connect, share experiences, and support each other through discussion threads and comments.
-
-| Component | Purpose |
-|-----------|---------|
-| `patient-community` | Main community feed displaying discussion posts in a card layout with categories, like counts, and comment previews |
-| `post-detail` | Detailed post view showing full post content, comment thread with nested replies, like functionality, and comment creation form |
-
-**Models:**
-- `Post` - Discussion posts with title, content, category, author, timestamps
-- `Comment` - Threaded comments with user attribution
-- `DiscussionCategory` - Enum for post categories (ADVICE, SUPPORT, RESOURCES, SUCCESS_STORIES, QUESTIONS)
-- `CreatePostRequest`, `CreateCommentRequest` - DTOs for creating content
-- `PaginatedPosts` - Pagination wrapper for post lists
-
-**Services:**
-- `CommunityService` - Handles CRUD operations for posts and comments, manages community interactions and API communication with community-social service (port 8009)
-
-### Admin Module (12 Components)
+### Admin Module (9 Components)
 | Component | Purpose | Route |
 |-----------|---------|-------|
 | `admin-layout` | Admin layout wrapper |
@@ -155,62 +130,20 @@ This module provides social features for patients to connect, share experiences,
 | `admin-users` | User management & role distribution | `/admin/users` |
 | `admin-analytics` | System metrics & reporting | `/admin/analytics` |
 | `admin-settings` | Platform configuration | `/admin/settings` |
-| `schedule-list` | View/manage notification schedules | `/admin/schedules` |
-| `schedule-form` | Create/edit notification schedules | `/admin/schedules/new`, `/admin/schedules/edit/:id` |
-| `admin-camera-devices` | **NEW:** Camera pairing & management | `/admin/medical/cameras` |
 
-**Camera Device Management:**
-- Pair ESP32 cameras to patients by MAC address
-- Configure zones (BEDROOM, HALLWAY, BATHROOM, etc.)
-- Monitor camera status (ACTIVE, PAUSED, OFFLINE)
-- Unpair cameras with confirmation
-
-**Services:**
-- `CameraDeviceService` - API integration with event-ingestion service (port 8002)
-
-### Caregiver Module (5 Components)
+### Caregiver Module (4 Components)
 | Component | Purpose | Route |
 |-----------|---------|-------|
-| `caregiver-layout` | Layout wrapper | - |
-| `caregiver-dashboard` | Patient list, care tasks, schedules | `/caregiver/dashboard` |
-| `behaviors-page` | Full behavior tracking with filters | `/caregiver/behaviors`, `/caregiver/behaviors/:patientId` |
-| `behavior-log-form` | Log manual behavior incidents | Modal/Inline |
-| `behavior-log-list` | Display patient behavior history with filtering | `/caregiver/behaviors/:patientId` |
-
-**Services:**
-- `CareTeamService` - Caregiver assignments, patient access control, handover notes
-- `PatientService` - Patient profile data (filtered to assigned patients only)
-- `SafetyAlertService` - Behavior logging and alerts for assigned patients
+| `caregiver-layout` | Layout wrapper | `/caregiver` |
+| `caregiver-dashboard` | Overview, care tasks, schedules | `/caregiver/dashboard` |
+| `caregiver-patients` | List of patients under care with medication status | `/caregiver/patients` |
+| `caregiver-medications` | Medication intakes & validation for assisted patients | `/caregiver/medications?patientId={id}` |
 
 ### Doctor Module (2 Components)
 | Component | Purpose |
 |-----------|---------|
 | `doctor-layout` | Layout wrapper |
 | `doctor-dashboard` | Medical records, patient prescriptions |
-
-### Safety & Behavior Tracking Module (5 Components)
-| Component | Purpose | Route |
-|-----------|---------|-------|
-| `behavior-log-form` | Form for logging manual behaviors (modal/page) | `/caregiver/behaviors/:patientId` |
-| `behavior-log-list` | Display patient behavior history with filtering | `/caregiver/behaviors/:patientId` |
-| `behaviors-page` | Parent page combining form and list with **validation workflow** | `/caregiver/behaviors`, `/caregiver/behaviors/:patientId` |
-| `behavior-detail-modal` | View behavior details + **validation actions** | Modal |
-| `alert-card` | Alert display component | Shared |
-
-**Features:**
-- **Manual Behavior Logging:** Caregivers report incidents (falls, agitation, etc.)
-- **Auto-Detected Events:** Camera-detected behaviors (wandering, night motion)
-- **Validation Workflow:** 
-  - ⏳ **Pending Validation** badge for auto-detected behaviors
-  - ✅ **Confirm** - Validate as real incident with notes
-  - ❌ **False Alarm** - Mark as false positive with explanation
-  - Modal dialog for entering validation notes
-- **Status Tracking:** Confirmed/False Alarm badges after validation
-
-**Services:**
-- `SafetyAlertService` - Create manual logs, get patient behaviors, **validate behaviors**, alerts management
-- `PatientService` - Patient profile data for behavior tracking
-- `CareTeamService` - Patient access control via caregiver assignments
 
 ### Auth Module (1 Component)
 | Component | Purpose |
@@ -222,29 +155,13 @@ This module provides social features for patients to connect, share experiences,
 |-----------|---------|
 | `landing` | Public landing page with CTA |
 
-### Shared Components (8 Components)
+### Shared Components (4 Components)
 | Component | Purpose |
 |-----------|---------|
 | `navbar` | Role-aware sidebar navigation with collapse |
 | `stat-card` | Reusable stat display card |
 | `alert-card` | Notification/alert display |
 | `patient-sidebar` | Patient-specific sidebar variant |
-| `notification-bell` | Bell icon with dropdown for recent notifications |
-| `notification-list` | Full notification center with filters |
-| `toast-container` | Global toast notification container |
-| `image-upload` | Cloudinary image upload with drag-drop, camera, gallery |
-
-### Notification System Components (4 Components)
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| `notification-bell` | Bell icon with unread badge and dropdown | Dashboard headers (top-right) |
-| `notification-list` | Full notification center page with filters, search, pagination | `/notifications` route |
-| `toast-container` | Fixed position toast notifications | App root |
-| `toast` | Individual toast notification item | Used by toast-container |
-
-**Services:**
-- `NotificationService` - HTTP methods, polling for real-time updates, state management via BehaviorSubject
-- `ToastService` - Global toast notification service (success, error, warning, info, emergency)
 
 ---
 
@@ -273,17 +190,14 @@ The admin dashboard provides comprehensive management for all 12 application axe
 | Service | Port | Base Path | Status |
 |---------|------|-----------|--------|
 | Identity Service | 8001 | `/api/v1` | ✅ Implemented |
+| Medical Follow-up | 8081 | `/api/followup` | ✅ Implemented (Appointments + Medications) |
 | Event Ingestion | 8002 | `/api/v1/events` | 🔴 Not Implemented |
-| Safety Alert Engine | 8082 | `/api/safety` | ✅ Implemented |
-| Notification Service | 8004 | `/api/v1/notifications` | ✅ Implemented |
-| Notification Schedules | 8004 | `/api/v1/schedules` | ✅ Implemented |
-| Gateway Service | 8080 | `/api` | ✅ Implemented |
-| Keycloak Auth | 8090 | `/realms` | ✅ Implemented |
+| Safety Alert Engine | 8003 | `/api/v1/safety` | 🔴 Not Implemented |
+| Notification Service | 8004 | `/api/v1/notifications` | 🔴 Not Implemented |
 | Cognitive Memory | 8005 | `/api/v1/cognitive` | 🔴 Not Implemented |
 | Daily Care | 8006 | `/api/v1/daily-care` | 🔴 Not Implemented |
-| Medical Management | 8007 | `/api/v1/medical` | 🔴 Not Implemented |
-| Care Team | 8008 | `/api/v1/care-team` | ✅ Implemented |
-| Community Social | 8009 | `/api/v1/community` | ✅ Complete |
+| Care Team | 8008 | `/api/v1/care-team` | 🔴 Not Implemented |
+| Community Social | 8009 | `/api/v1/community` | 🔴 Not Implemented |
 
 ---
 
@@ -297,104 +211,34 @@ The admin dashboard provides comprehensive management for all 12 application axe
 **Problem:** All components used inline HTML/CSS  
 **Fix:** Refactored to separate template/style files (42+ new files)
 
-### Issue #3: BehaviorSeverity Enum Mismatch (2026-02-17)
-**Problem:** Backend sends severity as enum strings (`ONE`, `TWO`, etc.) but frontend expected numbers. Display showed "FOUR/5" and filters didn't work.  
-**Fix:** Added `BehaviorSeverity` type, `severityToNumber()` helper, and conversion in service layer. Now displays "4/5" and filters correctly.
+---
 
-### Issue #4: 5-Minute Auto-Logout (2026-02-18)
-**Problem:** Access tokens expired after 5 minutes and users were immediately logged out. The refresh token was stored but never used.  
-**Fix:** Implemented automatic token refresh system with `TokenRefreshService` and updated `AuthInterceptor`. Now tokens are refreshed proactively (when < 60s remaining) or reactively (on 401), with request queueing during refresh.
+## Caregiver Medication Management
 
-### Issue #5: Notification Schedule Management Missing (2026-02-21)
-**Problem:** Backend had fully implemented Dynamic Notification Scheduler but frontend had no UI to manage schedules.  
-**Fix:** Created complete schedule management system with models, service, list component, form component, routing, and navigation. Admins can now create, edit, delete, toggle, and manually trigger notification schedules from the UI.
+### Autonomy Levels & Caregiver Responsibilities
 
-### Issue #6: Token Refresh Implementation (2026-02-18)
-**Problem:** Access tokens expired after 5 minutes causing immediate logout. The refresh token was stored but never used.  
-**Fix:** Implemented `TokenRefreshService` with automatic token refresh (proactive when < 60s remaining, reactive on 401), request queueing via BehaviorSubject, and updated `AuthInterceptor` to handle the refresh lifecycle.
+The medication system supports three autonomy levels that determine the caregiver's role:
 
-### Issue #7: Notification System Implementation (2026-02-21)
-**Problem:** Frontend lacked a complete notification system for real-time user alerts.  
-**Fix:** Built comprehensive notification system with:
-- `NotificationBellComponent` - Dropdown with recent notifications, unread badge
-- `NotificationListComponent` - Full page with filters (ALL, UNREAD, ALERTS, REMINDERS, SYSTEM), search, infinite scroll
-- `NotificationService` - HTTP client with 30-second polling for real-time updates
-- `ToastService` - Global toast notifications (success, error, warning, info, emergency types)
+| Autonomy Level | Description | Caregiver Action |
+|----------------|-------------|------------------|
+| **INDEPENDENT** | Patient manages medications alone | View-only access to intakes |
+| **ASSISTED** | Patient needs help with medications | Can validate patient intakes |
+| **DEPENDENT** | Patient cannot manage medications | Must validate all intakes |
 
-### Issue #8: Memory Leaks in Multiple Components (2026-02-21)
-**Problem:** Multiple components had subscription leaks causing memory issues: `behaviors-page.component.ts`, `caregiver-dashboard.component.ts`, `admin-users.component.ts`  
-**Fix:** Implemented `takeUntil(destroy$)` pattern for proper subscription cleanup. All components now implement `OnDestroy` and clean up subscriptions when destroyed.
+### Medication Validation Flow
 
-### Issue #9: Missing Form Validation (2026-02-21)
-**Problem:** Login form, user creation form, and schedule form lacked proper validation (email format, password complexity, date ranges, etc.)  
-**Fix:** 
-- Created shared `ValidationUtils` class in `core/utils/validation.utils.ts`
-- Added email, password, username validation
-- Added date range validation (end date must be after start)
-- Added cron expression format validation
-- All forms now show user-friendly validation messages
+1. **Patient Selection**: Caregiver selects a patient from the dropdown
+2. **View Intakes**: System displays all medication intakes for the patient
+3. **Validation**: For ASSISTED/DEPENDENT patients, caregiver clicks "Validate" to confirm intake
+4. **Mark as Missed**: Caregiver can mark intakes as missed with a reason
 
-### Issue #10: Console Log Statements in Production Code (2026-02-21)
-**Problem:** 16+ `console.log` and `console.error` statements in production code across multiple services and components.  
-**Fix:** Removed all console statements from `auth.service.ts`, `login.component.ts`, `schedule-list.component.ts`, and `behavior-log-form.component.ts`. Replaced with proper error handling and toast notifications.
+### API Endpoints Used
 
-### Issue #11: Image Upload for Behavior Logs (2026-02-22)
-**Problem:** Caregivers could only paste image URLs when logging behavior incidents. No direct upload capability existed, making it difficult to attach photos taken at the scene.  
-**Fix:** Implemented Cloudinary unsigned uploads with reusable `ImageUploadComponent`. Features include: drag-drop upload, camera capture, gallery selection, progress tracking, thumbnail previews, and full-screen lightbox gallery with keyboard navigation.
-
-### Issue #12: Behavior Log Edit/Delete (2026-02-28)
-**Problem:** Caregivers could not edit or delete behavior logs after creation, even if mistakes were made during data entry. Only creation was supported.
-
-**Solution:** Added full CRUD support for manual behavior logs:
-- Edit mode in `BehaviorLogFormComponent` with pre-filled data
-- Update API integration via `SafetyAlertService.updateBehaviorLog()`
-- Delete with confirmation dialog via `SafetyAlertService.deleteBehaviorLog()`
-- Only `MANUAL` source logs can be edited/deleted (auto-detected events are read-only)
-- Hidden log ID from UI for cleaner appearance
-
-**Files Modified:**
-- `safety-alert.service.ts` - Added `updateBehaviorLog()` and `deleteBehaviorLog()` methods
-- `safety-alert.model.ts` - Added `UpdateBehaviorLogRequest` interface
-- `behavior-log-form.component.ts/.html` - Edit mode support with dynamic titles
-- `behavior-log-list.component.ts/.html` - Edit/delete buttons with confirmation dialog
-- `behaviors-page.component.ts/.html` - Parent handlers for edit/delete events
-
-### Issue #13: Behavior Log Pagination (2026-02-28)
-**Problem:** The behaviors page showed all logs at once, making it slow and hard to navigate when there were many incidents.
-
-**Solution:** Implemented full pagination with page size selector and navigation controls.
-
-**Features:**
-- Page size selector (5, 10, 25, 50, 100 items per page)
-- Smart page numbers (max 5 visible with ellipsis)
-- First/Previous/Next/Last navigation buttons
-- Shows range info ("Showing 1-10 of 45 behaviors")
-- Resets to page 1 when filters change
-
-### Issue #14: Modal Scroll Improvements (2026-02-28)
-**Problem:** Modals used default browser scrollbars which looked unprofessional and lacked polish.
-
-**Solution:** Added custom scrollbar styling and modal animations to `styles.css`.
-
-**Features:**
-- Custom scrollbar (8px width, rounded, hover effects)
-- Modal animations (fade-in, scale-in)
-- Fixed header/footer with scrollable content area
-- Consistent styling across all modals
-
-### Issue #15: Timeline View for Behaviors (2026-02-28)
-**Problem:** The table view made it difficult to visualize the chronological progression of behavior incidents and identify patterns over time.
-
-**Solution:** Added a visual timeline view as an alternative to the table view.
-
-**Features:**
-- Toggle between Table and Timeline views
-- Behaviors grouped by date with smart labels (Today, Yesterday, date)
-- Visual timeline with color-coded severity dots
-- Connector lines between incidents
-- Rich cards showing all behavior details
-- Full feature parity (filters, edit/delete, detail modal)
-- Responsive design for mobile devices
+- `GET /api/medications/plans?patientId={id}` - Get patient's medication plans
+- `GET /api/medications/intakes/patient/{id}` - Get all intakes for a patient
+- `POST /api/medications/intakes/{id}/confirm/caregiver` - Validate intake
+- `POST /api/medications/intakes/{id}/miss` - Mark as missed
+- `GET /api/medications/stats/patient/{id}` - Get adherence statistics
 
 ---
 
@@ -418,4 +262,4 @@ The admin dashboard provides comprehensive management for all 12 application axe
 
 ---
 
-*Last Updated: 2026-03-02 (Session: Community/Forum Integration Complete)*
+*Last Updated: 2026-02-18*

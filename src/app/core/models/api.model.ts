@@ -173,6 +173,9 @@ export interface KeycloakUserInfo {
   name?: string;
   given_name?: string;
   family_name?: string;
+  // JWT standard claims
+  exp?: number;  // Expiration time (Unix timestamp in seconds)
+  iat?: number;  // Issued at time
   // Roles from protocol mapper (oidc-usermodel-realm-role-mapper)
   roles?: string[];
   realm_access?: {
@@ -191,37 +194,4 @@ export interface ApiError {
   message: string;
   details?: string;
   timestamp?: string;
-}
-
-// Token State for tracking token expiration
-export interface TokenState {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;      // Unix timestamp in seconds
-  issuedAt: number;       // Unix timestamp in seconds
-}
-
-// Token Refresh Event for refresh event notifications
-export interface TokenRefreshEvent {
-  success: boolean;
-  accessToken?: string;
-  error?: string;
-  timestamp: number;
-}
-
-// Refresh Token Request body for token refresh
-export interface RefreshTokenRequest {
-  grant_type: 'refresh_token';
-  client_id: string;
-  refresh_token: string;
-}
-
-// JWT Payload for decoded JWT structure
-export interface JwtPayload {
-  sub: string;
-  exp: number;
-  iat: number;
-  iss?: string;
-  aud?: string;
-  [key: string]: any;
 }

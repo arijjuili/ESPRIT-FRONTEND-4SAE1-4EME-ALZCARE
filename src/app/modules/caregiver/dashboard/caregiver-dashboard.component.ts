@@ -1,81 +1,40 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule, SlicePipe } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
-import { Subject, of, forkJoin } from 'rxjs';
-import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/services/auth.service';
 import { DataService } from '../../../core/services/data.service';
-import { SafetyAlertService } from '../../../core/services/safety-alert.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
-import { CareTeamService } from '../../../core/services/care-team.service';
-import { ToastService } from '../../../shared/components/toast/toast.service';
+import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
+import { UserManagementService } from '../../../core/services/user-management.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
-import { BehaviorLogFormComponent } from '../../../shared/components/behavior-log-form.component';
-import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
-import { RoleTheme } from '../../../shared/components/navbar.component';
+import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import { CareTask } from '../../../core/models/user.model';
-import { BehaviorLogResponse, BehaviorSeverity } from '../../../core/models/safety-alert.model';
-import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
+import { Appointment, AppointmentMode, AppointmentStatus } from '../../../core/models/medical-followup.model';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { ManagedUser } from '../../../core/models/user-management.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
-export class CaregiverDashboardComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
+export class CaregiverDashboardComponent implements OnInit {
   caregiverName = '';
-  
-  // Role theme for notification bell (emerald for caregiver)
-  currentTheme: RoleTheme = {
-    name: 'Caregiver',
-    primary: '#10b981',
-    primaryLight: '#ecfdf5',
-    primaryDark: '#047857',
-    gradientFrom: '#10b981',
-    gradientTo: '#059669',
-    borderColor: '#d1fae5',
-    hoverBg: '#d1fae5',
-    activeBg: '#10b981',
-    activeText: '#ffffff'
-  };
-  caregiverId = '';
-  patients: PatientProfileResponse[] = [];
+  caregiverId: string | null = null;
+  patients: any[] = [];
   allTasks: CareTask[] = [];
   
-  // Care Team - My Patients
-  caregiverAssignments: CaregiverAssignment[] = [];
-  pendingInvites: CaregiverAssignment[] = [];
-  loadingAssignments = false;
-  acceptingInviteId: string | null = null;
-  
-  // Behavior tracking
-  showBehaviorLogModal = false;
-  recentBehaviors: BehaviorLogResponse[] = [];
-  isLoadingBehaviors = false;
-  selectedPatientId = '';
-
-  // Enums for template
-  CaregiverRole = CaregiverRole;
-
-  // Role badge colors
-  roleColors: Record<CaregiverRole, string> = {
-    [CaregiverRole.PRIMARY]: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    [CaregiverRole.FAMILY]: 'bg-blue-100 text-blue-800 border-blue-200',
-    [CaregiverRole.EMERGENCY]: 'bg-rose-100 text-rose-800 border-rose-200'
-  };
+  // Appointments for patients under care
+  patientAppointments: Map<string, Appointment[]> = new Map();
+  loadingAppointments = false;
 
   constructor(
-    private authService: AuthService, 
+    private authService: AuthService,
     private dataService: DataService,
-    private safetyAlertService: SafetyAlertService,
-    private patientService: PatientService,
-    private careTeamService: CareTeamService,
-    private toastService: ToastService,
-    private router: Router
+    private medicalService: MedicalFollowupService,
+    private userService: UserManagementService
   ) {}
 
   ngOnInit(): void {
@@ -84,129 +43,100 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     if (currentUser) {
       this.caregiverName = currentUser.name;
       this.caregiverId = currentUser.id;
-      
-      // Get tasks assigned to this caregiver (still from mock for now)
+
+      // Get tasks assigned to this caregiver
       this.allTasks = this.dataService.getTasksForCaregiver(currentUser.id);
-      
-      // Load real patients from backend
-      this.loadRealPatients();
-      
-      // Load caregiver assignments (My Patients section)
-      this.loadCaregiverAssignments();
+
+      this.loadPatientsForCaregiver();
     }
   }
-  
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+
+  private loadPatientsForCaregiver(): void {
+    if (!this.caregiverId) {
+      this.patients = this.dataService.getPatients();
+      this.loadPatientAppointments();
+      return;
+    }
+
+    this.userService.getPatientsForCaregiver(this.caregiverId).pipe(
+      catchError((err) => {
+        console.warn('[CaregiverDashboard] Falling back to local patients for caregiver dashboard', err);
+        return of([] as ManagedUser[]);
+      })
+    ).subscribe({
+      next: (patients) => {
+        this.patients = patients.length > 0
+          ? patients.map(patient => this.mapManagedPatient(patient))
+          : this.dataService.getPatients();
+        this.loadPatientAppointments();
+      },
+      error: () => {
+        this.patients = this.dataService.getPatients();
+        this.loadPatientAppointments();
+      }
+    });
   }
 
-  loadRealPatients(): void {
-    // First load caregiver assignments, then fetch only assigned patients
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        switchMap(assignments => {
-          // Filter only ACTIVE assignments
-          const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-          this.caregiverAssignments = activeAssignments;
-          
-          // Get unique patient IDs from assignments
-          const patientIds = [...new Set(activeAssignments.map(a => a.patientId))];
-          
-          if (patientIds.length === 0) {
-            return of([]);
-          }
-          
-          // Fetch all patients and filter by assigned patient IDs
-          return this.patientService.getPatients().pipe(
-            map(allPatients => allPatients.filter(p => patientIds.includes(p.userId || p.id)))
-          );
-        }),
-        catchError(error => {
-          console.error('Failed to load assigned patients:', error);
-          this.toastService.error('Failed to load your assigned patients');
-          return of([]);
-        })
-      )
-      .subscribe(patients => {
-        this.patients = patients;
-        // Load behaviors after patients are loaded
-        this.loadRecentBehaviors();
-      });
-  }
-  
-  // ==================== My Patients Section ====================
-  
-  loadCaregiverAssignments(): void {
-    this.loadingAssignments = true;
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
-          this.toastService.error('Failed to load your patient assignments');
-          return of([]);
-        })
-      )
-      .subscribe(assignments => {
-        // Separate pending invites (assignments already loaded in loadRealPatients)
-        this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
-        this.loadingAssignments = false;
-      });
-  }
-
-  acceptInvite(invite: CaregiverAssignment): void {
-    if (!invite.inviteToken) return;
+  /**
+   * Load appointments for all patients under care
+   */
+  loadPatientAppointments(): void {
+    if (this.patients.length === 0) return;
     
-    this.acceptingInviteId = invite.id;
+    this.loadingAppointments = true;
     
-    this.careTeamService.acceptInvite(invite.inviteToken, this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to accept invite:', error);
-          this.toastService.error('Failed to accept invitation');
-          this.acceptingInviteId = null;
-          return of(null);
-        })
-      )
-      .subscribe(result => {
-        if (result) {
-          this.toastService.success('Invitation accepted! You are now assigned to this patient.');
-          this.loadCaregiverAssignments(); // Refresh the lists
-        }
-        this.acceptingInviteId = null;
-      });
+    // Get date range (today to 30 days ahead)
+    const today = new Date();
+    const thirtyDaysLater = new Date();
+    thirtyDaysLater.setDate(today.getDate() + 30);
+    const fromDate = today.toISOString();
+    const toDate = thirtyDaysLater.toISOString();
+    
+    // Load appointments for each patient
+    const appointmentRequests = this.patients.map(patient => 
+      this.medicalService.getPatientAppointments(this.getPatientAppointmentKey(patient), fromDate, toDate)
+        .pipe(catchError(() => of([])))
+    );
+    
+    forkJoin(appointmentRequests).subscribe({
+      next: (appointmentsArray) => {
+        this.patients.forEach((patient, index) => {
+          this.patientAppointments.set(this.getPatientAppointmentKey(patient), appointmentsArray[index]);
+        });
+        this.loadingAppointments = false;
+      },
+      error: () => {
+        this.loadingAppointments = false;
+      }
+    });
   }
 
-  declineInvite(invite: CaregiverAssignment): void {
-    // Remove from pending list (invite remains in system for other caregivers)
-    this.pendingInvites = this.pendingInvites.filter(i => i.id !== invite.id);
-    this.toastService.info('Invitation declined');
-  }
-  
-  getAssignmentForPatient(patientId: string): CaregiverAssignment | undefined {
-    return this.caregiverAssignments.find(a => a.patientId.toString() === patientId);
-  }
-  
-  getRoleBadgeClass(role: CaregiverRole | undefined): string {
-    if (!role) return 'bg-gray-100 text-gray-800';
-    return this.roleColors[role];
-  }
-  
-  getRoleLabel(role: CaregiverRole | undefined): string {
-    if (!role) return 'Unknown';
-    const labels: Record<CaregiverRole, string> = {
-      [CaregiverRole.PRIMARY]: 'PRIMARY',
-      [CaregiverRole.FAMILY]: 'FAMILY',
-      [CaregiverRole.EMERGENCY]: 'EMERGENCY'
-    };
-    return labels[role];
-  }
-  
-  viewPatientTasks(patientId: string): void {
-    this.router.navigate(['/caregiver/tasks'], { queryParams: { patientId } });
+  /**
+   * Get all upcoming appointments across all patients
+   */
+  getAllUpcomingAppointments(): { appointment: Appointment; patientName: string }[] {
+    const allAppointments: { appointment: Appointment; patientName: string }[] = [];
+    const now = new Date();
+    
+    this.patientAppointments.forEach((appointments, patientId) => {
+      const patient = this.findPatientByAnyId(patientId);
+      const patientName = patient ? patient.name : 'Unknown';
+      
+      appointments
+        .filter(appt =>
+          new Date(appt.startAt) >= now &&
+          appt.status !== AppointmentStatus.CANCELLED &&
+          appt.status !== AppointmentStatus.REJECTED
+        )
+        .forEach(appointment => {
+          allAppointments.push({ appointment, patientName });
+        });
+    });
+    
+    // Sort by date
+    return allAppointments.sort((a, b) => 
+      new Date(a.appointment.startAt).getTime() - new Date(b.appointment.startAt).getTime()
+    );
   }
 
   toggleTask(taskId: string): void {
@@ -218,143 +148,121 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   getPatientName(patientId: string): string {
-    const patient = this.patients.find(p => p.id === patientId);
-    return patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown';
-  }
-
-  // ==================== Behavior Tracking ====================
-
-  openBehaviorLogModal(patientId: string = ''): void {
-    this.selectedPatientId = patientId;
-    this.showBehaviorLogModal = true;
-  }
-
-  closeBehaviorLogModal(): void {
-    this.showBehaviorLogModal = false;
-    this.selectedPatientId = '';
-  }
-
-  onBehaviorLogged(): void {
-    // Refresh the recent behaviors list after a new behavior is logged
-    this.loadRecentBehaviors();
-  }
-
-  loadRecentBehaviors(): void {
-    if (this.patients.length === 0) {
-      this.recentBehaviors = [];
-      return;
+    const patient = this.findPatientByAnyId(patientId);
+    if (patient) {
+      return patient.name;
     }
 
-    this.isLoadingBehaviors = true;
-    this.recentBehaviors = [];
+    return this.dataService.getPatientById(patientId)?.name || 'Unknown';
+  }
 
-    // Load behaviors for all patients and combine them
-    let completedRequests = 0;
-    const allBehaviors: BehaviorLogResponse[] = [];
+  getAppointmentsForPatient(patientId: string): Appointment[] {
+    return this.patientAppointments.get(patientId) || [];
+  }
 
-    this.patients.forEach(patient => {
-      this.safetyAlertService.getBehaviorLogsByPatient(patient.id).pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
-        next: (behaviors) => {
-          allBehaviors.push(...behaviors);
-          completedRequests++;
-          
-          if (completedRequests === this.patients.length) {
-            // Sort by timestamp (newest first) and take last 5
-            this.recentBehaviors = allBehaviors
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-              .slice(0, 5);
-            this.isLoadingBehaviors = false;
-          }
-        },
-        error: () => {
-          completedRequests++;
-          if (completedRequests === this.patients.length) {
-            this.recentBehaviors = allBehaviors
-              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-              .slice(0, 5);
-            this.isLoadingBehaviors = false;
-          }
-        }
-      });
+  handleAppointmentRequestCreated(patientId: string, appointment: Appointment): void {
+    const existingAppointments = this.patientAppointments.get(patientId) || [];
+    this.patientAppointments.set(
+      patientId,
+      [...existingAppointments, appointment].sort(
+        (left, right) => new Date(left.startAt).getTime() - new Date(right.startAt).getTime()
+      )
+    );
+  }
+
+  // ==================== TELECONSULTATION HELPERS ====================
+
+  isOnlineAppointment(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE;
+  }
+
+  isTeleconsultationActive(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE && 
+           appointment.status === AppointmentStatus.CONFIRMED &&
+           !!appointment.meetingUrl;
+  }
+
+  isTeleconsultationPending(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE && 
+           (appointment.status === AppointmentStatus.REQUESTED ||
+            appointment.status === AppointmentStatus.ACCEPTED);
+  }
+
+  isAppointmentCancelled(appointment: Appointment): boolean {
+    return appointment.status === AppointmentStatus.CANCELLED;
+  }
+
+  /**
+   * Join Jitsi meeting in a new tab
+   * Le meetingUrl est fourni par le backend quand le RDV est CONFIRMÉ
+   */
+  joinMeeting(url: string | undefined): void {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('No meeting link available. Waiting for doctor confirmation.');
+    }
+  }
+
+  getModeBadgeClass(mode: AppointmentMode): string {
+    return mode === AppointmentMode.ONLINE 
+      ? 'bg-purple-100 text-purple-700 border-purple-200'
+      : 'bg-blue-100 text-blue-700 border-blue-200';
+  }
+
+  getModeIcon(mode: AppointmentMode): string {
+    return mode === AppointmentMode.ONLINE ? '💻' : '🏥';
+  }
+
+  getAppointmentStatusClass(status: AppointmentStatus): string {
+    const classes: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.REQUESTED]: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      [AppointmentStatus.ACCEPTED]: 'bg-blue-100 text-blue-700 border-blue-200',
+      [AppointmentStatus.REJECTED]: 'bg-red-100 text-red-700 border-red-200',
+      [AppointmentStatus.CONFIRMED]: 'bg-green-100 text-green-700 border-green-200',
+      [AppointmentStatus.COMPLETED]: 'bg-gray-100 text-gray-700 border-gray-200',
+      [AppointmentStatus.CANCELLED]: 'bg-gray-200 text-gray-600 border-gray-300'
+    };
+    return classes[status] || 'bg-gray-100 text-gray-700';
+  }
+
+  formatAppointmentDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleString('fr-FR', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }
 
-  getBehaviorTypeLabel(type: string): string {
-    const labels: Record<string, string> = {
-      'FALL': 'Fall',
-      'WANDERING': 'Wandering',
-      'AGITATION': 'Agitation',
-      'SLEEP_DISORDER': 'Sleep Disorder',
-      'HALLUCINATION': 'Hallucination',
-      'CONFUSION': 'Confusion',
-      'AGGRESSION': 'Aggression',
-      'MEDICATION_REFUSAL': 'Medication Refusal',
-      'OTHER': 'Other'
+  private mapManagedPatient(patient: ManagedUser): any {
+    const profile = (patient.profile || {}) as Record<string, string>;
+    const displayName = patient.fullName
+      || `${patient.firstName || ''} ${patient.lastName || ''}`.trim()
+      || patient.username
+      || patient.email
+      || 'Patient';
+
+    return {
+      id: patient.id,
+      userId: (patient as any).userId || (patient as any).keycloakId || patient.id,
+      name: displayName,
+      email: patient.email || 'Not available',
+      phone: profile['phone'] || 'Not provided',
+      condition: profile['culturalContext'] || 'Patient under care',
+      emergencyContact: profile['emergencyContact'] || 'Not provided'
     };
-    return labels[type] || type;
   }
 
-  getBehaviorIcon(type: string): string {
-    const icons: Record<string, string> = {
-      'FALL': '💥',
-      'WANDERING': '🚶',
-      'AGITATION': '😰',
-      'SLEEP_DISORDER': '😴',
-      'HALLUCINATION': '👁️',
-      'CONFUSION': '😕',
-      'AGGRESSION': '😠',
-      'MEDICATION_REFUSAL': '💊',
-      'OTHER': '📝'
-    };
-    return icons[type] || '📝';
+  getPatientAppointmentKey(patient: any): string {
+    return patient?.userId || patient?.keycloakId || patient?.id || '';
   }
 
-  severityToNumber(severity: BehaviorSeverity): number {
-    const map: Record<BehaviorSeverity, number> = {
-      'ONE': 1, 'TWO': 2, 'THREE': 3, 'FOUR': 4, 'FIVE': 5
-    };
-    return map[severity] || 1;
-  }
-
-  getSeverityColor(severity: BehaviorSeverity): string {
-    const num = this.severityToNumber(severity);
-    switch (num) {
-      case 1: return 'border-green-400 bg-green-50';
-      case 2: return 'border-emerald-400 bg-emerald-50';
-      case 3: return 'border-yellow-400 bg-yellow-50';
-      case 4: return 'border-orange-400 bg-orange-50';
-      case 5: return 'border-red-400 bg-red-50';
-      default: return 'border-gray-400 bg-gray-50';
-    }
-  }
-
-  getSeverityLabel(severity: BehaviorSeverity): string {
-    const num = this.severityToNumber(severity);
-    const labels: Record<number, string> = {
-      1: 'Mild', 2: 'Low', 3: 'Moderate', 4: 'High', 5: 'Severe'
-    };
-    return labels[num] || 'Unknown';
-  }
-
-  formatTimeAgo(timestamp: string): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
-  }
-
-  viewAllBehaviors(): void {
-    // Navigate to behaviors page
-    this.router.navigate(['/caregiver/behaviors']);
+  private findPatientByAnyId(patientId: string): any | undefined {
+    return this.patients.find(patient =>
+      patient.id === patientId || this.getPatientAppointmentKey(patient) === patientId
+    );
   }
 }

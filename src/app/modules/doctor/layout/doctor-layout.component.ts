@@ -10,8 +10,8 @@ import { NavbarComponent } from '../../../shared/components/navbar.component';
   styleUrls: ['./doctor-layout.component.scss']
 })
 export class DoctorLayoutComponent {
-  // Doctor theme colors (Blue)
-  @HostBinding('style.--role-primary-light') primaryLight = '#eff6ff';  // Blue 50
-  @HostBinding('style.--role-primary') primary = '#3b82f6';             // Blue 500
-  @HostBinding('style.--role-primary-100') primary100 = '#dbeafe';      // Blue 100
+  // Doctor theme colors (Emerald)
+  @HostBinding('style.--role-primary-light') primaryLight = '#ecfdf5';  // Emerald 50
+  @HostBinding('style.--role-primary') primary = '#10b981';             // Emerald 500
+  @HostBinding('style.--role-primary-100') primary100 = '#d1fae5';      // Emerald 100
 }

@@ -18,6 +18,7 @@ import {
   DoctorUpdateRequest,
   CaregiverUpdateRequest
 } from '../models/api.model';
+import { ApiService } from './api.service';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -30,12 +31,60 @@ import { environment } from '../../../environments/environment';
   providedIn: 'root'
 })
 export class UserManagementService {
-  private apiUrl = `${environment.apiUrl}/v1/admin/users`;
-  private profileApiUrl = `${environment.apiUrl}/v1/admin/profiles`;
+  private apiUrl = `${environment.apiUrl}/admin/users`;
+  private profileApiUrl = `${environment.apiUrl}/admin/profiles`;
+  private patientsApiUrl = `${environment.apiUrl}/patients`;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private apiService: ApiService
+  ) { }
 
   // ==================== USER LISTING ====================
+
+  /**
+   * Get all active patients (accessible by doctors)
+   * Uses the public patients endpoint instead of admin users endpoint
+   */
+  getActivePatients(): Observable<ManagedUser[]> {
+    return this.http.get<ManagedUser[]>(`${this.patientsApiUrl}?isActive=true`);
+  }
+
+  /**
+   * Get single patient by ID (accessible by doctors)
+   * Uses the public patients endpoint instead of admin users endpoint
+   */
+  getPatientById(patientId: string): Observable<ManagedUser> {
+    return this.http.get<ManagedUser>(`${this.patientsApiUrl}/${patientId}`);
+  }
+
+  /**
+   * Get patients assigned to a caregiver
+   * Falls back to all active patients if endpoint doesn't exist
+   */
+  getPatientsForCaregiver(caregiverId: string): Observable<ManagedUser[]> {
+    const normalizedCaregiverId = (caregiverId || '').trim();
+
+    if (!normalizedCaregiverId) {
+      return this.getActivePatients();
+    }
+
+    return this.apiService.getCaregiverByUserId(normalizedCaregiverId).pipe(
+      switchMap(profile => {
+        const resolvedCaregiverId = String(profile?.id || profile?.userId || normalizedCaregiverId).trim();
+        if (!resolvedCaregiverId) {
+          return this.getActivePatients();
+        }
+
+        return this.http.get<ManagedUser[]>(`${environment.apiUrl}/caregivers/${resolvedCaregiverId}/patients`).pipe(
+          catchError(() => this.getActivePatients())
+        );
+      }),
+      catchError(() => {
+        return this.getActivePatients();
+      })
+    );
+  }
 
   /**
    * Get all users with optional filtering

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, map, catchError, throwError, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, tap, map, catchError, throwError } from 'rxjs';
 import { AuthUser, UserRole } from '../models/user.model';
 import { TokenResponse, KeycloakUserInfo } from '../models/api.model';
 import { environment } from '../../../environments/environment';
@@ -17,10 +17,6 @@ export class AuthService {
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
-
-  // Subject for token refresh events
-  private tokenRefreshedSubject = new Subject<TokenResponse>();
-  public tokenRefreshed$ = this.tokenRefreshedSubject.asObservable();
 
   // Mock users for fallback (when backend is not available)
   private mockUsers = [
@@ -122,11 +118,14 @@ export class AuthService {
         return authUser;
       }),
       catchError(error => {
+        console.log('[AuthService] Keycloak error:', error.status, error.error);
         // If it's an authentication error (400 or 401), don't fallback - propagate the error
         if (error.status === 401 || error.status === 400) {
+          console.log('[AuthService] Invalid credentials, propagating error');
           return throwError(() => new Error('Invalid email or password'));
         }
         // For other errors (network, server down), fallback to mock auth
+        console.log('[AuthService] Keycloak unavailable, falling back to mock auth...');
         return this.loginWithMock(username, password);
       })
     );
@@ -136,10 +135,12 @@ export class AuthService {
    * Mock login for development/testing
    */
   private loginWithMock(email: string, password: string): Observable<AuthUser> {
+    console.log('[AuthService] Mock login attempt:', email);
     return new Observable(observer => {
       setTimeout(() => {
         const user = this.mockUsers.find(u => u.email === email && u.password === password);
         if (user) {
+          console.log('[AuthService] Mock login SUCCESS');
           const authUser: AuthUser = {
             id: user.id,
             email: user.email,
@@ -154,70 +155,11 @@ export class AuthService {
           observer.next(authUser);
           observer.complete();
         } else {
+          console.log('[AuthService] Mock login FAILED - invalid credentials');
           observer.error(new Error('Invalid credentials'));
         }
       }, 500);
     });
-  }
-
-  /**
-   * Refresh the access token using the refresh token
-   */
-  refreshToken(): Observable<TokenResponse> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      return throwError(() => new Error('No refresh token available'));
-    }
-
-    const body = new HttpParams()
-      .set('grant_type', 'refresh_token')
-      .set('client_id', this.clientId)
-      .set('refresh_token', refreshToken);
-
-    return this.http.post<TokenResponse>(this.keycloakUrl, body.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    }).pipe(
-      tap(response => {
-        this.updateTokens(response);
-        this.tokenRefreshedSubject.next(response);
-      }),
-      catchError(error => {
-        // If refresh fails, logout the user
-        this.logout();
-        return throwError(() => new Error('Session expired. Please login again.'));
-      })
-    );
-  }
-
-  /**
-   * Update stored tokens and current user with new token response
-   */
-  updateTokens(response: TokenResponse): void {
-    // Store new tokens
-    localStorage.setItem('access_token', response.access_token);
-    localStorage.setItem('refresh_token', response.refresh_token);
-
-    // Update currentUser with new token
-    const user = this.getCurrentUser();
-    if (user) {
-      user.token = response.access_token;
-      this.currentUserSubject.next(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    }
-  }
-
-  /**
-   * Get the current refresh token from localStorage
-   */
-  getRefreshToken(): string | null {
-    return localStorage.getItem('refresh_token');
-  }
-
-  /**
-   * Get the current access token from localStorage
-   */
-  getAccessToken(): string | null {
-    return localStorage.getItem('access_token');
   }
 
   /**
@@ -233,60 +175,6 @@ export class AuthService {
         .join('')
     );
     return JSON.parse(jsonPayload);
-  }
-
-  /**
-   * Get token expiration time as Unix timestamp
-   */
-  getTokenExpirationTime(): number | null {
-    const token = this.getAccessToken();
-    if (!token) return null;
-    try {
-      const payload = this.decodeJwt(token);
-      return payload.exp || null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Decode JWT token payload
-   */
-  private decodeJwt(token: string): { exp?: number; iat?: number; [key: string]: any } {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  }
-
-  /**
-   * Get time until token expiry in seconds
-   */
-  getTimeUntilExpiry(): number {
-    const exp = this.getTokenExpirationTime();
-    if (!exp) return 0;
-    const now = Math.floor(Date.now() / 1000);
-    return Math.max(0, exp - now);
-  }
-
-  /**
-   * Check if token is expiring soon (within threshold seconds)
-   */
-  isTokenExpiringSoon(thresholdSeconds: number = 60): boolean {
-    const timeUntilExpiry = this.getTimeUntilExpiry();
-    return timeUntilExpiry <= thresholdSeconds;
-  }
-
-  /**
-   * Check if token is already expired
-   */
-  isTokenExpired(): boolean {
-    return this.getTimeUntilExpiry() === 0;
   }
 
   /**
@@ -320,9 +208,6 @@ export class AuthService {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    // Clear notification-related localStorage
-    localStorage.removeItem('notification_last_read');
-    localStorage.removeItem('notification_settings');
   }
 
   /**
@@ -333,10 +218,33 @@ export class AuthService {
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated and token is not expired
    */
   isAuthenticated(): boolean {
-    return this.isAuthenticatedSubject.value;
+    // Check if subject says we're authenticated
+    if (!this.isAuthenticatedSubject.value) {
+      return false;
+    }
+    // Also verify token is not expired
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      return false;
+    }
+    try {
+      const tokenData = this.decodeToken(token);
+      const now = Math.floor(Date.now() / 1000);
+      // Check if token is expired (exp is in seconds)
+      if (tokenData.exp && tokenData.exp < now) {
+        console.log('[AuthService] Token expired, logging out');
+        this.logout();
+        return false;
+      }
+      return true;
+    } catch (e) {
+      console.error('[AuthService] Invalid token', e);
+      this.logout();
+      return false;
+    }
   }
 
   /**
@@ -351,28 +259,21 @@ export class AuthService {
     const token = localStorage.getItem('access_token');
     if (stored && token) {
       try {
+        // Verify token is not expired before restoring session
+        const tokenData = this.decodeToken(token);
+        const now = Math.floor(Date.now() / 1000);
+        if (tokenData.exp && tokenData.exp < now) {
+          console.log('[AuthService] Stored token expired, clearing session');
+          this.logout();
+          return;
+        }
         const user = JSON.parse(stored);
         this.currentUserSubject.next(user);
         this.isAuthenticatedSubject.next(true);
       } catch (e) {
+        console.error('Failed to load user from storage', e);
         this.logout();
       }
-    }
-  }
-
-  /**
-   * Get the current user's UUID from the JWT token's 'sub' claim
-   * This is the Keycloak user ID (UUID format)
-   */
-  getCurrentUserId(): string | null {
-    const token = this.getAccessToken();
-    if (!token) return null;
-    
-    try {
-      const payload = this.decodeJwt(token);
-      return payload['sub'] || null;
-    } catch {
-      return null;
     }
   }
 }

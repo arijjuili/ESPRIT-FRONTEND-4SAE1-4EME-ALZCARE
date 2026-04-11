@@ -2,10 +2,8 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { UserManagementService } from '../../../core/services/user-management.service';
-import { ValidationUtils } from '../../../core/utils/validation.utils';
 import {
   ManagedUser,
   UserRole,
@@ -32,8 +30,6 @@ import {
   styleUrls: ['./admin-users.component.scss']
 })
 export class AdminUsersComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  
   // Users data
   users: ManagedUser[] = [];
   loading = false;
@@ -69,9 +65,6 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   // Enums for template
   GenderEnum = GenderEnum;
   LanguageEnum = LanguageEnum;
-  
-  // Math for template
-  Math = Math;
 
   // New user form
   newUser: CreateUserRequest = {
@@ -102,6 +95,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
   };
 
+  private subscriptions: Subscription[] = [];
+
   // Role options
   roleOptions: { value: UserRole; label: string; color: string }[] = [
     { value: 'ADMIN', label: 'Admin', color: 'rose' },
@@ -117,8 +112,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    this.subscriptions.forEach(s => s.unsubscribe());
   }
 
   // ==================== PROFILE MANAGEMENT ====================
@@ -138,9 +132,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.showProfileModal = true;
     this.profileError = '';
 
-    this.userService.getUserProfile(user.id).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
+    const sub = this.userService.getUserProfile(user.id).subscribe({
       next: (profile) => {
         this.selectedProfile = profile;
         this.profileLoading = false;
@@ -151,6 +143,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         this.profileLoading = false;
       }
     });
+    this.subscriptions.push(sub);
   }
 
   closeProfileModal(): void {
@@ -226,13 +219,13 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.profileLoading = true;
     this.profileError = '';
 
+    let sub: Subscription;
+
     switch (this.profileType) {
       case 'PATIENT':
-        this.userService.updatePatientProfile(
+        sub = this.userService.updatePatientProfile(
           this.selectedUser.id,
           this.profileEditForm as PatientUpdateRequest
-        ).pipe(
-          takeUntil(this.destroy$)
         ).subscribe({
           next: (updated) => {
             this.selectedProfile = updated;
@@ -247,11 +240,9 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         });
         break;
       case 'DOCTOR':
-        this.userService.updateDoctorProfile(
+        sub = this.userService.updateDoctorProfile(
           this.selectedUser.id,
           this.profileEditForm as DoctorUpdateRequest
-        ).pipe(
-          takeUntil(this.destroy$)
         ).subscribe({
           next: (updated) => {
             this.selectedProfile = updated;
@@ -266,11 +257,9 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         });
         break;
       case 'CAREGIVER':
-        this.userService.updateCaregiverProfile(
+        sub = this.userService.updateCaregiverProfile(
           this.selectedUser.id,
           this.profileEditForm as CaregiverUpdateRequest
-        ).pipe(
-          takeUntil(this.destroy$)
         ).subscribe({
           next: (updated) => {
             this.selectedProfile = updated;
@@ -288,6 +277,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         this.profileLoading = false;
         return;
     }
+
+    this.subscriptions.push(sub);
   }
 
   /**
@@ -323,10 +314,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
       status: this.selectedStatus || undefined
     };
 
-    this.userService.getUsers(filter, this.currentPage, this.pageSize)
-      .pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
+    const sub = this.userService.getUsers(filter, this.currentPage, this.pageSize)
+      .subscribe({
         next: (response) => {
           this.users = response.content;
           this.totalElements = response.totalElements;
@@ -340,6 +329,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
           this.loading = false;
         }
       });
+
+    this.subscriptions.push(sub);
   }
 
   calculateStats(): void {
@@ -396,62 +387,6 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     this.goToPage(this.currentPage + 1);
   }
 
-  goToFirstPage(): void {
-    this.goToPage(0);
-  }
-
-  goToLastPage(): void {
-    this.goToPage(this.totalPages - 1);
-  }
-
-  onPageSizeChange(): void {
-    this.currentPage = 0;
-    this.loadUsers();
-  }
-
-  /**
-   * Get visible page numbers for pagination (with ellipsis)
-   */
-  getVisiblePages(): number[] {
-    const pages: number[] = [];
-    const maxVisible = 5;
-    
-    if (this.totalPages <= maxVisible) {
-      // Show all pages
-      for (let i = 0; i < this.totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      // Show first, last, and pages around current
-      if (this.currentPage < 3) {
-        // Near start
-        for (let i = 0; i < 4; i++) {
-          pages.push(i);
-        }
-        pages.push(-1); // Ellipsis
-        pages.push(this.totalPages - 1);
-      } else if (this.currentPage > this.totalPages - 4) {
-        // Near end
-        pages.push(0);
-        pages.push(-1); // Ellipsis
-        for (let i = this.totalPages - 4; i < this.totalPages; i++) {
-          pages.push(i);
-        }
-      } else {
-        // Middle
-        pages.push(0);
-        pages.push(-1); // Ellipsis
-        for (let i = this.currentPage - 1; i <= this.currentPage + 1; i++) {
-          pages.push(i);
-        }
-        pages.push(-1); // Ellipsis
-        pages.push(this.totalPages - 1);
-      }
-    }
-    
-    return pages;
-  }
-
   // ==================== CREATE USER ====================
 
   openCreateModal(): void {
@@ -475,10 +410,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     }
 
     this.loading = true;
-    this.userService.createUser(this.newUser)
-      .pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
+    const sub = this.userService.createUser(this.newUser)
+      .subscribe({
         next: (user) => {
           this.users.unshift(user);
           this.closeCreateModal();
@@ -494,51 +427,22 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
           this.loading = false;
         }
       });
+    this.subscriptions.push(sub);
   }
 
   private validateNewUser(): boolean {
-    // Trim all text inputs before validation using ValidationUtils
-    this.newUser = ValidationUtils.trimObject(this.newUser);
-
-    // Check required fields
     if (!this.newUser.username || !this.newUser.email || !this.newUser.password) {
       this.error = 'Please fill in all required fields';
       return false;
     }
-
-    // Validate username format using ValidationUtils
-    if (!ValidationUtils.isValidUsername(this.newUser.username)) {
-      this.error = 'Username must be 3-20 characters and can only contain letters, numbers, and underscores';
-      return false;
-    }
-
-    // Validate email format using ValidationUtils
-    if (!ValidationUtils.isValidEmail(this.newUser.email)) {
-      this.error = 'Please enter a valid email address';
-      return false;
-    }
-
-    // Validate first name and last name
     if (!this.newUser.firstName || !this.newUser.lastName) {
       this.error = 'First name and last name are required';
       return false;
     }
-    if (!ValidationUtils.hasMinLength(this.newUser.firstName, 2) || !ValidationUtils.hasMaxLength(this.newUser.firstName, 50)) {
-      this.error = 'First name must be between 2 and 50 characters';
+    if (this.newUser.password.length < 8) {
+      this.error = 'Password must be at least 8 characters';
       return false;
     }
-    if (!ValidationUtils.hasMinLength(this.newUser.lastName, 2) || !ValidationUtils.hasMaxLength(this.newUser.lastName, 50)) {
-      this.error = 'Last name must be between 2 and 50 characters';
-      return false;
-    }
-
-    // Validate password complexity using ValidationUtils
-    const passwordValidation = ValidationUtils.isValidPassword(this.newUser.password);
-    if (!passwordValidation.valid) {
-      this.error = passwordValidation.message || 'Password does not meet requirements';
-      return false;
-    }
-
     return true;
   }
 
@@ -558,15 +462,13 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     if (!this.selectedUser) return;
 
     this.loading = true;
-    this.userService.updateUser(this.selectedUser.id, {
+    const sub = this.userService.updateUser(this.selectedUser.id, {
       email: this.selectedUser.email,
       firstName: this.selectedUser.firstName,
       lastName: this.selectedUser.lastName,
       enabled: this.selectedUser.enabled,
       role: this.selectedUser.role
-    }).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
+    }).subscribe({
       next: (updatedUser) => {
         const index = this.users.findIndex(u => u.id === updatedUser.id);
         if (index !== -1) {
@@ -582,6 +484,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
+    this.subscriptions.push(sub);
   }
 
   // ==================== DELETE USER ====================
@@ -600,10 +503,8 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
     if (!this.selectedUser) return;
 
     this.loading = true;
-    this.userService.deleteUser(this.selectedUser.id)
-      .pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
+    const sub = this.userService.deleteUser(this.selectedUser.id)
+      .subscribe({
         next: () => {
           this.users = this.users.filter(u => u.id !== this.selectedUser!.id);
           this.closeDeleteModal();
@@ -616,6 +517,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
           this.loading = false;
         }
       });
+    this.subscriptions.push(sub);
   }
 
   // ==================== UTILITY ====================
@@ -651,7 +553,7 @@ export class AdminUsersComponent implements OnInit, OnDestroy {
 
   formatDate(date: string | Date | undefined): string {
     if (!date) return 'Never';
-    return new Date(date).toLocaleDateString('en-US', {
+    return new Date(date).toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'

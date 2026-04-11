@@ -1,0 +1,186 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../../core/services/auth.service';
+import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
+import { 
+  Appointment, 
+  AppointmentMode, 
+  AppointmentStatus 
+} from '../../../core/models/medical-followup.model';
+
+@Component({
+  selector: 'app-patient-appointments',
+  standalone: true,
+  imports: [CommonModule],
+  templateUrl: './patient-appointments.component.html',
+  styleUrls: ['./patient-appointments.component.scss']
+})
+export class PatientAppointmentsComponent implements OnInit {
+  patientId: string | null = null;
+  appointments: Appointment[] = [];
+  loading = true;
+  error: string | null = null;
+
+  // Filter
+  filterStatus: 'ALL' | AppointmentStatus = 'ALL';
+
+  constructor(
+    private authService: AuthService,
+    private medicalService: MedicalFollowupService
+  ) {}
+
+  ngOnInit(): void {
+    const currentUser = this.authService.getCurrentUser();
+    if (currentUser) {
+      this.patientId = currentUser.id;
+      this.loadAppointments();
+    } else {
+      this.error = 'Please log in to view your appointments';
+      this.loading = false;
+    }
+  }
+
+  loadAppointments(): void {
+    if (!this.patientId) return;
+
+    this.loading = true;
+    this.error = null;
+
+    // Get date range (30 days ago to 90 days ahead)
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const ninetyDaysLater = new Date();
+    ninetyDaysLater.setDate(today.getDate() + 90);
+
+    this.medicalService.getPatientAppointments(
+      this.patientId,
+      thirtyDaysAgo.toISOString(),
+      ninetyDaysLater.toISOString()
+    ).subscribe({
+      next: (appointments) => {
+        this.appointments = appointments.sort((a, b) => 
+          new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+        );
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading appointments:', err);
+        this.error = 'Failed to load appointments';
+        this.loading = false;
+      }
+    });
+  }
+
+  get filteredAppointments(): Appointment[] {
+    if (this.filterStatus === 'ALL') {
+      return this.appointments;
+    }
+    return this.appointments.filter(a => a.status === this.filterStatus);
+  }
+
+  get upcomingAppointments(): Appointment[] {
+    const now = new Date();
+    return this.appointments.filter(a => 
+      new Date(a.startAt) >= now && 
+      a.status !== AppointmentStatus.CANCELLED
+    );
+  }
+
+  get pastAppointments(): Appointment[] {
+    const now = new Date();
+    return this.appointments.filter(a => 
+      new Date(a.startAt) < now || 
+      a.status === AppointmentStatus.CANCELLED
+    );
+  }
+
+  // ==================== TELECONSULTATION HELPERS ====================
+
+  isOnlineAppointment(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE;
+  }
+
+  isTeleconsultationActive(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE && 
+           appointment.status === AppointmentStatus.CONFIRMED &&
+           !!appointment.meetingUrl;
+  }
+
+  isTeleconsultationPending(appointment: Appointment): boolean {
+    return appointment.mode === AppointmentMode.ONLINE && 
+           appointment.status === AppointmentStatus.REQUESTED;
+  }
+
+  isAppointmentCancelled(appointment: Appointment): boolean {
+    return appointment.status === AppointmentStatus.CANCELLED;
+  }
+
+  joinMeeting(url: string | undefined): void {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  getModeBadgeClass(mode: AppointmentMode): string {
+    return mode === AppointmentMode.ONLINE 
+      ? 'bg-purple-100 text-purple-700 border-purple-200'
+      : 'bg-blue-100 text-blue-700 border-blue-200';
+  }
+
+  getModeIcon(mode: AppointmentMode): string {
+    return mode === AppointmentMode.ONLINE ? '💻' : '🏥';
+  }
+
+  getAppointmentStatusClass(status: AppointmentStatus): string {
+    const classes: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.REQUESTED]: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      [AppointmentStatus.ACCEPTED]: 'bg-blue-100 text-blue-700 border-blue-200',
+      [AppointmentStatus.REJECTED]: 'bg-red-100 text-red-700 border-red-200',
+      [AppointmentStatus.CONFIRMED]: 'bg-green-100 text-green-700 border-green-200',
+      [AppointmentStatus.COMPLETED]: 'bg-gray-100 text-gray-700 border-gray-200',
+      [AppointmentStatus.CANCELLED]: 'bg-gray-200 text-gray-600 border-gray-300'
+    };
+    return classes[status] || 'bg-gray-100 text-gray-700';
+  }
+
+  getStatusIcon(status: AppointmentStatus): string {
+    const icons: Record<AppointmentStatus, string> = {
+      [AppointmentStatus.REQUESTED]: '⏳',
+      [AppointmentStatus.ACCEPTED]: '👍',
+      [AppointmentStatus.REJECTED]: '❌',
+      [AppointmentStatus.CONFIRMED]: '✅',
+      [AppointmentStatus.COMPLETED]: '✓',
+      [AppointmentStatus.CANCELLED]: '🚫'
+    };
+    return icons[status];
+  }
+
+  formatDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  formatTime(dateStr: string): string {
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  getDurationMinutes(startAt: string, endAt: string): number {
+    const start = new Date(startAt).getTime();
+    const end = new Date(endAt).getTime();
+    return Math.round((end - start) / 60000);
+  }
+
+  isUpcoming(appointment: Appointment): boolean {
+    return new Date(appointment.startAt) >= new Date() && 
+           appointment.status !== AppointmentStatus.CANCELLED;
+  }
+}

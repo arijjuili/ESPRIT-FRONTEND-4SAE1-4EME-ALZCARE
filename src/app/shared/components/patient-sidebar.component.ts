@@ -37,6 +37,12 @@ export class PatientSidebarComponent {
       description: 'Prescriptions & schedule'
     },
     {
+      label: 'Appointments',
+      path: '/patient/appointments',
+      icon: '📅',
+      description: 'My consultations'
+    },
+    {
       label: 'Brain Games',
       path: '/patient/games',
       icon: '🎮',

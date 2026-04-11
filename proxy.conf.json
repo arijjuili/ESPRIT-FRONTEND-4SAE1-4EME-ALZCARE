@@ -10,11 +10,6 @@
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
-  },
-  "/resources": {
-    "target": "http://localhost:8090",
-    "secure": false,
-    "changeOrigin": true,
-    "logLevel": "debug"
   }
+  
 }

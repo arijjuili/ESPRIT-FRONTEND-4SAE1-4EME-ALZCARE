@@ -17,7 +17,10 @@ import {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiBaseUrl = `${environment.apiUrl}/v1`;
+  private apiBaseUrl = (() => {
+    const apiUrl = environment.apiUrl.replace(/\/$/, '');
+    return apiUrl.endsWith('/v1') ? apiUrl : `${apiUrl}/v1`;
+  })();
   private keycloakUrl = environment.keycloak.url;
   private clientId = environment.keycloak.clientId;
 

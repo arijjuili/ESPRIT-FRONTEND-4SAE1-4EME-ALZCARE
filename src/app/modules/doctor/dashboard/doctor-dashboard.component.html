@@ -1,393 +1,362 @@
-<div class="max-w-7xl mx-auto px-4 py-8">
-  <!-- Header -->
-  <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div>
-      <h1 class="text-4xl font-bold text-gray-800">Welcome, {{ doctorName }}</h1>
-      <p class="text-gray-600 mt-2">Patient management and medical records</p>
-    </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        (click)="openCreatePatientModal()"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow">
-        + Create new patient
-      </button>
-      <app-notification-bell [theme]="currentTheme"></app-notification-bell>
-    </div>
-  </div>
-
-  <!-- Alerts -->
-  <div class="mb-8 space-y-4">
-    <app-alert-card 
-      type="warning"
-      title="Follow-up Required"
-      message="Robert Williams - High glucose levels detected. Consider medication adjustment.">
-    </app-alert-card>
-  </div>
-
-  <!-- Stats Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <app-stat-card
-      label="My Patients"
-      [value]="patientCount.toString()"
-      icon="👥"
-      color="primary">
-    </app-stat-card>
-    
-    <app-stat-card
-      label="Appointments Today"
-      value="0"
-      icon="📅"
-      color="info">
-    </app-stat-card>
-    
-    <app-stat-card
-      label="Pending Reviews"
-      value="1"
-      icon="📋"
-      color="warning">
-    </app-stat-card>
-    
-    <app-stat-card
-      label="Active Prescriptions"
-      value="5"
-      icon="💊"
-      color="success">
-    </app-stat-card>
-  </div>
-
-  <!-- Main Content Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Patient Roster -->
-    <div class="lg:col-span-2 space-y-8">
-      <!-- My Assigned Patients Section -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-2xl font-bold text-gray-800">My Patients</h2>
-          <a 
-            routerLink="/doctor/checklist" 
-            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition font-semibold text-sm">
-            + Create Task
-          </a>
-        </div>
-        
-        <!-- Loading State -->
-        <div *ngIf="loadingPatients" class="text-center py-8">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <p class="text-gray-500 mt-2">Loading your patients...</p>
-        </div>
-        
-        <!-- Patients Table -->
-        <div *ngIf="!loadingPatients && doctorAssignments.length > 0" class="overflow-x-auto">
-          <table class="w-full">
-            <thead>
-              <tr class="border-b border-gray-200">
-                <th class="text-left py-3 px-4 font-semibold text-gray-700">Patient Name</th>
-                <th class="text-left py-3 px-4 font-semibold text-gray-700">Patient ID</th>
-                <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                <th class="text-left py-3 px-4 font-semibold text-gray-700">Assigned Date</th>
-                <th class="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr 
-                *ngFor="let assignment of doctorAssignments" 
-                class="border-b border-gray-100 hover:bg-blue-50 transition">
-                <td class="py-4 px-4">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
-                      {{ getPatientAvatarLetter(assignment) }}
-                    </div>
-                    <span class="font-medium text-gray-800">{{ getPatientFullName(assignment) }}</span>
-                  </div>
-                </td>
-                <td class="py-4 px-4 text-gray-600 font-mono text-sm" [attr.title]="assignment.patientId">
-                  #{{ assignment.patientId | slice:0:8 }}…
-                </td>
-                <td class="py-4 px-4">
-                  <span 
-                    class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                    [ngClass]="getStatusClass(assignment.status)">
-                    {{ assignment.status }}
-                  </span>
-                </td>
-                <td class="py-4 px-4 text-gray-600">
-                  {{ assignment.assignedAt | date: 'MMM d, y' }}
-                </td>
-                <td class="py-4 px-4">
-                  <div class="flex justify-end gap-2">
-                    <a 
-                      [routerLink]="['/doctor/patients', assignment.patientId]"
-                      class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium transition">
-                      View Details
-                    </a>
-                    <a 
-                      [routerLink]="['/doctor/checklist']"
-                      [queryParams]="{ patientId: assignment.patientId }"
-                      class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded text-sm font-medium transition">
-                      Create Task
-                    </a>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        
-        <!-- Empty State -->
-        <div *ngIf="!loadingPatients && doctorAssignments.length === 0" class="text-center py-12">
-          <div class="text-6xl mb-4">👨‍⚕️</div>
-          <h3 class="text-lg font-semibold text-gray-700 mb-2">No Patients Assigned</h3>
-          <p class="text-gray-500">You don't have any patients assigned to you yet.</p>
-        </div>
+<div class="doctor-dashboard">
+  <div class="mx-auto max-w-7xl px-4 py-8">
+    <header class="dash-hero mb-8">
+      <div class="dash-hero__text">
+        <p class="dash-hero__eyebrow">Doctor dashboard</p>
+        <h1 class="dash-hero__title">Welcome, {{ doctorName }}</h1>
+        <p class="dash-hero__subtitle">
+          <span *ngIf="doctorMeta; else metaFallback">{{ doctorMeta }}</span>
+          <ng-template #metaFallback>Appointments, patients, and follow-up tasks in one place.</ng-template>
+        </p>
       </div>
 
-      <!-- Legacy Patient Details -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Patient Details</h2>
-        
-        <div *ngIf="patients.length > 0" class="space-y-4">
-          <div *ngFor="let patient of patients" class="border rounded-lg p-6 hover:shadow-lg transition cursor-pointer">
-            <div class="flex justify-between items-start mb-4">
+      <div class="dash-hero__actions">
+        <a routerLink="/doctor/appointments" class="dash-hero__primary">
+          New appointment
+        </a>
+        <button
+          type="button"
+          (click)="loadDashboardData()"
+          class="dash-hero__refresh"
+          [disabled]="isLoading()">
+          {{ isLoading() ? 'Refreshing...' : 'Refresh' }}
+        </button>
+      </div>
+    </header>
+
+    <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+      <p class="font-bold">Error</p>
+      <p>{{ error }}</p>
+    </div>
+
+    <div *ngIf="isLoading()" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+      <p class="text-gray-600 mt-4">Loading dashboard...</p>
+    </div>
+
+    <div *ngIf="!isLoading()">
+      <section class="stats-grid mb-8">
+        <article class="stat-kpi stat-kpi--primary">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Active Caseload</p>
+            <span class="stat-kpi__icon" aria-hidden="true">👥</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ activePatients.length }}</p>
+            <span class="stat-kpi__trend">{{ patientsWithoutUpcomingCount }} without next visit</span>
+          </div>
+          <p class="stat-kpi__meta">Patients currently active under your follow-up.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--info">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Scheduled Today</p>
+            <span class="stat-kpi__icon" aria-hidden="true">📅</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ stats.appointmentsToday }}</p>
+            <span class="stat-kpi__trend">{{ nextSevenDaysAppointmentsCount }} in 7 days</span>
+          </div>
+          <p class="stat-kpi__meta">Confirmed and upcoming visits still on today’s agenda.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--warning">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Pending Confirmations</p>
+            <span class="stat-kpi__icon" aria-hidden="true">📌</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ requestedAppointmentsCount }}</p>
+            <span class="stat-kpi__trend">{{ suspendedPlansCount }} plans suspended</span>
+          </div>
+          <p class="stat-kpi__meta">Appointment requests and medication reviews waiting for action.</p>
+        </article>
+
+        <article class="stat-kpi stat-kpi--success">
+          <div class="stat-kpi__header">
+            <p class="stat-kpi__label">Active Treatment Plans</p>
+            <span class="stat-kpi__icon" aria-hidden="true">💊</span>
+          </div>
+          <div class="stat-kpi__value-row">
+            <p class="stat-kpi__value">{{ activeTreatmentPlansCount }}</p>
+            <span class="stat-kpi__trend">{{ activeTreatmentPatientsCount }} patients covered</span>
+          </div>
+          <p class="stat-kpi__meta">Medication plans currently active and requiring follow-up.</p>
+        </article>
+      </section>
+
+      <section class="action-strip mb-8">
+        <a routerLink="/doctor/appointments" class="action-chip">
+          <span class="action-chip__icon">📅</span>
+          <span class="action-chip__text">Appointments</span>
+        </a>
+        <a routerLink="/doctor/patients" class="action-chip">
+          <span class="action-chip__icon">👥</span>
+          <span class="action-chip__text">Patients</span>
+        </a>
+        <a routerLink="/doctor/prescriptions" class="action-chip">
+          <span class="action-chip__icon">💊</span>
+          <span class="action-chip__text">Prescriptions</span>
+        </a>
+        <a routerLink="/doctor/records" class="action-chip">
+          <span class="action-chip__icon">🗂️</span>
+          <span class="action-chip__text">Records</span>
+        </a>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <section class="lg:col-span-2 space-y-8">
+          <div class="panel">
+            <div class="panel__header">
               <div>
-                <p class="text-xl font-bold text-gray-800">{{ patient.name }}</p>
-                <p class="text-gray-600">Age: {{ getAge(patient.dateOfBirth) }} years old</p>
+                <h2 class="panel__title">Today</h2>
+                <p class="panel__subtitle">What is scheduled for the rest of the day.</p>
               </div>
-              <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                {{ patient.condition }}
-              </span>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-              <div>
-                <p class="text-gray-600">Email</p>
-                <p class="font-semibold text-gray-800">{{ patient.email }}</p>
-              </div>
-              <div>
-                <p class="text-gray-600">Phone</p>
-                <p class="font-semibold text-gray-800">{{ patient.phone }}</p>
-              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">Open →</a>
             </div>
 
-            <!-- Medical History -->
-            <div class="mb-4">
-              <p class="font-semibold text-gray-700 mb-2">Medical History:</p>
-              <div class="flex flex-wrap gap-2">
-                <span *ngFor="let condition of patient.medicalHistory" 
-                  class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
-                  {{ condition }}
+            <div *ngIf="todaysAppointments.length > 0" class="space-y-3">
+              <div *ngFor="let appt of todaysAppointments" class="appt-row">
+                <div class="appt-row__main">
+                  <p class="appt-row__title">{{ getPatientName(appt.patientId) }}</p>
+                  <p class="appt-row__meta">{{ appt.type }} • {{ appt.mode }} • {{ formatAppointmentDate(appt.startAt) }}</p>
+                </div>
+                <span class="appt-row__badge"
+                  [ngClass]="appt.status === 'CONFIRMED' ? 'badge-confirmed' :
+                             appt.status === 'REQUESTED' ? 'badge-requested' :
+                             'badge-neutral'">
+                  {{ appt.status | titlecase }}
                 </span>
               </div>
             </div>
 
-            <!-- Current Medications -->
-            <div class="mb-4">
-              <p class="font-semibold text-gray-700 mb-2">Current Medications:</p>
+            <div *ngIf="todaysAppointments.length === 0" class="empty-mini">
+              <p class="empty-mini__title">No appointments today.</p>
+              <p class="empty-mini__text">Use Appointments to schedule or review upcoming visits.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Next 7 Days</h2>
+                <p class="panel__subtitle">Upcoming appointments, ordered by time.</p>
+              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">View all →</a>
+            </div>
+
+            <div *ngIf="nextAppointments.length > 0" class="space-y-3">
+              <div *ngFor="let appt of paginatedNextAppointments" class="appt-row appt-row--soft">
+                <div class="appt-row__main">
+                  <p class="appt-row__title">{{ getPatientName(appt.patientId) }}</p>
+                  <p class="appt-row__meta">{{ appt.type }} • {{ appt.mode }} • {{ formatAppointmentDate(appt.startAt) }}</p>
+                </div>
+                <span class="appt-row__badge badge-neutral">{{ appt.status | titlecase }}</span>
+              </div>
+
+              <div *ngIf="nextAppointments.length > nextAppointmentsPageSize" class="panel-pagination">
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safeNextAppointmentsPage <= 1"
+                  (click)="goToNextAppointmentsPage(safeNextAppointmentsPage - 1)">
+                  Previous
+                </button>
+                <div class="panel-pagination__pages">
+                  <button
+                    *ngFor="let page of nextAppointmentsPageNumbers"
+                    type="button"
+                    class="panel-pagination__number"
+                    [class.panel-pagination__number--active]="page === safeNextAppointmentsPage"
+                    (click)="goToNextAppointmentsPage(page)">
+                    {{ page }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safeNextAppointmentsPage >= nextAppointmentsTotalPages"
+                  (click)="goToNextAppointmentsPage(safeNextAppointmentsPage + 1)">
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="nextAppointments.length === 0" class="empty-mini">
+              <p class="empty-mini__title">Nothing scheduled in the next week.</p>
+              <p class="empty-mini__text">You can create appointments from the Patients list.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Priority Follow-up</h2>
+                <p class="panel__subtitle">Only patients needing scheduling, confirmation, or treatment review are shown here.</p>
+              </div>
+            </div>
+
+            <div class="patient-toolbar">
+              <input
+                type="text"
+                [(ngModel)]="patientQuery"
+                (ngModelChange)="onPatientQueryChange()"
+                placeholder="Search by name, email, username, or ID..."
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+              <div class="patient-toolbar__summary">
+                {{ patientQueue.length }} priority case{{ patientQueue.length === 1 ? '' : 's' }}
+              </div>
+            </div>
+
+            <div *ngIf="patientQueue.length > 0" class="queue-list">
+              <div *ngFor="let card of paginatedPatientQueue" class="queue-row">
+                <div class="queue-row__identity">
+                  <div class="queue-row__avatar">
+                    {{ (card.patient.fullName || card.patient.username || '?').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="queue-row__main">
+                    <p class="queue-row__name">
+                      {{ card.patient.fullName || (card.patient.firstName + ' ' + card.patient.lastName) || card.patient.username }}
+                    </p>
+                    <p class="queue-row__meta">{{ card.patient.email || card.patient.username }}</p>
+                  </div>
+                </div>
+
+                <div class="queue-row__next">
+                  <p class="queue-row__next-label">Next appointment</p>
+                  <p class="queue-row__next-value" [class.queue-row__next-value--empty]="!card.nextAppointmentLabel">
+                    {{ card.nextAppointmentLabel || 'No appointment scheduled' }}
+                  </p>
+                </div>
+
+                <div class="queue-row__stats">
+                  <span *ngIf="card.hasToday" class="patient-badge patient-badge--today">Today</span>
+                  <span *ngIf="card.requestedCount > 0" class="patient-badge patient-badge--requested">
+                    {{ card.requestedCount }} requested
+                  </span>
+                  <span class="patient-badge patient-badge--upcoming">
+                    {{ card.upcomingCount }} upcoming
+                  </span>
+                  <span class="patient-badge patient-badge--plan">
+                    {{ card.activePlanCount }} active plan{{ card.activePlanCount === 1 ? '' : 's' }}
+                  </span>
+                </div>
+
+                <div class="queue-row__actions">
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'appointments']" class="patient-action patient-action--primary">
+                    Appointments
+                  </a>
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'prescriptions']" class="patient-action">
+                    Prescriptions
+                  </a>
+                  <a [routerLink]="['/doctor/patients', card.patient.id, 'records']" class="patient-action">
+                    Records
+                  </a>
+                </div>
+              </div>
+
+              <div *ngIf="patientQueue.length > patientQueuePageSize" class="panel-pagination">
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safePatientQueuePage <= 1"
+                  (click)="goToPatientQueuePage(safePatientQueuePage - 1)">
+                  Previous
+                </button>
+                <div class="panel-pagination__pages">
+                  <button
+                    *ngFor="let page of patientQueuePageNumbers"
+                    type="button"
+                    class="panel-pagination__number"
+                    [class.panel-pagination__number--active]="page === safePatientQueuePage"
+                    (click)="goToPatientQueuePage(page)">
+                    {{ page }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="panel-pagination__btn"
+                  [disabled]="safePatientQueuePage >= patientQueueTotalPages"
+                  (click)="goToPatientQueuePage(safePatientQueuePage + 1)">
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="patientQueue.length === 0" class="empty-mini">
+              <p class="empty-mini__title">No priority follow-up at the moment.</p>
+              <p class="empty-mini__text">There are no patients with pending requests, today visits, or active plans without a next appointment.</p>
+            </div>
+          </div>
+        </section>
+
+        <aside class="space-y-8">
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2 class="panel__title">Attention</h2>
+                <p class="panel__subtitle">Items that usually need a quick decision.</p>
+              </div>
+              <a routerLink="/doctor/appointments" class="panel__link">Go →</a>
+            </div>
+
+            <div class="space-y-3">
+              <div class="attention-tile">
+                <p class="attention-tile__label">Requested appointments</p>
+                <p class="attention-tile__value">{{ requestedAppointmentsCount }}</p>
+              </div>
+
+              <div class="attention-tile attention-tile--soft">
+                <p class="attention-tile__label">Suspended medication plans</p>
+                <p class="attention-tile__value">{{ suspendedPlansCount }}</p>
+              </div>
+            </div>
+
+            <div class="mt-4" *ngIf="requestedAppointments.length > 0">
+              <p class="mini-title">Next requested</p>
               <div class="space-y-2">
-                <div *ngFor="let med of patient.currentMedications" class="bg-blue-50 p-3 rounded text-sm">
-                  <p class="font-semibold text-gray-800">{{ med.name }}</p>
-                  <p class="text-gray-600">{{ med.dosage }} - {{ med.frequency }}</p>
+                <div *ngFor="let appt of requestedAppointments" class="request-row">
+                  <div class="request-row__main">
+                    <p class="request-row__title">{{ getPatientName(appt.patientId) }}</p>
+                    <p class="request-row__meta">{{ formatAppointmentDate(appt.startAt) }}</p>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="acceptRequestedAppointment(appt.id)"
+                    [disabled]="confirming[appt.id]"
+                    class="request-row__action">
+                    {{ confirming[appt.id] ? 'Accepting...' : 'Accept' }}
+                  </button>
                 </div>
               </div>
             </div>
-
-            <!-- Action Buttons -->
-            <div class="flex gap-3 pt-4 border-t">
-              <button class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition font-semibold">
-                View Full Record
-              </button>
-              <button class="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition font-semibold">
-                Add Prescription
-              </button>
-            </div>
           </div>
-        </div>
-        
-        <div *ngIf="patients.length === 0" class="text-gray-500 text-center py-8">
-          No patients available
-        </div>
-      </div>
 
-      <!-- Upcoming Appointments -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">Scheduled Appointments</h2>
-        
-        <div *ngIf="appointments.length > 0" class="space-y-4">
-          <div *ngFor="let appt of appointments" class="border-l-4 border-blue-500 pl-4 py-3 hover:bg-blue-50 transition">
-            <div class="flex justify-between items-start">
+          <div class="panel panel--tint">
+            <div class="panel__header">
               <div>
-                <p class="font-bold text-gray-800">{{ getPatientName(appt.patientId) }}</p>
-                <p class="text-gray-600 text-sm">{{ appt.type }}</p>
-                <p class="text-gray-500 text-xs mt-1">📅 {{ appt.date | date: 'MMM d, y - h:mm a' }}</p>
+                <h2 class="panel__title">Shortcuts</h2>
+                <p class="panel__subtitle">Less clutter, just what you use.</p>
               </div>
-              <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                [ngClass]="appt.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'">
-                {{ appt.status | titlecase }}
-              </span>
+            </div>
+
+            <div class="space-y-3">
+              <a routerLink="/doctor/appointments" class="shortcut-row">
+                <span class="shortcut-row__label">Create appointment</span>
+                <span class="shortcut-row__meta">Open scheduling</span>
+              </a>
+              <a routerLink="/doctor/prescriptions" class="shortcut-row">
+                <span class="shortcut-row__label">Medication plans</span>
+                <span class="shortcut-row__meta">Review plans</span>
+              </a>
+              <a routerLink="/doctor/records" class="shortcut-row">
+                <span class="shortcut-row__label">Patient records</span>
+                <span class="shortcut-row__meta">Consult history</span>
+              </a>
             </div>
           </div>
-        </div>
-        
-        <div *ngIf="appointments.length === 0" class="text-gray-500 text-center py-8">
-          No appointments scheduled
-        </div>
+        </aside>
       </div>
-    </div>
-
-    <!-- Sidebar -->
-    <div>
-      <!-- Quick Actions -->
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
-        <div class="space-y-3">
-          <a 
-            routerLink="/doctor/checklist"
-            class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition cursor-pointer">
-            <span class="text-2xl">📝</span>
-            <div>
-              <p class="font-semibold text-gray-800">Create Task</p>
-              <p class="text-xs text-gray-600">Add checklist item for patient</p>
-            </div>
-          </a>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6 border border-slate-100">
-        <h2 class="text-xl font-bold text-gray-800 mb-1">Research &amp; clinical context</h2>
-        <p class="text-xs text-gray-500 mb-3">Evidence-informed reminders for clinic use. Adapt to your patients, policies, and local guidance.</p>
-        <pre *ngIf="researchNewsPreview" class="text-xs text-gray-700 whitespace-pre-wrap font-sans max-h-48 overflow-y-auto border-t border-slate-100 pt-3">{{ researchNewsPreview }}</pre>
-        <div *ngIf="researchNewsLoaded && !researchNewsPreview && researchCuratedBullets?.length" class="border-t border-slate-100 pt-3 mt-1">
-          <p class="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">Curated for clinic</p>
-          <ul class="text-sm text-slate-700 space-y-2.5 list-disc pl-4 leading-snug">
-            <li *ngFor="let line of researchCuratedBullets">{{ line }}</li>
-          </ul>
-          <p *ngIf="researchNewsFooterNote" class="text-xs text-slate-400 mt-3 leading-relaxed">{{ researchNewsFooterNote }}</p>
-        </div>
-      </div>
-
-      <!-- Recent Actions -->
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Recent Actions</h2>
-        <div class="space-y-3">
-          <div class="border-l-4 border-green-500 pl-3 py-2">
-            <p class="text-sm font-semibold text-gray-800">Prescription Issued</p>
-            <p class="text-xs text-gray-600">Donepezil - Margaret Johnson</p>
-            <p class="text-xs text-gray-500">2 days ago</p>
-          </div>
-          <div class="border-l-4 border-blue-500 pl-3 py-2">
-            <p class="text-sm font-semibold text-gray-800">Review Completed</p>
-            <p class="text-xs text-gray-600">Robert Williams vitals</p>
-            <p class="text-xs text-gray-500">1 week ago</p>
-          </div>
-          <div class="border-l-4 border-yellow-500 pl-3 py-2">
-            <p class="text-sm font-semibold text-gray-800">Notes Updated</p>
-            <p class="text-xs text-gray-600">Margaret Johnson condition</p>
-            <p class="text-xs text-gray-500">1 week ago</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Stats -->
-      <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Performance Stats</h2>
-        <div class="space-y-3 text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-600">Appointments/Month</span>
-            <span class="font-bold text-gray-800">8</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Patient Satisfaction</span>
-            <span class="font-bold text-green-600">4.8/5</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Avg. Response Time</span>
-            <span class="font-bold text-gray-800">2h 15m</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Cases This Month</span>
-            <span class="font-bold text-blue-600">6</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PDF: doctor creates patient -->
-  <div *ngIf="showCreatePatientModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
-      <div class="flex justify-between items-start mb-4">
-        <div>
-          <h3 class="text-xl font-bold text-gray-900">Create new patient</h3>
-          <p class="text-sm text-gray-600 mt-1">Account + profile + you assigned as doctor (module 3.2)</p>
-        </div>
-        <button type="button" (click)="closeCreatePatientModal()" class="text-gray-500 hover:text-gray-800 text-2xl leading-none">&times;</button>
-      </div>
-      <form [formGroup]="createPatientForm" (ngSubmit)="submitCreatePatient()" class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs font-medium text-gray-600">First name *</label>
-            <input formControlName="firstName" class="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600">Last name *</label>
-            <input formControlName="lastName" class="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600">Username *</label>
-          <input formControlName="username" class="w-full border rounded-lg px-3 py-2 text-sm" />
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600">Email *</label>
-          <input type="email" formControlName="email" class="w-full border rounded-lg px-3 py-2 text-sm" />
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600">Password (optional)</label>
-          <input type="password" formControlName="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Leave blank to auto-generate" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs font-medium text-gray-600">Date of birth *</label>
-            <input type="date" formControlName="dateOfBirth" class="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600">Gender *</label>
-            <select formControlName="gender" class="w-full border rounded-lg px-3 py-2 text-sm">
-              <option value="MALE">Male</option>
-              <option value="FEMALE">Female</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600">Alzheimer's / diagnosis stage</label>
-          <input formControlName="diagnosisStage" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. Mild" />
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600">Address</label>
-          <input formControlName="address" class="w-full border rounded-lg px-3 py-2 text-sm" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-xs font-medium text-gray-600">Phone</label>
-            <input formControlName="phone" class="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600">Emergency contact</label>
-            <input formControlName="emergencyContact" class="w-full border rounded-lg px-3 py-2 text-sm" />
-          </div>
-        </div>
-        <div *ngIf="lastGeneratedPatientPassword" class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
-          <p class="font-medium text-amber-900">Temporary password (copy now)</p>
-          <code class="text-xs break-all">{{ lastGeneratedPatientPassword }}</code>
-        </div>
-        <div class="flex gap-2 pt-2">
-          <button type="submit" [disabled]="creatingPatient || createPatientForm.invalid"
-            class="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-semibold disabled:opacity-50">
-            {{ creatingPatient ? 'Creating…' : 'Create patient' }}
-          </button>
-          <button type="button" (click)="closeCreatePatientModal()" class="px-4 py-2 border rounded-lg text-gray-700">Close</button>
-        </div>
-      </form>
     </div>
   </div>
 </div>

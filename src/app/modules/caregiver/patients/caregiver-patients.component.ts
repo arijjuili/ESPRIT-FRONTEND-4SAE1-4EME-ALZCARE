@@ -1,117 +1,110 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, of } from 'rxjs';
-import { takeUntil, catchError, map } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, takeUntil, catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
-import { CareTeamService } from '../../../core/services/care-team.service';
-import { ToastService } from '../../../shared/components/toast/toast.service';
-import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
-import { RoleTheme } from '../../../shared/components/navbar.component';
-import {
-  CaregiverAssignment,
-  CaregiverRole,
-  AssignmentStatus,
-  CaregiverPermissionsDto,
-  CaregiverAvailabilitySlotDto
-} from '../../../core/models/care-team.model';
+import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
+import { UserManagementService } from '../../../core/services/user-management.service';
+import { 
+  ManagedUser 
+} from '../../../core/models/user-management.model';
+import { 
+  MedicationPlan, 
+  MedicationAutonomyLevel, 
+  RiskLevel,
+  MedicationDashboardStats
+} from '../../../core/models/medical-followup.model';
 
 /**
- * Extended patient interface with assignment and computed fields
+ * Patient List Item - Extended patient data for caregiver view
  */
-interface PatientWithAssignment extends PatientProfileResponse {
-  assignment: CaregiverAssignment;
-  age?: number;
-  photoUrl?: string;
+interface PatientListItem {
+  id: string;
+  userId: string;  // Keycloak UUID
+  fullName: string;
+  email: string;
+  username: string;
+  status: string;
+  autonomyLevel: MedicationAutonomyLevel | null;
+  riskLevel: RiskLevel | null;
+  medicationPlan: MedicationPlan | null;
+  adherenceRate: number;
+  pendingIntakes: number;
 }
 
+/**
+ * Caregiver Patients Component
+ * 
+ * Displays a list of patients assigned to the caregiver
+ * with their medication status and quick actions.
+ */
 @Component({
   selector: 'app-caregiver-patients',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule, NotificationBellComponent],
+  imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './caregiver-patients.component.html',
   styleUrls: ['./caregiver-patients.component.scss']
 })
 export class CaregiverPatientsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject<void>();
-  
-  caregiverName = '';
   caregiverId = '';
   
-  // Role theme for notification bell (emerald for caregiver)
-  currentTheme: RoleTheme = {
-    name: 'Caregiver',
-    primary: '#10b981',
-    primaryLight: '#ecfdf5',
-    primaryDark: '#047857',
-    gradientFrom: '#10b981',
-    gradientTo: '#059669',
-    borderColor: '#d1fae5',
-    hoverBg: '#d1fae5',
-    activeBg: '#10b981',
-    activeText: '#ffffff'
-  };
+  // Data
+  patients: ManagedUser[] = [];
+  medicationPlans: MedicationPlan[] = [];
+  patientStats: Map<string, MedicationDashboardStats> = new Map();
   
-  // Patients data
-  patients: PatientWithAssignment[] = [];
-  loading = false;
+  // Processed patient list
+  patientListItems: PatientListItem[] = [];
+  filteredPatients: PatientListItem[] = [];
+  
+  // Filters
+  searchQuery = '';
+  autonomyFilter: MedicationAutonomyLevel | 'ALL' = 'ALL';
+  
+  // Loading state
+  loading = true;
   error: string | null = null;
-
-  /** Coordination modal (permissions, availability, mark unavailable) */
-  showCoordinationModal = false;
-  coordinationPatient: PatientWithAssignment | null = null;
-  coordinationPermissions: CaregiverPermissionsDto | null = null;
-  coordinationSlots: CaregiverAvailabilitySlotDto[] = [];
-  loadingCoordination = false;
-  showUnavailableForm = false;
-  unavailableForm: FormGroup;
-  savingUnavailable = false;
-
-  /** PDF: primary caregiver invites family / emergency */
-  showInviteModal = false;
-  invitePatient: PatientWithAssignment | null = null;
-  inviteRole: CaregiverRole = CaregiverRole.FAMILY;
-  generatingInvite = false;
-  lastInviteUrl: string | null = null;
   
-  // Enums for template access
-  CaregiverRole = CaregiverRole;
+  // Selected patient for details modal
+  selectedPatient: PatientListItem | null = null;
   
-  // Role badge colors
-  roleColors: Record<CaregiverRole, string> = {
-    [CaregiverRole.PRIMARY]: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    [CaregiverRole.FAMILY]: 'bg-blue-100 text-blue-800 border-blue-200',
-    [CaregiverRole.EMERGENCY]: 'bg-rose-100 text-rose-800 border-rose-200'
-  };
+  // Enums for template
+  autonomyLevels = MedicationAutonomyLevel;
+  riskLevels = RiskLevel;
+  
+  // Debounce subject for search
+  private searchSubject = new Subject<string>();
+  private destroy$ = new Subject<void>();
 
   constructor(
-    private authService: AuthService,
-    private patientService: PatientService,
-    private careTeamService: CareTeamService,
-    private toastService: ToastService,
     private router: Router,
-    private fb: FormBuilder
-  ) {
-    this.unavailableForm = this.fb.group({
-      from: ['', Validators.required],
-      to: ['', Validators.required],
-      reason: ['']
-    });
-  }
+    private authService: AuthService,
+    private medicalService: MedicalFollowupService,
+    private userService: UserManagementService
+  ) {}
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
     
     if (currentUser) {
-      this.caregiverName = currentUser.name;
       this.caregiverId = currentUser.id;
-      this.loadPatients();
+      this.loadData();
     } else {
-      this.error = 'User not authenticated';
-      this.toastService.error('Please log in to view your patients', 'Authentication Error');
+      console.error('No current user found');
+      this.error = 'You must be logged in to view this page';
+      this.loading = false;
     }
+    
+    // Setup debounced search
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
+      this.applyFilters();
+    });
   }
 
   ngOnDestroy(): void {
@@ -120,362 +113,252 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Load caregiver assignments and then fetch patient profiles
+   * Load all necessary data
    */
-  loadPatients(): void {
-    if (!this.caregiverId) {
-      this.error = 'Caregiver ID not found';
-      return;
-    }
-
+  loadData(): void {
     this.loading = true;
     this.error = null;
 
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
-          this.error = 'Failed to load your patient assignments';
-          this.toastService.error('Failed to load your patients', 'Error');
-          return of([]);
-        })
-      )
-      .subscribe(assignments => {
-        // Filter only active assignments
-        const activeAssignments = assignments.filter(
-          a => a.status === AssignmentStatus.ACTIVE
+    // Get patients assigned to this caregiver
+    this.userService.getPatientsForCaregiver(this.caregiverId).pipe(
+      catchError(() => {
+        // Fallback: get all active patients if endpoint doesn't exist
+        return this.userService.getActivePatients().pipe(
+          catchError(() => of([]))
         );
-        
-        if (activeAssignments.length === 0) {
-          this.patients = [];
-          this.loading = false;
-          return;
-        }
-
-        // Load patient profiles for each assignment
-        this.loadPatientProfiles(activeAssignments);
-      });
-  }
-
-  /**
-   * Load patient profiles from IDs in assignments
-   */
-  private loadPatientProfiles(assignments: CaregiverAssignment[]): void {
-    const patientRequests = assignments.map((assignment) =>
-      this.patientService.getPatientById(assignment.patientId).pipe(
-        map((patient) => ({ patient, assignment })),
-        catchError(() => {
-          // No Keycloak/identity user — hide stale care-team assignment (same as doctor dashboard)
-          return of(null);
-        })
-      )
-    );
-
-    forkJoin(patientRequests)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((results) => {
-        const rows = results.filter(
-          (r): r is { patient: PatientProfileResponse; assignment: CaregiverAssignment } => r !== null
-        );
-        this.patients = rows
-          .map(({ patient, assignment }) => ({
-            ...patient,
-            assignment,
-            age: this.calculateAge(patient.dateOfBirth),
-            photoUrl: undefined
-          }))
-          .sort(
-            (a, b) =>
-              this.getRolePriority(a.assignment.role) - this.getRolePriority(b.assignment.role)
-          );
-
+      })
+    ).subscribe({
+      next: (patients) => {
+        this.patients = patients;
+        this.loadMedicationData();
+      },
+      error: (err) => {
+        console.error('Error loading patients:', err);
+        this.error = 'Failed to load patients data';
         this.loading = false;
-      });
+      }
+    });
   }
 
   /**
-   * Calculate age from date of birth
+   * Load medication plans and stats for all patients
    */
-  private calculateAge(dateOfBirth?: string): number | undefined {
-    if (!dateOfBirth) return undefined;
-    
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    return age;
-  }
-
-  /**
-   * Get priority number for role sorting (lower = higher priority)
-   */
-  private getRolePriority(role: CaregiverRole): number {
-    switch (role) {
-      case CaregiverRole.PRIMARY: return 1;
-      case CaregiverRole.FAMILY: return 2;
-      case CaregiverRole.EMERGENCY: return 3;
-      default: return 4;
-    }
-  }
-
-  /**
-   * Get CSS classes for role badge
-   */
-  getRoleBadgeClass(role: CaregiverRole): string {
-    return this.roleColors[role] || 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-
-  /**
-   * Get display label for role
-   */
-  getRoleLabel(role: CaregiverRole): string {
-    const labels: Record<CaregiverRole, string> = {
-      [CaregiverRole.PRIMARY]: 'PRIMARY CAREGIVER',
-      [CaregiverRole.FAMILY]: 'FAMILY MEMBER',
-      [CaregiverRole.EMERGENCY]: 'EMERGENCY CONTACT'
-    };
-    return labels[role] || role;
-  }
-
-  /**
-   * Get initials for avatar placeholder
-   */
-  getPatientInitials(patient: PatientWithAssignment): string {
-    const first = patient.firstName?.charAt(0) || '';
-    const last = patient.lastName?.charAt(0) || '';
-    return (first + last).toUpperCase() || '?';
-  }
-
-  /**
-   * Get full display name for patient
-   */
-  getPatientFullName(patient: PatientWithAssignment): string {
-    return `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
-  }
-
-  /**
-   * Get gender display with icon
-   */
-  getGenderDisplay(gender?: string): string {
-    if (!gender) return '';
-    const displayMap: Record<string, string> = {
-      'MALE': '👨 Male',
-      'FEMALE': '👩 Female',
-      'OTHER': '⚧ Other',
-      'PREFER_NOT_TO_SAY': 'Not specified'
-    };
-    return displayMap[gender.toUpperCase()] || gender;
-  }
-
-  /**
-   * View patient details
-   */
-  viewPatientDetails(patientId: string): void {
-    // Navigate to patient detail view when available
-    // For now, navigate to tasks with patient filter
-    this.router.navigate(['/caregiver/tasks'], { queryParams: { patientId } });
-  }
-
-  /**
-   * Navigate to behavior log form for patient
-   */
-  logBehavior(patientId: string): void {
-    this.router.navigate(['/caregiver/behaviors', patientId]);
-  }
-
-  /**
-   * Refresh patients list
-   */
-  refresh(): void {
-    this.loadPatients();
-    this.toastService.info('Refreshing patient list...', 'Refresh');
-  }
-
-  /**
-   * Get border color class based on role
-   */
-  getCardBorderClass(role: CaregiverRole): string {
-    switch (role) {
-      case CaregiverRole.PRIMARY: return 'border-emerald-300';
-      case CaregiverRole.FAMILY: return 'border-blue-300';
-      case CaregiverRole.EMERGENCY: return 'border-rose-300';
-      default: return 'border-gray-200';
-    }
-  }
-
-  /**
-   * Get background tint class based on role
-   */
-  getCardBgClass(role: CaregiverRole): string {
-    switch (role) {
-      case CaregiverRole.PRIMARY: return 'bg-emerald-50/50';
-      case CaregiverRole.FAMILY: return 'bg-blue-50/50';
-      case CaregiverRole.EMERGENCY: return 'bg-rose-50/50';
-      default: return 'bg-white';
-    }
-  }
-
-  /**
-   * Get count of patients for a specific role
-   */
-  getRoleCount(role: CaregiverRole): number {
-    return this.patients.filter(p => p.assignment.role === role).length;
-  }
-
-  /**
-   * Get count of unique roles assigned
-   */
-  getUniqueRoleCount(): number {
-    const roles = new Set(this.patients.map(p => p.assignment.role));
-    return roles.size;
-  }
-
-  openCoordination(patient: PatientWithAssignment): void {
-    this.coordinationPatient = patient;
-    this.coordinationPermissions = null;
-    this.coordinationSlots = [];
-    this.showUnavailableForm = false;
-    this.unavailableForm.reset();
-    this.showCoordinationModal = true;
-    this.loadCoordinationData(patient);
-  }
-
-  closeCoordination(): void {
-    this.showCoordinationModal = false;
-    this.coordinationPatient = null;
-    this.showUnavailableForm = false;
-  }
-
-  private loadCoordinationData(patient: PatientWithAssignment): void {
-    this.loadingCoordination = true;
-    const pid = patient.assignment.patientId;
-    forkJoin({
-      permissions: this.careTeamService.getCaregiverPermissions(this.caregiverId, pid).pipe(
-        catchError(() => of(null))
-      ),
-      availability: this.careTeamService.getCaregiverAvailability(this.caregiverId).pipe(
-        catchError(() => of([] as CaregiverAvailabilitySlotDto[]))
-      )
-    })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: ({ permissions, availability }) => {
-          this.coordinationPermissions = permissions;
-          this.coordinationSlots = availability.filter((s) => s.patientId === pid);
-          this.loadingCoordination = false;
-        },
-        error: () => {
-          this.loadingCoordination = false;
-        }
-      });
-  }
-
-  toggleUnavailableForm(): void {
-    this.showUnavailableForm = !this.showUnavailableForm;
-    if (!this.showUnavailableForm) {
-      this.unavailableForm.reset();
-    }
-  }
-
-  private toLocalDateTimeIso(raw: string): string {
-    if (!raw) return raw;
-    return raw.length === 16 ? `${raw}:00` : raw;
-  }
-
-  submitUnavailable(): void {
-    if (!this.coordinationPatient || this.unavailableForm.invalid) {
-      this.toastService.warning('Fill in start and end time');
+  loadMedicationData(): void {
+    if (this.patients.length === 0) {
+      this.processPatientData();
+      this.loading = false;
       return;
     }
-    const v = this.unavailableForm.value;
-    const from = this.toLocalDateTimeIso(v.from);
-    const to = this.toLocalDateTimeIso(v.to);
-    this.savingUnavailable = true;
-    this.careTeamService
-      .markCaregiverUnavailable(this.coordinationPatient.assignment.id, {
-        from,
-        to,
-        reason: v.reason || ''
-      })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.toastService.success('Unavailability saved');
-          this.savingUnavailable = false;
-          this.showUnavailableForm = false;
-          this.unavailableForm.reset();
-          this.loadCoordinationData(this.coordinationPatient!);
-          this.loadPatients();
-        },
-        error: (err) => {
-          this.toastService.error(err.error?.message || 'Could not save');
-          this.savingUnavailable = false;
-        }
+
+    // Load medication plans for each patient
+    const planRequests = this.patients.map(patient => {
+      const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+      return this.medicalService.getPatientMedicationPlans(keycloakId).pipe(
+        catchError(() => of([]))
+      );
+    });
+
+    // Load stats for each patient
+    const statsRequests = this.patients.map(patient => {
+      const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+      return this.medicalService.getPatientMedicationStats(keycloakId).pipe(
+        catchError(() => of({
+          totalPlans: 0,
+          activePlans: 0,
+          adherenceRate: 0,
+          pendingIntakesToday: 0
+        }))
+      );
+    });
+
+    forkJoin({
+      plans: forkJoin(planRequests).pipe(catchError(() => of([]))),
+      stats: forkJoin(statsRequests).pipe(catchError(() => of([])))
+    }).subscribe({
+      next: (results: any) => {
+        // Flatten plans array
+        this.medicationPlans = (results.plans as MedicationPlan[][]).flat();
+        
+        // Store stats
+        this.patients.forEach((patient, index) => {
+          const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+          if (results.stats && results.stats[index]) {
+            this.patientStats.set(keycloakId, results.stats[index]);
+          }
+        });
+
+        this.processPatientData();
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Error loading medication data:', err);
+        // Continue with empty data
+        this.processPatientData();
+        this.loading = false;
+      }
+    });
+  }
+
+  /**
+   * Process raw data into patient list items
+   */
+  processPatientData(): void {
+    this.patientListItems = this.patients.map(patient => {
+      const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+      
+      // Find medication plan for this patient
+      const plan = this.medicationPlans.find(p => p.patientId === keycloakId) || null;
+      
+      // Get stats
+      const stats = this.patientStats.get(keycloakId);
+      
+      return {
+        id: patient.id,
+        userId: keycloakId,
+        fullName: patient.fullName ||
+          (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : patient.username),
+        email: patient.email,
+        username: patient.username,
+        status: patient.status,
+        autonomyLevel: plan?.autonomyLevel || null,
+        riskLevel: plan?.lastRiskLevel || null,
+        medicationPlan: plan,
+        adherenceRate: stats?.adherenceRate || 0,
+        pendingIntakes: stats?.pendingIntakesToday || stats?.pendingIntakes || 0
+      };
+    });
+
+    this.applyFilters();
+  }
+
+  /**
+   * Handle search input
+   */
+  onSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchQuery = value || '';
+    this.searchSubject.next(this.searchQuery);
+  }
+
+  /**
+   * Apply all filters to the patient list
+   */
+  applyFilters(): void {
+    let filtered = [...this.patientListItems];
+    
+    // Search by name
+    if (this.searchQuery && this.searchQuery.trim()) {
+      const query = this.searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(p => {
+        const fullNameMatch = (p.fullName?.toLowerCase() || '').includes(query);
+        const usernameMatch = (p.username?.toLowerCase() || '').includes(query);
+        const emailMatch = (p.email?.toLowerCase() || '').includes(query);
+        return fullNameMatch || usernameMatch || emailMatch;
       });
+    }
+    
+    // Filter by autonomy level
+    if (this.autonomyFilter !== 'ALL') {
+      filtered = filtered.filter(p => p.autonomyLevel === this.autonomyFilter);
+    }
+    
+    this.filteredPatients = filtered;
   }
 
-  permissionEntries(): { key: string; value: boolean }[] {
-    const p = this.coordinationPermissions?.permissions;
-    if (!p) return [];
-    return Object.keys(p).map((key) => ({ key, value: !!p[key] }));
+  /**
+   * Navigate to medications page for a patient
+   */
+  viewMedications(patient: PatientListItem): void {
+    this.router.navigate(['/caregiver/medications'], { 
+      queryParams: { patientId: patient.userId }
+    });
   }
 
-  isPrimaryCaregiver(patient: PatientWithAssignment): boolean {
-    return patient.assignment.role === CaregiverRole.PRIMARY;
+  /**
+   * View patient details in modal
+   */
+  viewPatientDetails(patient: PatientListItem): void {
+    this.selectedPatient = patient;
   }
 
-  openInviteModal(patient: PatientWithAssignment): void {
-    if (!this.isPrimaryCaregiver(patient)) return;
-    this.invitePatient = patient;
-    this.inviteRole = CaregiverRole.FAMILY;
-    this.lastInviteUrl = null;
-    this.showInviteModal = true;
+  /**
+   * Close patient details modal
+   */
+  closePatientDetails(): void {
+    this.selectedPatient = null;
   }
 
-  closeInviteModal(): void {
-    this.showInviteModal = false;
-    this.invitePatient = null;
-    this.generatingInvite = false;
-    this.lastInviteUrl = null;
+  /**
+   * Get risk level badge color class
+   */
+  getRiskBadgeClass(riskLevel: RiskLevel | null): string {
+    switch (riskLevel) {
+      case RiskLevel.LOW:
+        return 'badge-success';
+      case RiskLevel.MEDIUM:
+        return 'badge-warning';
+      case RiskLevel.HIGH:
+        return 'badge-danger';
+      default:
+        return 'badge-default';
+    }
   }
 
-  submitGenerateInvite(): void {
-    if (!this.invitePatient) return;
-    const pid = this.invitePatient.assignment.patientId;
-    this.generatingInvite = true;
-    this.lastInviteUrl = null;
-    this.careTeamService
-      .generateCaregiverInvite({ patientId: pid, role: this.inviteRole })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res) => {
-          this.lastInviteUrl = res.inviteUrl;
-          this.toastService.success('Invite link created — share it with the new caregiver');
-          this.generatingInvite = false;
-        },
-        error: (err) => {
-          const msg =
-            err.error?.message ||
-            err.error?.detail ||
-            (typeof err.error === 'string' ? err.error : null) ||
-            'Could not create invite';
-          this.toastService.error(msg);
-          this.generatingInvite = false;
-        }
-      });
+  /**
+   * Get autonomy level badge color class
+   */
+  getAutonomyBadgeClass(autonomyLevel: MedicationAutonomyLevel | null): string {
+    switch (autonomyLevel) {
+      case MedicationAutonomyLevel.INDEPENDENT:
+        return 'badge-success';
+      case MedicationAutonomyLevel.ASSISTED:
+        return 'badge-info';
+      case MedicationAutonomyLevel.DEPENDENT:
+        return 'badge-warning';
+      default:
+        return 'badge-default';
+    }
   }
 
-  copyInviteUrl(): void {
-    if (!this.lastInviteUrl) return;
-    void navigator.clipboard.writeText(this.lastInviteUrl).then(
-      () => this.toastService.success('Link copied'),
-      () => this.toastService.warning('Copy failed — select the link manually')
-    );
+  /**
+   * Get autonomy level display text
+   */
+  getAutonomyLabel(autonomyLevel: MedicationAutonomyLevel | null): string {
+    switch (autonomyLevel) {
+      case MedicationAutonomyLevel.INDEPENDENT:
+        return 'Independent';
+      case MedicationAutonomyLevel.ASSISTED:
+        return 'Assisted';
+      case MedicationAutonomyLevel.DEPENDENT:
+        return 'Dependent';
+      default:
+        return 'Not defined';
+    }
+  }
+
+  /**
+   * Get risk level display text
+   */
+  getRiskLabel(riskLevel: RiskLevel | null): string {
+    switch (riskLevel) {
+      case RiskLevel.LOW:
+        return 'Low';
+      case RiskLevel.MEDIUM:
+        return 'Medium';
+      case RiskLevel.HIGH:
+        return 'High';
+      default:
+        return 'Not assessed';
+    }
+  }
+
+  /**
+   * Get initials from full name
+   */
+  getInitials(fullName: string): string {
+    if (!fullName) return '?';
+    const parts = fullName.split(' ');
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   }
 }

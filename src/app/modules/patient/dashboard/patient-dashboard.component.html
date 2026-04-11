@@ -1,170 +1,428 @@
 <div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8">
   <!-- Welcome Header -->
-  <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-    <div>
-      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Welcome back, {{ patientName }}! 👋</h1>
-      <p class="text-sm sm:text-base text-gray-500 mt-2">{{ getGreeting() }}</p>
-    </div>
-    <div class="flex items-center gap-3">
-      <app-notification-bell [theme]="currentTheme"></app-notification-bell>
-    </div>
+  <div class="mb-6 sm:mb-8">
+    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Welcome back, {{ patientName }}! 👋</h1>
+    <p class="text-sm sm:text-base text-gray-500 mt-2">{{ getGreeting() }}</p>
   </div>
 
-  <!-- Health Status Alert -->
-  <div class="mb-8">
-    <app-alert-card 
-      type="success"
-      title="Great news! Your health is on track"
-      message="All vital signs are within normal range. Keep up the excellent work!">
-    </app-alert-card>
+  <!-- Error Message -->
+  <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+    <p class="font-bold">Error</p>
+    <p>{{ error }}</p>
   </div>
 
-  <!-- Health Metrics Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-danger hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
-      <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Blood Pressure</p>
-      <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">128/82</p>
-      <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">mmHg • Normal</p>
-      <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-success w-4/5"></div>
-      </div>
-    </div>
-    
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-primary-500 hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
-      <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Heart Rate</p>
-      <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">72</p>
-      <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">bpm • Healthy</p>
-      <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-success w-3/4"></div>
-      </div>
-    </div>
-    
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-warning hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
-      <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Glucose</p>
-      <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">115</p>
-      <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">mg/dL • Normal</p>
-      <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-warning w-2/3"></div>
-      </div>
-    </div>
-    
-    <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-info hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
-      <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Sleep</p>
-      <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">7.5h</p>
-      <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">hours • Good</p>
-      <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-info w-3/5"></div>
-      </div>
-    </div>
+  <!-- Loading State -->
+  <div *ngIf="isLoading()" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
+    <p class="text-gray-600 mt-4">Loading your dashboard...</p>
   </div>
 
-  <!-- Main Content Grid -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-    <!-- Left Column: Upcoming & Medications -->
-    <div class="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
-      <!-- Upcoming Appointments -->
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-        <div class="flex items-center justify-between mb-4 sm:mb-6">
-          <h2 class="text-lg sm:text-2xl font-bold text-gray-900">📅 Appointments</h2>
-          <a href="#" class="text-primary-600 hover:text-primary-700 font-semibold text-xs sm:text-sm">View All</a>
+  <div *ngIf="!isLoading()">
+    <!-- Health Status Alert -->
+    <div class="mb-6 sm:mb-8">
+      <app-alert-card 
+        type="success"
+        title="Great news! Your health is on track"
+        message="All vital signs are within normal range. Keep up the excellent work!">
+      </app-alert-card>
+    </div>
+
+    <!-- Health Metrics Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-danger hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+        <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Blood Pressure</p>
+        <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">128/82</p>
+        <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">mmHg • Normal</p>
+        <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full bg-success w-4/5"></div>
         </div>
-        
-        <div *ngIf="appointments.length > 0" class="space-y-4">
-          <div *ngFor="let appt of appointments" class="border-l-4 border-primary-500 pl-4 py-3 hover:bg-primary-50 transition rounded-r-lg">
-            <div class="flex justify-between items-start mb-2">
-              <div>
-                <p class="font-bold text-gray-900 text-lg">{{ appt.type }}</p>
-                <p class="text-gray-600 text-sm">{{ appt.notes }}</p>
+      </div>
+      
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-primary-500 hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+        <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Heart Rate</p>
+        <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">72</p>
+        <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">bpm • Healthy</p>
+        <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full bg-success w-3/4"></div>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-warning hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+        <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Glucose</p>
+        <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">115</p>
+        <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">mg/dL • Normal</p>
+        <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full bg-warning w-2/3"></div>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-3 sm:p-6 border-t-4 border-info hover:shadow-lg transition transform hover:-translate-y-1 duration-200">
+        <p class="text-gray-600 text-xs sm:text-sm font-bold uppercase tracking-wider">Medications Today</p>
+        <p class="text-2xl sm:text-5xl font-bold text-gray-900 mt-2 sm:mt-3">{{ getTodayPendingMedications() }}</p>
+        <p class="text-gray-500 text-xs sm:text-sm mt-1 sm:mt-2">pending</p>
+        <div class="mt-2 sm:mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-full bg-info w-3/5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+      <!-- Left Column: Medications & Appointments -->
+      <div class="lg:col-span-2 space-y-4 sm:space-y-6 lg:space-y-8">
+        <!-- Current Medications with Today/All Toggle -->
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
+          <div class="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 class="text-lg sm:text-2xl font-bold text-gray-900">💊 Medications</h2>
+            <a routerLink="/patient/medications" class="text-primary-600 hover:text-primary-700 font-semibold text-xs sm:text-sm">View All</a>
+          </div>
+          
+          <!-- Toggle: Today | All -->
+          <div class="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+            <button 
+              (click)="selectedMedicationView = 'TODAY'"
+              class="px-4 py-2 rounded-md text-sm font-medium transition"
+              [class.bg-white]="selectedMedicationView === 'TODAY'"
+              [class.shadow-sm]="selectedMedicationView === 'TODAY'"
+              [class.text-gray-900]="selectedMedicationView === 'TODAY'"
+              [class.text-gray-600]="selectedMedicationView !== 'TODAY'"
+              [class.hover:text-gray-900]="selectedMedicationView !== 'TODAY'">
+              Today ({{ todaysIntakes.length }})
+            </button>
+            <button 
+              (click)="selectedMedicationView = 'ALL'"
+              class="px-4 py-2 rounded-md text-sm font-medium transition"
+              [class.bg-white]="selectedMedicationView === 'ALL'"
+              [class.shadow-sm]="selectedMedicationView === 'ALL'"
+              [class.text-gray-900]="selectedMedicationView === 'ALL'"
+              [class.text-gray-600]="selectedMedicationView !== 'ALL'"
+              [class.hover:text-gray-900]="selectedMedicationView !== 'ALL'">
+              All
+            </button>
+          </div>
+          
+          <!-- TODAY VIEW: Today's Intakes -->
+          <div *ngIf="selectedMedicationView === 'TODAY'" class="space-y-3">
+            <div *ngFor="let intake of todaysIntakes" 
+                 class="flex items-center gap-4 p-4 rounded-xl border hover:shadow-md transition"
+                 [class.bg-green-50]="intake.status === IntakeStatus.TAKEN"
+                 [class.border-green-200]="intake.status === IntakeStatus.TAKEN"
+                 [class.bg-yellow-50]="intake.status === IntakeStatus.PENDING"
+                 [class.border-yellow-200]="intake.status === IntakeStatus.PENDING"
+                 [class.bg-red-50]="intake.status === IntakeStatus.MISSED"
+                 [class.border-red-200]="intake.status === IntakeStatus.MISSED"
+                 [class.bg-gray-50]="intake.status === IntakeStatus.REFUSED || intake.status === IntakeStatus.DELAYED"
+                 [class.border-gray-200]="intake.status === IntakeStatus.REFUSED || intake.status === IntakeStatus.DELAYED">
+              
+              <!-- Time -->
+              <div class="flex-shrink-0 w-14 text-center">
+                <p class="text-base font-bold text-gray-900">{{ formatTimeOnly(intake.scheduledAt) }}</p>
               </div>
-              <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold"
-                [ngClass]="appt.status === 'completed' ? 'bg-success bg-opacity-20 text-success' : 'bg-primary-100 text-primary-700'">
-                {{ appt.status | titlecase }}
+              
+              <!-- Medication Info -->
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-900 truncate">{{ intake.item?.name }}</p>
+                <p class="text-gray-600 text-sm">{{ intake.item?.dosage }}</p>
+              </div>
+              
+              <!-- Status Badge -->
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold capitalize"
+                    [ngClass]="getStatusBadgeClass(intake.status)">
+                {{ intake.status }}
               </span>
             </div>
-            <p class="text-gray-500 text-sm">⏰ {{ appt.date | date: 'MMM d, y • h:mm a' }}</p>
+            
+            <!-- Empty state for Today view -->
+            <div *ngIf="todaysIntakes.length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+              <p class="text-4xl mb-2">💊</p>
+              <p>No medications scheduled today</p>
+              <p class="text-sm mt-1">Enjoy your day!</p>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Medications -->
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-        <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">💊 Current Medications</h2>
-        
-        <div *ngIf="medications.length > 0" class="space-y-4">
-          <div *ngFor="let med of medications" class="bg-gradient-to-r from-primary-50 to-transparent rounded-xl border border-primary-200 p-5 hover:shadow-md transition">
-            <div class="flex justify-between items-start mb-3">
-              <div>
-                <p class="font-bold text-gray-900 text-lg">{{ med.name }}</p>
-                <p class="text-gray-600 text-sm">{{ med.dosage }}</p>
+          
+          <!-- ALL VIEW: Existing Active Medications -->
+          <div *ngIf="selectedMedicationView === 'ALL'" class="space-y-4">
+            <div *ngFor="let med of getActiveMedications()" 
+                 class="bg-gradient-to-r from-primary-50 to-transparent rounded-xl border p-4 sm:p-5 hover:shadow-md transition"
+                 [class.border-primary-200]="!med.isHighRisk"
+                 [class.border-red-300]="med.isHighRisk"
+                 [class.bg-red-50]="med.isHighRisk">
+              <div class="flex justify-between items-start mb-3">
+                <div>
+                  <p class="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    {{ med.name }}
+                    <span *ngIf="med.isHighRisk" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">
+                      🚨 HIGH RISK
+                    </span>
+                  </p>
+                  <p class="text-gray-600 text-sm">{{ med.dosage }}</p>
+                </div>
+                <span class="px-3 py-1 rounded-full text-xs font-semibold"
+                  [class.bg-primary-100]="!med.isHighRisk"
+                  [class.text-primary-700]="!med.isHighRisk"
+                  [class.bg-red-100]="med.isHighRisk"
+                  [class.text-red-700]="med.isHighRisk">
+                  {{ med.frequency }}
+                </span>
               </div>
-              <span class="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-semibold">{{ med.frequency }}</span>
+              <div class="flex items-center justify-between">
+                <p class="text-gray-500 text-xs">Prescribed by Dr. {{ med.prescribedBy }}</p>
+                <p class="text-xs font-semibold" 
+                   [class.text-green-600]="med.stockQuantity > med.lowThreshold"
+                   [class.text-red-600]="med.stockQuantity <= med.lowThreshold">
+                  Stock: {{ med.stockQuantity }}
+                  <span *ngIf="med.stockQuantity <= med.lowThreshold">🚨 Low</span>
+                </p>
+              </div>
             </div>
-            <p class="text-gray-500 text-xs">Prescribed by Dr. {{ med.prescribedBy }}</p>
+            
+            <!-- Empty state for All view -->
+            <div *ngIf="getActiveMedications().length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+              <p class="text-4xl mb-2">💊</p>
+              <p>No active medications</p>
+              <p class="text-sm mt-1">Your medications will appear here when prescribed</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Appointments Section -->
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8 mt-4 sm:mt-6">
+          <div class="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 class="text-lg sm:text-2xl font-bold text-gray-900">📅 My Appointments</h2>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500">{{ appointments.length }} total</span>
+            </div>
+          </div>
+          
+          <!-- Appointments List -->
+          <div *ngIf="getAllAppointments().length > 0" class="space-y-4">
+            <div *ngFor="let appt of getAllAppointments()" 
+                 class="border-l-4 pl-4 py-3 hover:bg-primary-50 transition rounded-r-lg"
+                 [class.border-purple-500]="appt.mode === 'ONLINE'"
+                 [class.border-blue-500]="appt.mode === 'ONSITE'"
+                 [class.border-gray-300]="appt.status === 'CANCELLED'"
+                 [class.opacity-60]="appt.status === 'CANCELLED'">
+              
+              <!-- Header: Type and Badges -->
+              <div class="flex justify-between items-start mb-2 flex-wrap gap-2">
+                <div>
+                  <p class="font-bold text-gray-900 text-lg">{{ appt.type }}</p>
+                  <p class="text-gray-600 text-sm">{{ appt.priority }} priority</p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                  <!-- Mode Badge -->
+                  <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold border"
+                    [ngClass]="getModeBadgeClass(appt.mode)">
+                    {{ getModeIcon(appt.mode) }} {{ appt.mode }}
+                  </span>
+                  <!-- Status Badge -->
+                  <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold border"
+                    [ngClass]="getAppointmentStatusClass(appt.status)">
+                    {{ appt.status | titlecase }}
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Date & Time -->
+              <div class="flex items-center gap-2 text-gray-600 text-sm mb-2">
+                <span>📅</span>
+                <span>{{ formatAppointmentDate(appt.startAt) }}</span>
+              </div>
+              
+              <!-- Duration -->
+              <div class="flex items-center gap-2 text-gray-500 text-xs mb-3">
+                <span>⏱️</span>
+                <span>{{ getDurationMinutes(appt.startAt, appt.endAt) }} minutes</span>
+              </div>
+              
+              <!-- Teleconsultation Section for ONLINE appointments -->
+              <div *ngIf="isOnlineAppointment(appt)" class="mt-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 border border-purple-200">
+                <!-- Active Teleconsultation (Ready to join) -->
+                <div *ngIf="isTeleconsultationActive(appt)" class="space-y-2">
+                  <div class="flex items-center gap-2 text-green-700 bg-green-100 px-3 py-2 rounded-lg">
+                    <span>✅</span>
+                    <span class="font-semibold text-sm">Ready to join</span>
+                  </div>
+                  <button 
+                    (click)="joinMeeting(appt.meetingUrl)"
+                    class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-semibold flex items-center justify-center gap-2">
+                    <span>🎥</span> Join Meeting
+                  </button>
+                </div>
+                
+                <!-- Pending Teleconsultation (Waiting for confirmation) -->
+                <div *ngIf="isTeleconsultationPending(appt)" class="space-y-2">
+                  <div class="flex items-center gap-2 text-yellow-700 bg-yellow-100 px-3 py-2 rounded-lg">
+                    <span>⏳</span>
+                    <span class="font-semibold text-sm">Waiting for doctor confirmation</span>
+                  </div>
+                  <p class="text-xs text-gray-600">
+                    The meeting link will be available once the doctor confirms your appointment.
+                  </p>
+                </div>
+                
+                <!-- Cancelled Appointment -->
+                <div *ngIf="isAppointmentCancelled(appt)" class="space-y-2">
+                  <div class="flex items-center gap-2 text-red-700 bg-red-100 px-3 py-2 rounded-lg">
+                    <span>❌</span>
+                    <span class="font-semibold text-sm">Appointment Cancelled</span>
+                  </div>
+                  <button 
+                    disabled
+                    class="w-full bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed text-sm font-semibold flex items-center justify-center gap-2">
+                    <span>🚫</span> Join Meeting
+                  </button>
+                </div>
+                
+                <!-- Completed Appointment -->
+                <div *ngIf="appt.status === 'COMPLETED'" class="space-y-2">
+                  <div class="flex items-center gap-2 text-blue-700 bg-blue-100 px-3 py-2 rounded-lg">
+                    <span>✓</span>
+                    <span class="font-semibold text-sm">Session Completed</span>
+                  </div>
+                  <button 
+                    disabled
+                    class="w-full bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed text-sm font-semibold flex items-center justify-center gap-2">
+                    <span>✓</span> Session Ended
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Empty State -->
+          <div *ngIf="getAllAppointments().length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+            <p class="text-4xl mb-2">📅</p>
+            <p>No appointments scheduled</p>
+            <p class="text-sm mt-1">Your appointments will appear here</p>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Right Column: Tasks -->
-    <div>
-      <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-        <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">✅ Today's Tasks</h2>
-        
-        <div *ngIf="todayTasks.length > 0" class="space-y-3">
-          <div *ngFor="let task of todayTasks" class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-primary-50 transition">
-            <input 
-              type="checkbox" 
-              [checked]="task.completed"
-              (change)="toggleTask(task.id)"
-              class="mt-1 w-5 h-5 cursor-pointer rounded border-2 border-primary-500 text-primary-600 focus:ring-primary-500">
-            <div class="flex-1 min-w-0">
-              <p class="font-semibold text-gray-900 text-sm" [ngClass]="{'line-through text-gray-400': task.completed}">
-                {{ task.title }}
+      <!-- Right Column: Tasks -->
+      <div>
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
+          <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">✅ Today's Tasks</h2>
+          
+          <div *ngIf="todayTasks.length > 0" class="space-y-3">
+            <div *ngFor="let task of todayTasks" 
+                 class="flex items-start gap-4 p-4 rounded-xl hover:bg-primary-50 transition"
+                 [class.bg-gray-50]="!task.completed"
+                 [class.bg-green-50]="task.completed">
+              <input 
+                type="checkbox" 
+                [checked]="task.completed"
+                (change)="toggleTask(task.id)"
+                class="mt-1 w-5 h-5 cursor-pointer rounded border-2 border-primary-500 text-primary-600 focus:ring-primary-500">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-sm" 
+                   [class.text-gray-900]="!task.completed"
+                   [class.text-green-800]="task.completed"
+                   [class.line-through]="task.completed">
+                  {{ task.title }}
+                </p>
+                <p class="text-gray-600 text-xs mt-1">{{ task.description }}</p>
+                <span *ngIf="task.type === 'medication'" class="inline-block mt-1 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs rounded">Medication</span>
+                <span *ngIf="task.type === 'appointment'" class="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">Appointment</span>
+              </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200" *ngIf="todayTasks.length > 0">
+              <p class="text-sm font-semibold text-gray-900 mb-2">Today's Progress</p>
+              <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-500" 
+                  [style.width.%]="getProgressPercentage()"></div>
+              </div>
+              <p class="text-xs text-gray-600 mt-2">
+                {{ completedTasksCount }} of {{ todayTasks.length }} tasks done
               </p>
-              <p class="text-gray-600 text-xs mt-1">{{ task.description }}</p>
             </div>
           </div>
+          
+          <div *ngIf="todayTasks.length === 0" class="text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+            <p class="text-4xl mb-2">✅</p>
+            <p>No tasks for today</p>
+            <p class="text-sm mt-1">You're all caught up!</p>
+          </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8 mt-4 sm:mt-6">
+          <h2 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+          <div class="space-y-3">
+            <button *ngIf="false" class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
+              <span class="text-xl">📅</span>
+              <span class="font-medium text-gray-700">Book Appointment</span>
+            </button>
+            <button class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
+              <span class="text-xl">📊</span>
+              <span class="font-medium text-gray-700">Record Vitals</span>
+            </button>
+            <app-appointment-request-card
+              *ngIf="patientId"
+              [patientId]="patientId"
+              [patientName]="patientName"
+              [existingAppointments]="appointments"
+              requesterRole="PATIENT"
+              buttonTone="patient"
+              buttonLabel="Request Appointment"
+              title="Request a doctor appointment"
+              description="Send a request from your dashboard with the same appointment fields used by the doctor scheduler."
+              (requestCreated)="handleAppointmentRequestCreated($event)">
+            </app-appointment-request-card>
+            <button routerLink="/patient/medications" class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
+              <span class="text-xl">💊</span>
+              <span class="font-medium text-gray-700">View Medications</span>
+            </button>
+            <button class="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition">
+              <span class="text-xl">✉️</span>
+              <span class="font-medium text-gray-700">Message Doctor</span>
+            </button>
+          </div>
+        </div>
 
-          <!-- Progress Bar -->
-          <div class="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200" *ngIf="todayTasks.length > 0">
-            <p class="text-sm font-semibold text-gray-900 mb-2">Today's Progress</p>
-            <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-primary-500 to-primary-600" 
-                [style.width.%]="getProgressPercentage()"></div>
-            </div>
-            <p class="text-xs text-gray-600 mt-2">
-              {{ completedTasksCount }} of {{ todayTasks.length }} tasks done
-            </p>
-          </div>
+        <!-- Medication Adherence Mini Card -->
+        <div class="bg-gradient-to-br from-success to-success/80 text-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mt-4 sm:mt-6">
+          <h3 class="text-lg font-bold mb-2">🎯 Adherence</h3>
+          <p class="text-3xl font-bold">94%</p>
+          <p class="text-sm opacity-90">Keep up the good work!</p>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Recent Activity Timeline -->
-  <div class="mt-6 sm:mt-8 bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
-    <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">📈 Recent Activity</h2>
-    
-    <div class="space-y-4">
-      <div class="flex gap-4">
-        <div class="w-12 h-12 bg-success bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">✅</div>
-        <div>
-          <p class="font-semibold text-gray-900">Morning Medications Taken</p>
-          <p class="text-gray-600 text-sm">Today at 8:30 AM</p>
+    <!-- Recent Activity Timeline -->
+    <div class="mt-6 sm:mt-8 bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
+      <h2 class="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">📈 Recent Activity</h2>
+      
+      <div class="space-y-4">
+        <div class="flex gap-4">
+          <div class="w-12 h-12 bg-success bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">✅</div>
+          <div>
+            <p class="font-semibold text-gray-900">Dashboard Accessed</p>
+            <p class="text-gray-600 text-sm">Just now</p>
+          </div>
         </div>
-      </div>
-      <div class="flex gap-4">
-        <div class="w-12 h-12 bg-info bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">📊</div>
-        <div>
-          <p class="font-semibold text-gray-900">Vitals Recorded</p>
-          <p class="text-gray-600 text-sm">Today at 7:15 AM - Blood pressure: 128/82</p>
+        <div class="flex gap-4" *ngIf="appointments.length > 0">
+          <div class="w-12 h-12 bg-info bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">📅</div>
+          <div>
+            <p class="font-semibold text-gray-900">Appointment Scheduled</p>
+            <p class="text-gray-600 text-sm">{{ appointments.length }} upcoming appointment(s)</p>
+          </div>
         </div>
-      </div>
-      <div class="flex gap-4">
-        <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">🚶</div>
-        <div>
-          <p class="font-semibold text-gray-900">30-Minute Walk</p>
-          <p class="text-gray-600 text-sm">Yesterday at 5:00 PM</p>
+        <div class="flex gap-4" *ngIf="medicationPlans.length > 0">
+          <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">💊</div>
+          <div>
+            <p class="font-semibold text-gray-900">Medication Plan Active</p>
+            <p class="text-gray-600 text-sm">{{ medicationPlans.length }} active plan(s)</p>
+          </div>
+        </div>
+        <div class="flex gap-4" *ngIf="getActiveMedications().length > 0">
+          <div class="w-12 h-12 bg-warning bg-opacity-20 rounded-full flex items-center justify-center text-lg flex-shrink-0">💉</div>
+          <div>
+            <p class="font-semibold text-gray-900">{{ getActiveMedications().length }} Medications</p>
+            <p class="text-gray-600 text-sm">Currently prescribed</p>
+          </div>
         </div>
       </div>
     </div>
