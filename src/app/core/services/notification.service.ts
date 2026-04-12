@@ -124,7 +124,7 @@ export class NotificationService {
     // Optimistic update - mark all as read in local state
     const currentNotifications = this.notificationsSubject.value;
     const updatedNotifications = currentNotifications.map(n => 
-      n.status === 'UNREAD' ? { ...n, status: 'READ' as const, readAt: new Date().toISOString() } : n
+      n.status !== 'READ' ? { ...n, status: 'READ' as const, readAt: new Date().toISOString() } : n
     );
     this.notificationsSubject.next(updatedNotifications);
     this.unreadCountSubject.next(0);
@@ -346,7 +346,7 @@ export class NotificationService {
    */
   getCriticalUnreadCount(): number {
     return this.notificationsSubject.value.filter(
-      n => n.status === 'UNREAD' && n.priority === 'CRITICAL'
+      n => n.status !== 'READ' && n.priority === 'CRITICAL'
     ).length;
   }
 }

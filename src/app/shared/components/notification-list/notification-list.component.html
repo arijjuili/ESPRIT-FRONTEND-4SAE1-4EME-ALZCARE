@@ -132,7 +132,7 @@
     <div 
       *ngFor="let notification of filteredNotifications; let i = index"
       class="notification-card"
-      [class.unread]="notification.status === 'UNREAD'"
+      [class.unread]="notification.status !== 'READ'"
       [class.critical]="notification.priority === 'CRITICAL'"
       [class.highlighted]="notificationToDelete === notification.id"
       [class]="getNotificationColorClass(notification.priority)">
@@ -164,7 +164,7 @@
 
         <!-- Unread Indicator -->
         <div 
-          *ngIf="notification.status === 'UNREAD'"
+          *ngIf="notification.status !== 'READ'"
           class="unread-indicator"
           [style.background-color]="effectiveTheme.primary">
         </div>
@@ -191,7 +191,7 @@
 
           <!-- Mark as Read Button (unread only) -->
           <button 
-            *ngIf="notification.status === 'UNREAD'"
+            *ngIf="notification.status !== 'READ'"
             class="action-btn mark-read"
             [class.loading]="markingAsReadId === notification.id"
             [disabled]="markingAsReadId === notification.id"

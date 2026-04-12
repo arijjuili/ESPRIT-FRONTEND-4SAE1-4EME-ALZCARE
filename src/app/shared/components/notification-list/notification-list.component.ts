@@ -217,7 +217,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
         this.filteredNotifications = [...this.notifications];
         break;
       case 'UNREAD':
-        this.filteredNotifications = this.notifications.filter(n => n.status === 'UNREAD');
+        this.filteredNotifications = this.notifications.filter(n => n.status !== 'READ');
         break;
       case 'ALERTS':
         this.filteredNotifications = this.notifications.filter(n => n.type === 'ALERT');
@@ -255,7 +255,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    * Update summary counts
    */
   private updateSummaryCounts(): void {
-    this.unreadCount = this.notifications.filter(n => n.status === 'UNREAD').length;
+    this.unreadCount = this.notifications.filter(n => n.status !== 'READ').length;
     this.totalCount = this.totalElements;
   }
 
@@ -267,7 +267,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
       case 'ALL':
         return this.totalCount;
       case 'UNREAD':
-        return this.notifications.filter(n => n.status === 'UNREAD').length;
+        return this.notifications.filter(n => n.status !== 'READ').length;
       case 'ALERTS':
         return this.notifications.filter(n => n.type === 'ALERT').length;
       case 'REMINDERS':
@@ -313,7 +313,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
     const userId = this.authService.getCurrentUser()?.id;
     if (!userId || this.markingAllAsRead) return;
 
-    const hasUnread = this.notifications.some(n => n.status === 'UNREAD');
+    const hasUnread = this.notifications.some(n => n.status !== 'READ');
     if (!hasUnread) return;
 
     this.markingAllAsRead = true;

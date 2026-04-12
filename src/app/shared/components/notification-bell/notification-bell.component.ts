@@ -95,7 +95,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    */
   private updateCriticalCount(): void {
     this.criticalCount = this.notifications.filter(
-      n => n.status === 'UNREAD' && n.priority === 'CRITICAL'
+      n => n.status !== 'READ' && n.priority === 'CRITICAL'
     ).length;
   }
 
@@ -129,30 +129,32 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     // DEBUG: Log all statuses to see what we're getting
     console.log('[NotificationBell] All notification statuses:', this.notifications.map(n => ({ id: n.id, status: n.status, title: n.title })));
     
-    const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
-    console.log('[NotificationBell] Filtered with status === "UNREAD":', unreadNotifications.length);
+    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
+    // Unread = anything that's not READ
+    const unreadNotifications = this.notifications.filter(n => n.status !== 'READ');
+    console.log('[NotificationBell] Filtered with status !== "READ":', unreadNotifications.length);
     
-    // Try different status values
-    const unreadLower = this.notifications.filter(n => n.status?.toLowerCase() === 'unread');
-    console.log('[NotificationBell] Filtered with lowercase "unread":', unreadLower.length);
-    
-    const sentNotifications = this.notifications.filter(n => n.status === 'SENT' || n.status === 'DELIVERED');
-    console.log('[NotificationBell] Filtered with SENT/DELIVERED:', sentNotifications.length);
+    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
+    // Unread = anything that's not READ
+    const notReadNotifications = this.notifications.filter(n => n.status !== 'READ');
+    console.log('[NotificationBell] Filtered with status !== "READ":', notReadNotifications.length);
+    console.log('[NotificationBell] Not-read notifications:', notReadNotifications);
     
     console.log('[NotificationBell] Unread notifications:', unreadNotifications);
     
     if (unreadNotifications.length === 0) {
       console.log('[NotificationBell] No unread notifications to mark');
-      // Try marking SENT/DELIVERED as read instead
-      if (sentNotifications.length > 0) {
-        console.log('[NotificationBell] Will try marking SENT/DELIVERED instead:', sentNotifications);
+      // Try marking not-read as read instead
+      if (notReadNotifications.length > 0) {
+        console.log('[NotificationBell] Will try marking not-read instead:', notReadNotifications);
       }
       return;
     }
     
     // Mark each notification as read with a small stagger to avoid overwhelming the API
-    unreadNotifications.forEach((notification, index) => {
-      console.log(`[NotificationBell] Marking notification ${index + 1}/${unreadNotifications.length} as read:`, notification.id);
+    // Also update the filter for applying unread class in template
+    notReadNotifications.forEach((notification, index) => {
+      console.log(`[NotificationBell] Marking notification ${index + 1}/${notReadNotifications.length} as read:`, notification.id, notification.status);
       setTimeout(() => {
         console.log(`[NotificationBell] Calling markAsRead API for:`, notification.id);
         this.notificationService.markAsRead(notification.id).subscribe({
