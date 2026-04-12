@@ -2,6 +2,8 @@
   <!-- Bell Button with Badge -->
   <button 
     class="bell-button"
+    [class.has-unread]="unreadCount > 0"
+    [class.has-critical]="criticalCount > 0"
     (click)="toggleDropdown()"
     [attr.aria-label]="'Notifications' + (unreadCount > 0 ? ' (' + unreadCount + ' unread)' : '')"
     [attr.aria-expanded]="isDropdownOpen"
