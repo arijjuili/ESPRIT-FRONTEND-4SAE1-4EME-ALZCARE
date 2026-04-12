@@ -138,11 +138,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       // Get tasks assigned to this caregiver (still from mock for now)
       this.allTasks = this.dataService.getTasksForCaregiver(currentUser.id);
 
-      // Load real patients from backend
+      // Load real patients from backend (includes assignments via context service)
       this.loadRealPatients();
-
-      // Load caregiver assignments (My Patients section)
-      this.loadCaregiverAssignments();
     }
 
     this.authService.currentUser$.subscribe(user => {
@@ -158,6 +155,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadRealPatients(): void {
+    this.loadingAssignments = true;
     forkJoin({
       assignments: this.caregiverPatientContext.getActiveAssignments(),
       patients: this.caregiverPatientContext.getAssignedPatients()
@@ -177,17 +175,21 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         next: ({ assignments, patients }) => {
           this.caregiverAssignments = assignments;
           this.patients = patients;
+          // Separate pending invites from assignments
+          this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
+          this.loadingAssignments = false;
           this.loadTodayCaregiverCheckIns();
           this.loadDailyCheckInStatuses();
           this.loadPatientAppointments();
-        // Load behaviors after patients are loaded
           this.loadRecentBehaviors();
           this.loadGameAnalytics();
         },
         error: (err) => {
           console.error('Failed to load patients:', err);
-          // Fallback to empty array if API fails
           this.patients = [];
+          this.caregiverAssignments = [];
+          this.pendingInvites = [];
+          this.loadingAssignments = false;
           this.todaySharedCheckIns = {};
           this.dailyCheckInStatuses = {};
           this.loadRecentBehaviors();
@@ -197,24 +199,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
   
   // ==================== My Patients Section ====================
-  
-  loadCaregiverAssignments(): void {
-    this.loadingAssignments = true;
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
-          this.toastService.error('Failed to load your patient assignments');
-          return of([]);
-        })
-      )
-      .subscribe(assignments => {
-        // Separate pending invites (assignments already loaded in loadRealPatients)
-        this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
-        this.loadingAssignments = false;
-      });
-  }
 
   acceptInvite(invite: CaregiverAssignment): void {
     if (!invite.inviteToken) return;
@@ -235,8 +219,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         if (result) {
           this.toastService.success('Invitation accepted! You are now assigned to this patient.');
           this.caregiverPatientContext.invalidate();
-          this.loadRealPatients();
-          this.loadCaregiverAssignments(); // Refresh the lists
+          this.loadRealPatients(); // Refresh the lists (includes pending invites)
         }
         this.acceptingInviteId = null;
       });
