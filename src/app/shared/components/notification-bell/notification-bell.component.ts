@@ -126,12 +126,27 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     console.log('[NotificationBell] Current notifications:', this.notifications);
     console.log('[NotificationBell] unreadCount:', this.unreadCount);
     
+    // DEBUG: Log all statuses to see what we're getting
+    console.log('[NotificationBell] All notification statuses:', this.notifications.map(n => ({ id: n.id, status: n.status, title: n.title })));
+    
     const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
-    console.log('[NotificationBell] Unread notifications found:', unreadNotifications.length);
+    console.log('[NotificationBell] Filtered with status === "UNREAD":', unreadNotifications.length);
+    
+    // Try different status values
+    const unreadLower = this.notifications.filter(n => n.status?.toLowerCase() === 'unread');
+    console.log('[NotificationBell] Filtered with lowercase "unread":', unreadLower.length);
+    
+    const sentNotifications = this.notifications.filter(n => n.status === 'SENT' || n.status === 'DELIVERED');
+    console.log('[NotificationBell] Filtered with SENT/DELIVERED:', sentNotifications.length);
+    
     console.log('[NotificationBell] Unread notifications:', unreadNotifications);
     
     if (unreadNotifications.length === 0) {
       console.log('[NotificationBell] No unread notifications to mark');
+      // Try marking SENT/DELIVERED as read instead
+      if (sentNotifications.length > 0) {
+        console.log('[NotificationBell] Will try marking SENT/DELIVERED instead:', sentNotifications);
+      }
       return;
     }
     
