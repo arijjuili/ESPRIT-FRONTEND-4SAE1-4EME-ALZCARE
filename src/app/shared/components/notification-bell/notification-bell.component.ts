@@ -10,13 +10,13 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 import { RoleTheme } from '../navbar.component';
 import {
   Notification,
   NotificationType,
-  NotificationPriority,
-  NotificationSummaryResponse
+  NotificationPriority
 } from '../../../core/models/notification.model';
 import { NotificationService } from '../../../core/services/notification.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -37,6 +37,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   unreadCount = 0;
   criticalCount = 0;
   isLoading = false;
+  markingAsReadId: string | null = null; // Track which notification is being marked as read
 
   // Default theme fallback
   private defaultTheme: RoleTheme = {
@@ -65,12 +66,28 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadNotificationSummary();
     this.loadNotifications();
+    
+    // Subscribe to shared notifications state
+    this.notificationService.notifications$.subscribe(notifications => {
+      this.notifications = notifications;
+      this.updateCriticalCount();
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
     if (this.unreadCountSubscription) {
       this.unreadCountSubscription.unsubscribe();
     }
+  }
+
+  /**
+   * Update critical count based on current notifications
+   */
+  private updateCriticalCount(): void {
+    this.criticalCount = this.notifications.filter(
+      n => n.status === 'UNREAD' && n.priority === 'CRITICAL'
+    ).length;
   }
 
   /**
@@ -116,21 +133,24 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     
     const notification = this.notifications.find(n => n.id === id);
-    if (notification && notification.status === 'UNREAD') {
-      // Update local state optimistically
-      notification.status = 'READ';
-      notification.readAt = new Date().toISOString();
-      this.unreadCount = Math.max(0, this.unreadCount - 1);
-      this.cdr.markForCheck();
-
-      // Call service to persist
-      this.notificationService.markAsRead(id).subscribe({
-        error: (error) => {
-          console.error('[NotificationBell] Failed to mark notification as read:', error);
-        }
-      });
+    if (!notification || notification.status !== 'UNREAD' || this.markingAsReadId) {
+      return;
     }
-  }
+
+    this.markingAsReadId = id;
+    this.cdr.markForCheck();
+
+    // Call service - optimistic update and rollback are handled in service
+    this.notificationService.markAsRead(id).pipe(
+      catchError(() => {
+        // Error already logged in service, just stop loading
+        return of(undefined);
+      }),
+      finalize(() => {
+        this.markingAsReadId = null;
+        this.cdr.markForCheck();
+      })
+    ).subscribe();
 
   /**
    * Navigate to notifications page
@@ -269,9 +289,5 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         console.error('[NotificationBell] Failed to load unread count:', error);
       }
     });
-
-    // Count critical notifications from current list
-    this.criticalCount = this.notifications.filter(n => n.priority === 'CRITICAL' && n.status === 'UNREAD').length;
-    this.cdr.markForCheck();
   }
 }

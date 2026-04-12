@@ -109,12 +109,15 @@
         <button 
           *ngIf="notification.status === 'UNREAD'"
           class="mark-read-btn"
+          [class.loading]="markingAsReadId === notification.id"
+          [disabled]="markingAsReadId === notification.id"
           (click)="markAsRead(notification.id, $event)"
           title="Mark as read"
           [style.--theme-primary]="effectiveTheme.primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg *ngIf="markingAsReadId !== notification.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
+          <div *ngIf="markingAsReadId === notification.id" class="btn-spinner"></div>
         </button>
       </div>
     </div>

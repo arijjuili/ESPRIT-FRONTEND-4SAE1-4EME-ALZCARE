@@ -9,8 +9,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { Subject, Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { Subject, Subscription, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, catchError, finalize } from 'rxjs/operators';
 import { RoleTheme } from '../navbar.component';
 import {
   Notification,
@@ -64,6 +64,10 @@ export class NotificationListComponent implements OnInit, OnDestroy {
 
   // Delete confirmation
   notificationToDelete: string | null = null;
+  
+  // Loading states
+  markingAsReadId: string | null = null;
+  markingAllAsRead = false;
 
   // Search
   searchQuery = '';
@@ -93,6 +97,13 @@ export class NotificationListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.setupSearchDebounce();
     this.loadNotifications();
+    
+    // Subscribe to shared notifications state
+    this.notificationService.notifications$.subscribe(notifications => {
+      this.notifications = notifications;
+      this.applyFilter(this.currentFilter);
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -275,66 +286,61 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    */
   markAsRead(id: string): void {
     const notification = this.notifications.find(n => n.id === id);
-    if (notification && notification.status === 'UNREAD') {
-      // Update local state optimistically
-      notification.status = 'READ';
-      notification.readAt = new Date().toISOString();
-      this.applyFilter(this.currentFilter);
-      this.cdr.markForCheck();
-
-      // Call service to persist
-      this.notificationService.markAsRead(id).subscribe({
-        error: (error) => {
-          console.error('[NotificationList] Failed to mark notification as read:', error);
-        }
-      });
+    if (!notification || notification.status !== 'UNREAD' || this.markingAsReadId) {
+      return;
     }
-  }
+
+    this.markingAsReadId = id;
+    this.cdr.markForCheck();
+
+    // Call service - optimistic update and rollback handled in service
+    this.notificationService.markAsRead(id).pipe(
+      catchError(() => {
+        // Error already logged in service
+        return of(undefined);
+      }),
+      finalize(() => {
+        this.markingAsReadId = null;
+        this.cdr.markForCheck();
+      })
+    ).subscribe();
 
   /**
    * Mark all notifications as read
    */
   markAllAsRead(): void {
     const userId = this.authService.getCurrentUser()?.id;
-    if (!userId) return;
+    if (!userId || this.markingAllAsRead) return;
 
-    let hasChanges = false;
-    this.notifications.forEach(notification => {
-      if (notification.status === 'UNREAD') {
-        notification.status = 'READ';
-        notification.readAt = new Date().toISOString();
-        hasChanges = true;
-      }
-    });
+    const hasUnread = this.notifications.some(n => n.status === 'UNREAD');
+    if (!hasUnread) return;
 
-    if (hasChanges) {
-      this.applyFilter(this.currentFilter);
-      this.cdr.markForCheck();
+    this.markingAllAsRead = true;
+    this.cdr.markForCheck();
 
-      // Call service to persist
-      this.notificationService.markAllAsRead(userId).subscribe({
-        error: (error) => {
-          console.error('[NotificationList] Failed to mark all notifications as read:', error);
-        }
-      });
-    }
-  }
+    // Call service - optimistic update and rollback handled in service
+    this.notificationService.markAllAsRead(userId).pipe(
+      catchError(() => {
+        // Error already logged in service
+        return of(undefined);
+      }),
+      finalize(() => {
+        this.markingAllAsRead = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe();
 
   /**
    * Delete a notification
    */
   deleteNotification(id: string): void {
-    // Update local state optimistically
-    this.notifications = this.notifications.filter(n => n.id !== id);
-    this.selectedNotifications.delete(id);
-    this.applyFilter(this.currentFilter);
     this.notificationToDelete = null;
     this.cdr.markForCheck();
 
-    // Call service to persist
+    // Call service - optimistic update and rollback handled in service
     this.notificationService.deleteNotification(id).subscribe({
-      error: (error) => {
-        console.error('[NotificationList] Failed to delete notification:', error);
+      error: () => {
+        // Error already logged in service
       }
     });
   }

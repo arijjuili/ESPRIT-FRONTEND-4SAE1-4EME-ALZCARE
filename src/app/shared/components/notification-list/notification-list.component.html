@@ -22,12 +22,14 @@
       <button 
         *ngIf="showMarkAllRead && unreadCount > 0"
         class="mark-all-btn"
-        (click)="markAllAsRead()"
-        [disabled]="isLoading">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        [class.loading]="markingAllAsRead"
+        [disabled]="isLoading || markingAllAsRead"
+        (click)="markAllAsRead()">
+        <svg *ngIf="!markingAllAsRead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span>Mark all as read</span>
+        <div *ngIf="markingAllAsRead" class="btn-spinner"></div>
+        <span>{{ markingAllAsRead ? 'Marking all...' : 'Mark all as read' }}</span>
       </button>
       
       <!-- Return to Dashboard Button -->
@@ -191,11 +193,14 @@
           <button 
             *ngIf="notification.status === 'UNREAD'"
             class="action-btn mark-read"
+            [class.loading]="markingAsReadId === notification.id"
+            [disabled]="markingAsReadId === notification.id"
             (click)="markAsRead(notification.id)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg *ngIf="markingAsReadId !== notification.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <span>Mark read</span>
+            <div *ngIf="markingAsReadId === notification.id" class="btn-spinner"></div>
+            <span>{{ markingAsReadId === notification.id ? 'Marking...' : 'Mark read' }}</span>
           </button>
         </div>
 
