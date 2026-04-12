@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostBinding } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -114,7 +114,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '💊',
       roles: ['patient']
     },
-    {
+        {
+      label: 'Appointments',
+      path: '/patient/appointments',
+      icon: '📅',
+      roles: ['patient']
+    },{
       label: 'Brain Games',
       path: '/patient/games',
       icon: '🎮',
@@ -151,7 +156,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '👥',
       roles: ['caregiver']
     },
-    {
+        {
+      label: 'Medications',
+      path: '/caregiver/medications',
+      icon: '💊',
+      roles: ['caregiver']
+    },{
       label: 'Behaviors',
       path: '/caregiver/behaviors',
       icon: '📊',
@@ -194,7 +204,30 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '📊',
       roles: ['doctor']
     },
+        {
+      label: 'Patients',
+      path: '/doctor/patients',
+      icon: '👥',
+      roles: ['doctor']
+    },
     {
+      label: 'Appointments',
+      path: '/doctor/appointments',
+      icon: '📅',
+      roles: ['doctor']
+    },
+    {
+      label: 'Prescriptions',
+      path: '/doctor/prescriptions',
+      icon: '💊',
+      roles: ['doctor']
+    },
+    {
+      label: 'Records',
+      path: '/doctor/records',
+      icon: '📄',
+      roles: ['doctor']
+    },{
       label: 'Checklist',
       path: '/doctor/checklist',
       icon: '📋',
@@ -366,3 +399,4 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 }
+

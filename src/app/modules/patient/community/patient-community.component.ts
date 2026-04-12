@@ -1,26 +1,30 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { CommunityService } from '../../../core/services/community.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToxicityWarningComponent } from '../../../shared/components/toxicity-warning/toxicity-warning.component';
 import {
   Post,
   DiscussionCategory,
   CreatePostRequest,
-  PaginatedPosts
+  PaginatedPosts,
+  PostSortOption
 } from '../../../core/models/community.model';
 
 @Component({
   selector: 'app-patient-community',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, ToxicityWarningComponent],
   templateUrl: './patient-community.component.html',
   styleUrls: ['./patient-community.component.scss'],
   providers: [ToastService]
 })
-export class PatientCommunityComponent implements OnInit {
+export class PatientCommunityComponent implements OnInit, OnDestroy {
   posts: Post[] = [];
   isLoading = false;
   isSubmitting = false;
@@ -30,6 +34,14 @@ export class PatientCommunityComponent implements OnInit {
   postForm: FormGroup;
   showCreateForm = false;
   
+  // Sorting and filtering
+  currentSort: PostSortOption = 'NEWEST';
+  selectedCategory: DiscussionCategory | null = null;
+  
+  // Toxicity warning
+  showToxicityWarning = false;
+  detectedToxicWords: string[] = [];
+  
   // Categories for the dropdown
   categories: { value: DiscussionCategory; label: string; icon: string }[] = [
     { value: 'ADVICE', label: 'Advice & Tips', icon: '💡' },
@@ -38,6 +50,16 @@ export class PatientCommunityComponent implements OnInit {
     { value: 'SUCCESS_STORIES', label: 'Success Stories', icon: '🎉' },
     { value: 'QUESTIONS', label: 'Questions & Answers', icon: '❓' }
   ];
+
+  // Sort options
+  sortOptions: { value: PostSortOption; label: string; icon: string }[] = [
+    { value: 'NEWEST', label: 'Newest First', icon: '🕐' },
+    { value: 'TRENDING', label: 'Trending', icon: '🔥' },
+    { value: 'MOST_LIKED', label: 'Most Liked', icon: '❤️' },
+    { value: 'MOST_COMMENTED', label: 'Most Discussed', icon: '💬' }
+  ];
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private communityService: CommunityService,
@@ -58,6 +80,11 @@ export class PatientCommunityComponent implements OnInit {
     this.loadPosts();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   /**
    * Load posts from the backend
    */
@@ -66,18 +93,39 @@ export class PatientCommunityComponent implements OnInit {
     this.error = null;
     
     // Load first page of posts (10 per page)
-    this.communityService.getPosts(0, 10).subscribe({
-      next: (paginatedPosts: PaginatedPosts) => {
-        this.posts = paginatedPosts.content;
-        this.isLoading = false;
-      },
-      error: (err: any) => {
-        console.error('Error loading posts:', err);
-        this.error = 'Failed to load community posts. Please try again.';
-        this.isLoading = false;
-        this.toastService.error(this.error, 'Load Error');
-      }
-    });
+    this.communityService.getPosts(0, 10, this.selectedCategory || undefined, this.currentSort)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (paginatedPosts: PaginatedPosts) => {
+          this.posts = paginatedPosts.content;
+          this.isLoading = false;
+        },
+        error: (err: any) => {
+          this.error = 'Failed to load community posts. Please try again.';
+          this.isLoading = false;
+          this.toastService.error(this.error, 'Load Error');
+        }
+      });
+  }
+
+  /**
+   * Change the sort option
+   */
+  setSortOption(sort: PostSortOption): void {
+    if (this.currentSort !== sort) {
+      this.currentSort = sort;
+      this.loadPosts();
+    }
+  }
+
+  /**
+   * Filter by category
+   */
+  setCategoryFilter(category: DiscussionCategory | null): void {
+    if (this.selectedCategory !== category) {
+      this.selectedCategory = category;
+      this.loadPosts();
+    }
   }
 
   /**
@@ -85,22 +133,55 @@ export class PatientCommunityComponent implements OnInit {
    */
   toggleCreateForm(): void {
     this.showCreateForm = !this.showCreateForm;
+    this.showToxicityWarning = false;
     if (this.showCreateForm) {
       this.postForm.reset();
     }
   }
 
   /**
-   * Create a new post
+   * Check content for toxicity before submitting
    */
-  createPost(): void {
+  checkContentBeforeSubmit(): void {
     if (this.postForm.invalid) {
       this.toastService.warning('Please fill in all required fields.', 'Form Incomplete');
       return;
     }
 
+    const title = this.postForm.get('title')?.value || '';
+    const content = this.postForm.get('content')?.value || '';
+    const fullContent = `${title} ${content}`;
+
     this.isSubmitting = true;
-    
+
+    // Check content for toxicity
+    this.communityService.checkContent(fullContent)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (result) => {
+          if (!result.toxic) {
+            // Content is clean, proceed with submission
+            this.submitPost();
+          } else {
+            // Toxic content detected
+            this.isSubmitting = false;
+            this.showToxicityWarning = true;
+            this.detectedToxicWords = result.detectedWords;
+            this.toastService.warning('Please review your content before posting.', 'Content Warning');
+          }
+        },
+        error: (err) => {
+          // If moderation check fails, still try to submit
+          // Backend will do final validation
+          this.submitPost();
+        }
+      });
+  }
+
+  /**
+   * Create a new post
+   */
+  private submitPost(): void {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
       this.toastService.error('You must be logged in to create a post.', 'Authentication Required');
@@ -115,45 +196,84 @@ export class PatientCommunityComponent implements OnInit {
       createdBy: currentUser.id
     };
 
-    this.communityService.createPost(request).subscribe({
-      next: (newPost: Post) => {
-        // Add the new post to the beginning of the list
-        this.posts.unshift(newPost);
-        
-        // Reset form and hide it
-        this.postForm.reset();
-        this.showCreateForm = false;
-        this.isSubmitting = false;
-        
-        this.toastService.success('Your post has been created successfully!', 'Post Created');
-      },
-      error: (err: any) => {
-        console.error('Error creating post:', err);
-        this.isSubmitting = false;
-        const errorMessage = err.error?.detail || err.error?.message || 'Failed to create post. Please try again.';
-        this.toastService.error(errorMessage, 'Creation Error');
-      }
-    });
+    this.communityService.createPost(request)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (newPost: Post) => {
+          // Add the new post to the beginning of the list
+          this.posts.unshift(newPost);
+          
+          // Reset form and hide it
+          this.postForm.reset();
+          this.showCreateForm = false;
+          this.showToxicityWarning = false;
+          this.isSubmitting = false;
+          
+          this.toastService.success('Your post has been created successfully!', 'Post Created');
+        },
+        error: (err: any) => {
+          this.isSubmitting = false;
+          
+          // Check if it's a toxicity error
+          if (err.status === 400 && err.error?.detectedWords) {
+            this.showToxicityWarning = true;
+            this.detectedToxicWords = err.error.detectedWords;
+            this.toastService.error('Your post contains inappropriate language.', 'Content Rejected');
+          } else {
+            const errorMessage = err.error?.detail || err.error?.message || 'Failed to create post. Please try again.';
+            this.toastService.error(errorMessage, 'Creation Error');
+          }
+        }
+      });
+  }
+
+  /**
+   * Create a new post (public method for form submission)
+   */
+  createPost(): void {
+    this.checkContentBeforeSubmit();
+  }
+
+  /**
+   * Dismiss toxicity warning
+   */
+  dismissToxicityWarning(): void {
+    this.showToxicityWarning = false;
+  }
+
+  /**
+   * Edit content after toxicity warning
+   */
+  editContent(): void {
+    this.showToxicityWarning = false;
+    // Focus on content field (could be enhanced with ViewChild)
+    const contentField = document.getElementById('content');
+    if (contentField) {
+      contentField.focus();
+    }
   }
 
   /**
    * Like a post
    */
   likePost(postId: string): void {
-    this.communityService.likePost(postId).subscribe({
-      next: () => {
-        // Update the like count locally
-        const post = this.posts.find(p => p.id === postId);
-        if (post) {
-          post.likeCount++;
+    this.communityService.likePost(postId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          // Update the like count locally
+          const post = this.posts.find(p => p.id === postId);
+          if (post) {
+            post.likeCount++;
+            // Recalculate popularity locally (approximation)
+            post.popularityScore += 2;
+          }
+          this.toastService.info('Post liked!', 'Thanks!');
+        },
+        error: () => {
+          this.toastService.error('Failed to like post. Please try again.', 'Error');
         }
-        this.toastService.info('Post liked!', 'Thanks!');
-      },
-      error: (err: any) => {
-        console.error('Error liking post:', err);
-        this.toastService.error('Failed to like post. Please try again.', 'Error');
-      }
-    });
+      });
   }
 
   /**
@@ -217,6 +337,7 @@ export class PatientCommunityComponent implements OnInit {
    */
   cancelCreatePost(): void {
     this.showCreateForm = false;
+    this.showToxicityWarning = false;
     this.postForm.reset();
   }
 
@@ -231,10 +352,6 @@ export class PatientCommunityComponent implements OnInit {
    * Get author name for a post - simplified to return userId since there's no UserManagementService
    */
   getAuthorName(post: Post): string {
-    // For now, return the userId directly. In a real implementation, you could:
-    // 1. Call an identity service to get user profiles
-    // 2. Store user names in the Post model itself
-    // 3. Cache user names after first fetch
     return post.createdBy;
   }
 
@@ -243,5 +360,33 @@ export class PatientCommunityComponent implements OnInit {
    */
   hasUnsavedChanges(): boolean {
     return this.showCreateForm && this.postForm.dirty && !this.postForm.pristine;
+  }
+
+  /**
+   * Get the current sort label
+   */
+  getCurrentSortLabel(): string {
+    const found = this.sortOptions.find(s => s.value === this.currentSort);
+    return found ? found.label : 'Sort';
+  }
+
+  /**
+   * Get popularity badge color based on score
+   */
+  getPopularityBadgeClass(score: number): string {
+    if (score >= 100) return 'bg-gradient-to-r from-orange-500 to-red-500 text-white';
+    if (score >= 50) return 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white';
+    if (score >= 20) return 'bg-gradient-to-r from-green-400 to-teal-500 text-white';
+    return 'bg-gray-100 text-gray-600';
+  }
+
+  /**
+   * Get popularity text
+   */
+  getPopularityText(score: number): string {
+    if (score >= 100) return '🔥 Hot';
+    if (score >= 50) return '⭐ Trending';
+    if (score >= 20) return '📈 Rising';
+    return '📊 New';
   }
 }

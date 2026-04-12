@@ -13,6 +13,8 @@ export type DiscussionCategory =
   | 'SUCCESS_STORIES' 
   | 'QUESTIONS';
 
+export type PostSortOption = 'NEWEST' | 'TRENDING' | 'MOST_LIKED' | 'MOST_COMMENTED';
+
 // ==================== REQUEST DTOs ====================
 
 export interface CreatePostRequest {
@@ -27,6 +29,10 @@ export interface CreateCommentRequest {
   content: string;
   postId: string;
   userId: string; // User ID of the comment author
+}
+
+export interface ContentCheckRequest {
+  content: string;
 }
 
 // ==================== INTERFACE MODELS ====================
@@ -59,4 +65,22 @@ export interface PaginatedPosts {
   totalPages: number;
   size: number;
   number: number;
+}
+
+// ==================== CONTENT MODERATION ====================
+
+export interface ContentCheckResponse {
+  toxic: boolean;
+  toxicityScore: number;
+  detectedWords: string[];
+  message: string;
+}
+
+export interface BlockedWordsList {
+  french: string[];
+  english: string[];
+}
+
+export interface SupportedLanguages {
+  languages: string[];
 }

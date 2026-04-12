@@ -9,6 +9,42 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Main Feed -->
     <div class="lg:col-span-2">
+      
+      <!-- Filters & Sort Bar -->
+      <div class="bg-white rounded-2xl shadow-sm p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <!-- Sort Options -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500 font-medium">Sort by:</span>
+          <div class="flex gap-1">
+            <button 
+              *ngFor="let option of sortOptions"
+              (click)="setSortOption(option.value)"
+              class="px-3 py-1.5 rounded-lg text-sm font-medium transition"
+              [class.bg-primary-100]="currentSort === option.value"
+              [class.text-primary-700]="currentSort === option.value"
+              [class.bg-gray-100]="currentSort !== option.value"
+              [class.text-gray-600]="currentSort !== option.value"
+              [class.hover:bg-gray-200]="currentSort !== option.value">
+              {{ option.icon }} {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Category Filter -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500 font-medium">Filter:</span>
+          <select 
+            [(ngModel)]="selectedCategory"
+            (change)="setCategoryFilter(selectedCategory)"
+            class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option [ngValue]="null">All Categories</option>
+            <option *ngFor="let cat of categories" [ngValue]="cat.value">
+              {{ cat.icon }} {{ cat.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+
       <!-- Create Post Input/Trigger -->
       <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
         <div class="flex gap-4">
@@ -36,6 +72,14 @@
       <!-- Create Post Form -->
       <div *ngIf="showCreateForm" class="bg-white rounded-2xl shadow-md p-6 mb-6 border-2 border-primary-200">
         <h3 class="text-lg font-bold text-gray-900 mb-4">Create New Post</h3>
+        
+        <!-- Toxicity Warning -->
+        <app-toxicity-warning
+          [visible]="showToxicityWarning"
+          [detectedWords]="detectedToxicWords"
+          (dismiss)="dismissToxicityWarning()"
+          (edit)="editContent()">
+        </app-toxicity-warning>
         
         <form [formGroup]="postForm" (ngSubmit)="createPost()" class="space-y-4">
           <!-- Title Field -->
@@ -93,6 +137,11 @@
               <div *ngIf="postForm.get('content')?.errors?.['required']">Content is required</div>
               <div *ngIf="postForm.get('content')?.errors?.['minlength']">Content must be at least 10 characters</div>
             </div>
+            
+            <!-- Content Guidelines Hint -->
+            <p class="mt-2 text-xs text-gray-500">
+              💡 Tip: Be respectful and supportive. Inappropriate content will be flagged.
+            </p>
           </div>
 
           <!-- Form Actions -->
@@ -165,15 +214,21 @@
               <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
                 👤
               </div>
-              <div>
-                <!-- Category Badge -->
-                <div class="flex items-center gap-2 mb-1">
+              <div class="flex-1">
+                <!-- Category Badge & Popularity -->
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
                   <span class="text-sm">{{ getCategoryIcon(post.category) }}</span>
                   <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold">
                     {{ getCategoryLabel(post.category) }}
                   </span>
+                  <!-- Popularity Badge -->
+                  <span 
+                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    [class]="getPopularityBadgeClass(post.popularityScore)">
+                    {{ getPopularityText(post.popularityScore) }}
+                  </span>
                 </div>
-                <p class="font-bold text-gray-900">{{ post.title }}</p>
+                <p class="font-bold text-gray-900 text-lg">{{ post.title }}</p>
                 <p class="text-sm text-gray-700 mb-1">{{ getAuthorName(post) }}</p>
                 <p class="text-gray-500 text-sm">{{ formatDate(post.creationDate) }}</p>
               </div>
@@ -190,6 +245,25 @@
           <!-- Post Content -->
           <p class="text-gray-800 mb-4 leading-relaxed">{{ post.content }}</p>
 
+          <!-- Popularity Score Display -->
+          <div class="flex items-center gap-4 mb-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+            <div class="flex items-center gap-1" title="Popularity Score: Based on likes, comments, and freshness">
+              <span>📊</span>
+              <span class="font-semibold">{{ post.popularityScore }}</span>
+              <span>popularity</span>
+            </div>
+            <div class="w-px h-4 bg-gray-300"></div>
+            <div class="flex items-center gap-1">
+              <span>❤️</span>
+              <span>{{ post.likeCount }} likes</span>
+            </div>
+            <div class="w-px h-4 bg-gray-300"></div>
+            <div class="flex items-center gap-1">
+              <span>💬</span>
+              <span>{{ post.commentCount }} comments</span>
+            </div>
+          </div>
+
           <!-- Post Actions -->
           <div class="flex gap-4 text-gray-600 text-sm border-t border-gray-100 pt-4">
             <button 
@@ -198,6 +272,7 @@
               ❤️ <span>{{ post.likeCount }}</span>
             </button>
             <button 
+              (click)="viewPost(post.id)"
               class="flex items-center gap-2 hover:text-primary-600 transition px-3 py-2 rounded-lg hover:bg-primary-50">
               💬 <span>{{ post.commentCount }}</span>
             </button>
@@ -260,6 +335,32 @@
           <li>✓ Support each other</li>
           <li>✓ No medical advice</li>
         </ul>
+      </div>
+
+      <!-- Popularity Legend -->
+      <div class="bg-white rounded-2xl shadow-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">📊 Popularity Guide</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-orange-500 to-red-500 text-white">🔥 Hot</span>
+            <span class="text-gray-600">Score ≥ 100</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white">⭐ Trending</span>
+            <span class="text-gray-600">Score ≥ 50</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-green-400 to-teal-500 text-white">📈 Rising</span>
+            <span class="text-gray-600">Score ≥ 20</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">📊 New</span>
+            <span class="text-gray-600">Score &lt; 20</span>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-gray-500">
+          Popularity = (likes × 2) + (comments × 5) + freshness bonus
+        </p>
       </div>
     </div>
   </div>

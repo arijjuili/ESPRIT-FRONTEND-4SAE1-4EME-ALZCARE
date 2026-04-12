@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+﻿import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
@@ -36,7 +36,12 @@ export class PatientSidebarComponent {
       icon: '💊',
       description: 'Prescriptions & schedule'
     },
-    {
+        {
+      label: 'Appointments',
+      path: '/patient/appointments',
+      icon: '📅',
+      description: 'Visits & schedule'
+    },{
       label: 'Brain Games',
       path: '/patient/games',
       icon: '🎮',
@@ -61,3 +66,4 @@ export class PatientSidebarComponent {
     return false;
   }
 }
+

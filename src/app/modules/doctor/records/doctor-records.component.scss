@@ -1,0 +1,406 @@
+:host {
+  display: block;
+  --doctor-blue: #10b981;
+  --doctor-blue-dark: #059669;
+  --doctor-cyan: #06b6d4;
+  --doctor-emerald: #10b981;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: #ffffff;
+  --surface-soft: rgba(248, 250, 252, 0.92);
+  --border: rgba(226, 232, 240, 0.95);
+  --border-strong: rgba(203, 213, 225, 0.95);
+  --text-strong: #0f172a;
+  --text: #334155;
+  --text-soft: #64748b;
+  --shadow-panel: 0 20px 48px -34px rgba(15, 23, 42, 0.3);
+  --shadow-soft: 0 16px 32px -30px rgba(15, 23, 42, 0.18);
+}
+
+.records-page {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
+    radial-gradient(circle at 85% 10%, rgba(6, 182, 212, 0.1), transparent 24rem),
+    linear-gradient(180deg, #f6fffb 0%, #f2fbf7 48%, #eefbf4 100%);
+}
+
+.records-hero__heading {
+  align-items: flex-start;
+}
+
+.records-hero__icon {
+  border: 1px solid rgba(167, 243, 208, 0.9);
+  background: linear-gradient(135deg, rgba(209, 250, 229, 0.85), rgba(255, 255, 255, 0.95));
+  box-shadow: 0 18px 30px -24px rgba(5, 150, 105, 0.4);
+}
+
+.records-hero__eyebrow {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.records-hero__title {
+  color: var(--text-strong);
+  line-height: 1.08;
+}
+
+.records-hero__subtitle {
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.records-toolbar {
+  display: grid;
+  gap: 1rem;
+}
+
+.records-search-panel,
+.records-summary-card,
+.records-section > .appointments-panel,
+.records-empty,
+.treatment-card {
+  border: 1px solid var(--border);
+  border-radius: 1.35rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(10px);
+}
+
+.records-search-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.records-search-panel__label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.records-search-panel__text {
+  margin: 0.35rem 0 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.records-search {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 3.2rem;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 1.05rem;
+  background: var(--surface-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.records-search:focus-within {
+  transform: translateY(-1px);
+  border-color: rgba(16, 185, 129, 0.42);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.records-search__icon {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(255, 255, 255, 0.95));
+  border: 1px solid rgba(167, 243, 208, 0.92);
+  color: var(--doctor-blue-dark);
+  flex: 0 0 auto;
+}
+
+.records-search__input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 0.96rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.records-search__input::placeholder {
+  color: #94a3b8;
+}
+
+.records-search__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.records-search__clear:hover {
+  border-color: rgba(167, 243, 208, 0.92);
+  background: rgba(236, 253, 245, 0.95);
+  color: var(--doctor-blue-dark);
+}
+
+.records-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.records-summary-card {
+  padding: 1rem 1.1rem;
+}
+
+.records-summary-card__label {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.records-summary-card__value {
+  margin: 0.45rem 0 0;
+  color: var(--text-strong);
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.records-section__header {
+  margin-bottom: 1.25rem;
+}
+
+.records-page-info {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.records-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.records-pagination__pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.records-pagination__btn,
+.records-pagination__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--doctor-blue-dark);
+  font-size: 0.84rem;
+  font-weight: 800;
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.records-pagination__btn:hover:not(:disabled),
+.records-pagination__number:hover {
+  transform: translateY(-1px);
+  border-color: rgba(167, 243, 208, 0.95);
+  background: rgba(236, 253, 245, 0.92);
+}
+
+.records-pagination__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.records-pagination__number--active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--doctor-blue), var(--doctor-blue-dark));
+  color: #ffffff;
+  box-shadow: 0 18px 30px -26px rgba(5, 150, 105, 0.55);
+}
+
+.records-section h2 {
+  position: relative;
+}
+
+.records-section h2::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -0.55rem;
+  width: 2.8rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--doctor-blue), rgba(52, 211, 153, 0.85));
+}
+
+.treatment-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.treatment-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.75), rgba(6, 182, 212, 0.3));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.treatment-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(167, 243, 208, 0.95);
+  box-shadow: 0 24px 42px -34px rgba(15, 23, 42, 0.36);
+}
+
+.treatment-card:hover::before {
+  opacity: 1;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.appointments-panel {
+  overflow: hidden;
+}
+
+.appointment-item {
+  transition: background-color 0.18s ease, transform 0.18s ease;
+}
+
+.appointment-item:hover {
+  background: rgba(236, 253, 245, 0.45);
+}
+
+.records-empty {
+  min-height: 18rem;
+}
+
+.records-modal {
+  backdrop-filter: blur(4px);
+  animation: fade-in 0.2s ease-out;
+}
+
+.records-modal__card {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 28px 60px -34px rgba(15, 23, 42, 0.42);
+  animation: modal-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+@media (min-width: 900px) {
+  .records-search-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 30rem);
+    align-items: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .records-section__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .records-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .appointment-item {
+    padding: 1rem;
+  }
+
+  .records-modal__card {
+    border-radius: 1.15rem;
+  }
+}
+
+@media print {
+  .records-search-panel,
+  .records-summary-card,
+  .treatment-card,
+  .appointments-panel {
+    box-shadow: none;
+    border: 1px solid #e5e7eb;
+    break-inside: avoid;
+  }
+
+  button {
+    display: none !important;
+  }
+}

@@ -43,12 +43,18 @@
             <div class="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center text-lg flex-shrink-0">
               👤
             </div>
-            <div>
-              <!-- Category Badge -->
-              <div class="flex items-center gap-2 mb-2">
+            <div class="flex-1">
+              <!-- Category Badge & Popularity -->
+              <div class="flex items-center gap-2 mb-2 flex-wrap">
                 <span class="text-sm">{{ getCategoryIcon(post.category) }}</span>
                 <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-semibold">
                   {{ getCategoryLabel(post.category) }}
+                </span>
+                <!-- Popularity Badge -->
+                <span 
+                  class="px-2 py-1 rounded-full text-xs font-semibold"
+                  [class]="getPopularityBadgeClass(post.popularityScore)">
+                  {{ getPopularityText(post.popularityScore) }}
                 </span>
               </div>
               <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ post.title }}</h1>
@@ -71,14 +77,41 @@
           {{ post.content }}
         </div>
 
+        <!-- Popularity Stats Bar -->
+        <div class="flex items-center gap-6 mb-6 text-sm text-gray-500 bg-gray-50 rounded-lg p-4">
+          <div class="flex items-center gap-2" title="Popularity Score: Based on likes, comments, and freshness">
+            <span class="text-lg">📊</span>
+            <div>
+              <span class="font-bold text-gray-800 text-lg">{{ post.popularityScore }}</span>
+              <span class="text-gray-400 ml-1">popularity score</span>
+            </div>
+          </div>
+          <div class="w-px h-8 bg-gray-300"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-lg">❤️</span>
+            <div>
+              <span class="font-bold text-gray-800">{{ post.likeCount }}</span>
+              <span class="text-gray-400 ml-1">likes</span>
+            </div>
+          </div>
+          <div class="w-px h-8 bg-gray-300"></div>
+          <div class="flex items-center gap-2">
+            <span class="text-lg">💬</span>
+            <div>
+              <span class="font-bold text-gray-800">{{ post.commentCount }}</span>
+              <span class="text-gray-400 ml-1">comments</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Post Actions -->
         <div class="flex gap-4 text-gray-600 text-sm border-t border-gray-100 pt-6">
           <button 
             (click)="likePost()"
-            class="flex items-center gap-2 hover:text-red-600 transition px-3 py-2 rounded-lg hover:bg-red-50">
-            ❤️ <span>{{ post.likeCount }}</span>
+            class="flex items-center gap-2 hover:text-red-600 transition px-4 py-2 rounded-lg hover:bg-red-50 font-medium">
+            ❤️ <span>Like ({{ post.likeCount }})</span>
           </button>
-          <div class="flex items-center gap-2 px-3 py-2">
+          <div class="flex items-center gap-2 px-4 py-2 text-gray-500">
             💬 <span>{{ getCommentCountText() }}</span>
           </div>
         </div>
@@ -88,12 +121,20 @@
       <div class="bg-white rounded-2xl shadow-md p-8">
         <h2 class="text-xl font-bold text-gray-900 mb-6">{{ getCommentCountText() }}</h2>
         
+        <!-- Toxicity Warning -->
+        <app-toxicity-warning
+          [visible]="showToxicityWarning"
+          [detectedWords]="detectedToxicWords"
+          (dismiss)="dismissToxicityWarning()"
+          (edit)="editContent()">
+        </app-toxicity-warning>
+        
         <!-- Create Comment Form -->
         <div class="mb-8">
           <form [formGroup]="commentForm" (ngSubmit)="createComment()" class="space-y-4">
             <div class="comment-form-container">
               <textarea 
-                id="content"
+                id="comment-content"
                 formControlName="content"
                 placeholder="Share your thoughts or ask a question..."
                 rows="4"
@@ -106,6 +147,11 @@
                 <div *ngIf="commentForm.get('content')?.errors?.['minlength']">Comment must be at least 2 characters</div>
                 <div *ngIf="commentForm.get('content')?.errors?.['maxlength']">Comment must not exceed 500 characters</div>
               </div>
+              
+              <!-- Content Guidelines Hint -->
+              <p class="mt-2 text-xs text-gray-500">
+                💡 Remember to be respectful. Inappropriate comments will be flagged.
+              </p>
             </div>
             
             <!-- Form Actions -->
@@ -168,6 +214,32 @@
 
     <!-- Sidebar -->
     <div class="space-y-6">
+      <!-- Popularity Score Card -->
+      <div *ngIf="post" class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-md p-6 border border-primary-200">
+        <h3 class="text-lg font-bold text-primary-900 mb-4">📊 Popularity Score</h3>
+        <div class="text-center mb-4">
+          <div class="text-4xl font-bold text-primary-700">{{ post.popularityScore }}</div>
+          <div class="text-sm text-primary-600 mt-1">{{ getPopularityText(post.popularityScore) }}</div>
+        </div>
+        <div class="space-y-2 text-sm text-primary-800">
+          <div class="flex justify-between">
+            <span>❤️ Likes:</span>
+            <span class="font-semibold">+{{ post.likeCount * 2 }} pts</span>
+          </div>
+          <div class="flex justify-between">
+            <span>💬 Comments:</span>
+            <span class="font-semibold">+{{ post.commentCount * 5 }} pts</span>
+          </div>
+          <div class="flex justify-between">
+            <span>⏰ Freshness:</span>
+            <span class="font-semibold">+{{ getFreshnessScore(post.creationDate) }} pts</span>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-primary-600">
+          Score = (likes × 2) + (comments × 5) + freshness
+        </p>
+      </div>
+
       <!-- Related Categories -->
       <div class="bg-white rounded-2xl shadow-md p-6 hover-lift">
         <h3 class="text-lg font-bold text-gray-900 mb-4">🏷️ Related Categories</h3>
@@ -195,15 +267,48 @@
 
       <!-- Quick Stats -->
       <div *ngIf="post" class="bg-white rounded-2xl shadow-md p-6 hover-lift">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">📊 Post Stats</h3>
+        <h3 class="text-lg font-bold text-gray-900 mb-4">📈 Post Stats</h3>
         <div class="space-y-3 text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-600">Likes:</span>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">👁️ Views:</span>
+            <span class="font-semibold">{{ getEstimatedViews(post.popularityScore) }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">❤️ Likes:</span>
             <span class="font-semibold">{{ post.likeCount }}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-gray-600">Comments:</span>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">💬 Comments:</span>
             <span class="font-semibold">{{ post.commentCount }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">📊 Engagement:</span>
+            <span class="font-semibold" [class.text-green-600]="post.popularityScore > 50" [class.text-yellow-600]="post.popularityScore <= 50 && post.popularityScore > 20" [class.text-gray-600]="post.popularityScore <= 20">
+              {{ post.popularityScore > 50 ? 'High' : post.popularityScore > 20 ? 'Medium' : 'Low' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Popularity Legend -->
+      <div class="bg-white rounded-2xl shadow-md p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">🏆 Rankings</h3>
+        <div class="space-y-2 text-sm">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-orange-500 to-red-500 text-white">🔥 Hot</span>
+            <span class="text-gray-600">Score ≥ 100</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-yellow-400 to-orange-500 text-white">⭐ Trending</span>
+            <span class="text-gray-600">Score ≥ 50</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gradient-to-r from-green-400 to-teal-500 text-white">📈 Rising</span>
+            <span class="text-gray-600">Score ≥ 20</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">📊 New</span>
+            <span class="text-gray-600">Score &lt; 20</span>
           </div>
         </div>
       </div>
