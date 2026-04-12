@@ -122,13 +122,28 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    * Mark all visible unread notifications as read when dropdown is opened
    */
   private markAllVisibleAsRead(): void {
+    console.log('[NotificationBell] markAllVisibleAsRead() called');
+    console.log('[NotificationBell] Current notifications:', this.notifications);
+    console.log('[NotificationBell] unreadCount:', this.unreadCount);
+    
     const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
-    if (unreadNotifications.length === 0) return;
+    console.log('[NotificationBell] Unread notifications found:', unreadNotifications.length);
+    console.log('[NotificationBell] Unread notifications:', unreadNotifications);
+    
+    if (unreadNotifications.length === 0) {
+      console.log('[NotificationBell] No unread notifications to mark');
+      return;
+    }
     
     // Mark each notification as read with a small stagger to avoid overwhelming the API
     unreadNotifications.forEach((notification, index) => {
+      console.log(`[NotificationBell] Marking notification ${index + 1}/${unreadNotifications.length} as read:`, notification.id);
       setTimeout(() => {
-        this.notificationService.markAsRead(notification.id).subscribe();
+        console.log(`[NotificationBell] Calling markAsRead API for:`, notification.id);
+        this.notificationService.markAsRead(notification.id).subscribe({
+          next: () => console.log(`[NotificationBell] Successfully marked as read:`, notification.id),
+          error: (err) => console.error(`[NotificationBell] Failed to mark as read:`, notification.id, err)
+        });
       }, index * 100);
     });
   }
