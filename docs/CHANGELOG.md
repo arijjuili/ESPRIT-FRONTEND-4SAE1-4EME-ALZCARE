@@ -1,5 +1,44 @@
 # Changelog - CareHub
 
+## Session 29 (2026-04-12) - Doctor Patient Access Control
+
+### Security Fix: Doctor Dashboard Patient Access Control
+**Purpose:** Fix security vulnerability where doctors could see all patients instead of only their assigned patients.
+
+**Problem:**
+- Dashboard loaded mock data (`dataService.getPatients()`) alongside real assignments
+- Doctor Patients page showed ALL active patients instead of assigned ones
+- Doctor Appointments page allowed booking for any patient in the system
+- Doctor Records page showed medical history for all patients
+- Doctor Prescriptions page showed ALL patients in dropdown
+
+**Solution:**
+- ✅ **Created `DoctorPatientContextService`** - Shared service for caching doctor's assigned patients
+- ✅ **Updated Dashboard** - Removed legacy mock data sections, now shows only assigned patients
+- ✅ **Updated Patients Page** - Only shows patients assigned via care-team service
+- ✅ **Updated Appointments Page** - Patient dropdown only includes assigned patients
+- ✅ **Updated Records Page** - Only shows records for assigned patients
+- ✅ **Updated Prescriptions Page** - Patient dropdown limited to assigned patients only
+- ✅ **TTL Cache** - 5-minute cache to reduce API calls across pages
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `doctor-patient-context.service.ts` | Shared cache for doctor's assigned patients and assignments |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `doctor-dashboard.component.ts` | Uses DoctorPatientContextService, removed mock data |
+| `doctor-dashboard.component.html` | Removed legacy Patient Details and Appointments sections |
+| `doctor-patients.component.ts` | Now uses DoctorPatientContextService.getAssignedPatients() |
+| `doctor-appointments.component.ts` | Patient search limited to assigned patients only |
+| `doctor-records.component.ts` | Filters records to only show assigned patients |
+| `doctor-prescriptions.component.ts` | Uses DoctorPatientContextService for patient dropdown |
+| `doctor-prescriptions.component.html` | Updated patient display for PatientProfileResponse |
+
+---
+
 ## Session 28 (2026-03-03) - Camera Management & Behavior Validation
 
 ### Feature: Admin Camera Device Management

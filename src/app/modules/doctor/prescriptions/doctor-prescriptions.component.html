@@ -350,13 +350,13 @@
                    class="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0">
                 <div class="flex items-center gap-3">
                   <div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-sm font-bold">
-                    {{ (patient.fullName || patient.username || '?').charAt(0).toUpperCase() }}
+                    {{ (patient.firstName || '?').charAt(0).toUpperCase() }}
                   </div>
                   <div class="flex-1 min-w-0">
                     <p class="font-medium text-gray-900 truncate">
-                      {{ patient.fullName || (patient.firstName && patient.lastName ? patient.firstName + ' ' + patient.lastName : patient.username) }}
+                      {{ patient.firstName + ' ' + patient.lastName }}
                     </p>
-                    <p class="text-sm text-gray-500 truncate">{{ patient.email }}</p>
+                    <p class="text-sm text-gray-500 truncate">{{ patient.userId }}</p>
                   </div>
                 </div>
               </div>

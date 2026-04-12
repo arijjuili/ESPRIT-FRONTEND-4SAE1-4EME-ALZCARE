@@ -641,9 +641,9 @@
               <div class="flex justify-between items-start">
                 <div>
                   <p class="font-semibold text-gray-800">
-                    {{ patient.fullName || patient.firstName + ' ' + patient.lastName || patient.username }}
+                    {{ patient.firstName + ' ' + patient.lastName }}
                   </p>
-                  <p class="text-sm text-gray-500">{{ patient.email }}</p>
+                  <p class="text-sm text-gray-500">{{ $any(patient).email || patient.userId }}</p>
                 </div>
               </div>
             </div>

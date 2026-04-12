@@ -139,6 +139,15 @@ src/app/
 
 ## ✅ Recently Implemented (See CHANGELOG.md for details)
 
+### Session 29 (2026-04-12) - Doctor Patient Access Control
+- **Security Fix** - Doctors can now only see patients they are assigned to
+- **DoctorPatientContextService** - Shared service for caching doctor's assigned patients
+- **Dashboard Update** - Removed legacy mock data, now shows only assigned patients
+- **Patients Page Update** - Only shows patients assigned via care-team service
+- **Appointments Page Update** - Patient dropdown limited to assigned patients only
+- **Records Page Update** - Only shows records for assigned patients
+- **Prescriptions Page Update** - Patient dropdown limited to assigned patients only
+
 ### Session 27 (2026-02-28) - Caregiver Patient Access Control
 - **Security Fix** - Caregivers can now only see patients they are assigned to
 - **Care Team Integration** - Uses `/api/v1/care-team/caregivers/{id}/assignments` to filter patients

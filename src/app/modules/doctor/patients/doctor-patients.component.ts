@@ -3,17 +3,15 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, forkJoin, of } from 'rxjs';
-import { debounceTime, distinctUntilChanged, takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, takeUntil, catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
-import { UserManagementService } from '../../../core/services/user-management.service';
+import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
 import { 
   PrescriptionHelperService,
   PrescriptionAction
 } from '../../../core/services/prescription-helper.service';
-import { 
-  ManagedUser 
-} from '../../../core/models/user-management.model';
 import { 
   MedicationPlan, 
   MedicationAutonomyLevel, 
@@ -30,7 +28,7 @@ import { Router } from '@angular/router';
  */
 interface PatientListItem {
   id: string;
-  userId: string; // ✅ AJOUT
+  userId: string;
   fullName: string;
   email: string;
   username: string;
@@ -54,6 +52,8 @@ interface SortConfig {
  * 
  * Displays a paginated, sortable, and filterable list of patients
  * with quick actions for medical management.
+ * 
+ * SECURITY: Only shows patients assigned to this doctor via care-team service.
  */
 @Component({
   selector: 'app-doctor-patients',
@@ -69,16 +69,14 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
   private prescriptionHelper = inject(PrescriptionHelperService);
   private viewContainerRef = inject(ViewContainerRef);
   
-  // Raw data
-  patients: ManagedUser[] = [];
+  // Raw data - now only assigned patients
+  assignedPatients: PatientProfileResponse[] = [];
   medicationPlans: MedicationPlan[] = [];
   appointments: Appointment[] = [];
   
   // Processed patient list
   patientListItems: PatientListItem[] = [];
   filteredPatients: PatientListItem[] = [];
-  
-
   
   // Filters
   searchQuery = '';
@@ -116,11 +114,10 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
   planToAdjust: MedicationPlan | null = null;
 
   constructor(
-      private router: Router,
-
+    private router: Router,
     private authService: AuthService,
     private medicalService: MedicalFollowupService,
-    private userService: UserManagementService
+    private doctorPatientContext: DoctorPatientContextService
   ) {}
 
   ngOnInit(): void {
@@ -130,7 +127,6 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
       this.doctorId = currentUser.id;
       this.loadData();
     } else {
-      console.error('No current user found');
       this.error = 'You must be logged in to view this page';
       this.loading = false;
     }
@@ -140,8 +136,7 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
       debounceTime(300),
       distinctUntilChanged(),
       takeUntil(this.destroy$)
-    ).subscribe((value) => {
-      console.log('Search subject emitted:', value);
+    ).subscribe(() => {
       this.applyFilters();
     });
   }
@@ -152,7 +147,7 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Load all necessary data
+   * Load all necessary data - only for assigned patients
    */
   loadData(): void {
     this.loading = true;
@@ -163,8 +158,29 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
     const threeMonthsLater = new Date();
     threeMonthsLater.setMonth(today.getMonth() + 3);
 
+    // Load assigned patients from context service (NOT all patients)
+    this.doctorPatientContext.getAssignedPatients().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (patients) => {
+        this.assignedPatients = patients;
+        
+        // Now load medication plans and appointments for these patients
+        this.loadMedicalData(today, threeMonthsLater);
+      },
+      error: (err) => {
+        console.error('Error loading assigned patients:', err);
+        this.error = 'Failed to load your assigned patients';
+        this.loading = false;
+      }
+    });
+  }
+
+  /**
+   * Load medication plans and appointments after patients are loaded
+   */
+  private loadMedicalData(today: Date, threeMonthsLater: Date): void {
     forkJoin({
-      patients: this.userService.getActivePatients().pipe(catchError(() => of([]))),
       medicationPlans: this.medicalService.getAllMedicationPlans().pipe(catchError(() => of([]))),
       appointments: this.medicalService.getDoctorAppointments(
         this.doctorId, 
@@ -173,15 +189,14 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
       ).pipe(catchError(() => of([])))
     }).subscribe({
       next: (data) => {
-        this.patients = data.patients;
         this.medicationPlans = data.medicationPlans;
         this.appointments = data.appointments;
         this.processPatientData();
         this.loading = false;
       },
       error: (err) => {
-        console.error('Error loading patients data:', err);
-        this.error = 'Failed to load patients data';
+        console.error('Error loading medical data:', err);
+        this.error = 'Failed to load medical data';
         this.loading = false;
       }
     });
@@ -189,48 +204,47 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
 
   /**
    * Process raw data into patient list items
+   * Only includes assigned patients
    */
   processPatientData(): void {
-  this.patientListItems = this.patients.map(patient => {
+    this.patientListItems = this.assignedPatients.map(patient => {
+      const keycloakId = patient.userId || patient.id;
 
-    // ✅ IMPORTANT: pour meds, le patientId = Keycloak UUID
-    const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+      // Find medication plan for this patient
+      const plan = this.medicationPlans.find(p => p.patientId === keycloakId) || null;
 
-    // Les plans sont récupérés avec keycloakId, donc on cherche avec keycloakId
-    const plan = this.medicationPlans.find(p => p.patientId === keycloakId) || null;
+      // Find upcoming appointments for this patient
+      const patientAppointments = this.appointments
+        .filter(a => a.patientId === keycloakId)
+        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
 
-    const patientAppointments = this.appointments
-      .filter(a => a.patientId === keycloakId || a.patientId === patient.id)
-      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+      const nextAppointment = patientAppointments.length > 0
+        ? new Date(patientAppointments[0].startAt)
+        : null;
 
-    const nextAppointment = patientAppointments.length > 0
-      ? new Date(patientAppointments[0].startAt)
-      : null;
+      return {
+        id: patient.id,
+        userId: keycloakId,
+        fullName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient',
+        email: (patient as any).email || '',
+        username: (patient as any).username || '',
+        status: 'ACTIVE',
+        autonomyLevel: plan?.autonomyLevel || null,
+        riskLevel: plan?.lastRiskLevel || null,
+        nextAppointment,
+        medicationPlan: plan
+      };
+    });
 
-    return {
-      id: patient.id,         // ✅ garde DB profile id pour routerLink
-      userId: keycloakId,     // ✅ KEYCLOAK UUID pour API meds
-      fullName: patient.fullName ||
-        (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : patient.username),
-      email: patient.email,
-      username: patient.username,
-      status: patient.status,
-      autonomyLevel: plan?.autonomyLevel || null,
-      riskLevel: plan?.lastRiskLevel || null,
-      nextAppointment,
-      medicationPlan: plan
-    };
-  });
-
-  this.applyFilters();
-}
+    this.applyFilters();
+  }
 
   /**
    * Handle search input
    */
   onSearchInput(value: string): void {
     this.searchQuery = value || '';
-    this.applyFilters();
+    this.searchSubject.next(this.searchQuery);
   }
 
   /**
@@ -260,7 +274,6 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
       filtered = filtered.filter(p => p.riskLevel === this.riskFilter);
     }
     
-
     // Apply sorting
     filtered = this.sortPatients(filtered);
     
@@ -469,6 +482,8 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
    * Refresh data
    */
   refresh(): void {
+    // Invalidate cache and reload
+    this.doctorPatientContext.invalidate();
     this.loadData();
   }
 
@@ -514,43 +529,37 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
    * 
    * @param patient - The selected patient
    */
-  
- onPrescribeClick(patient: any): void {
-  // ✅ IMPORTANT: Keycloak UUID (pas patient.id du profile)
-  const keycloakPatientId = patient.userId;
+  onPrescribeClick(patient: PatientListItem): void {
+    const keycloakPatientId = patient.userId;
 
-  if (!keycloakPatientId) {
-    console.error('[Prescribe] patient.userId (Keycloak UUID) is missing!', patient);
-    return;
+    if (!keycloakPatientId) {
+      console.error('[Prescribe] patient.userId (Keycloak UUID) is missing!', patient);
+      return;
+    }
+
+    this.medicalService.getPatientMedicationPlans(keycloakPatientId).subscribe({
+      next: (plans) => {
+        const activePlan = (plans || []).find(p => p.status === 'ACTIVE');
+
+        if (activePlan) {
+          // Open the modal
+          this.activePlanForModal = activePlan;
+          this.activePlanPatientId = keycloakPatientId;
+          this.showActivePlanModal = true;
+          return;
+        }
+
+        // No active plan → go to create prescription
+        this.router.navigate(['/doctor/patients', patient.id, 'prescriptions']);
+      },
+      error: (err) => {
+        console.error('[Prescribe] failed to load plans', err);
+        // fallback: navigate
+        this.router.navigate(['/doctor/patients', patient.id, 'prescriptions']);
+      }
+    });
   }
 
-  console.log('[Prescribe] checking active plan for keycloakPatientId=', keycloakPatientId);
-
-  this.medicalService.getPatientMedicationPlans(keycloakPatientId).subscribe({
-    next: (plans) => {
-      const activePlan = (plans || []).find(p => p.status === 'ACTIVE');
-
-      console.log('[Prescribe] plans=', plans);
-      console.log('[Prescribe] activePlan=', activePlan);
-
-      if (activePlan) {
-        // ✅ Ouvre le modal
-        this.activePlanForModal = activePlan;
-        this.activePlanPatientId = keycloakPatientId;
-        this.showActivePlanModal = true;
-        return;
-      }
-
-      // ✅ Pas de plan actif → aller créer une prescription
-      this.router.navigate(['/doctor/patients', patient.id, 'prescriptions']);
-    },
-    error: (err) => {
-      console.error('[Prescribe] failed to load plans', err);
-      // fallback: navigate
-      this.router.navigate(['/doctor/patients', patient.id, 'prescriptions']);
-    }
-  });
-}
   /**
    * Opens the active plan modal and returns a Promise with the chosen action
    * 
@@ -570,60 +579,56 @@ export class DoctorPatientsComponent implements OnInit, OnDestroy {
   /**
    * Called when an action is selected in the modal
    */
+  onModalActionSelected(result: { action: any; plan?: MedicationPlan }): void {
+    const plan = result.plan;
+    const keycloakPatientId = this.activePlanPatientId;
 
+    if (!plan || !keycloakPatientId) {
+      this.onModalClosed();
+      return;
+    }
 
-onModalActionSelected(result: { action: any; plan?: MedicationPlan }): void {
-  const plan = result.plan;
-  const keycloakPatientId = this.activePlanPatientId;
+    // Close main modal
+    this.showActivePlanModal = false;
 
-  if (!plan || !keycloakPatientId) {
+    // 3 possible actions
+    if (result.action === 'ADJUST_CURRENT') {
+      this.planToAdjust = plan;
+      this.showAdjustPlanModal = true;
+      return;
+    }
+
+    if (result.action === 'ADD_MEDICATION') {
+      // Open prescriptions with action add-medication
+      const patientItem = this.patientListItems.find(p => p.userId === keycloakPatientId);
+      const profileId = patientItem?.id || keycloakPatientId;
+      this.router.navigate(
+        ['/doctor/patients', profileId, 'prescriptions'],
+        { queryParams: { action: 'add-medication', planId: plan.id } }
+      );
+      this.onModalClosed();
+      return;
+    }
+
+    if (result.action === 'REPLACE_TREATMENT') {
+      // Open prescriptions with replace=true
+      const patientItem = this.patientListItems.find(p => p.userId === keycloakPatientId);
+      const profileId = patientItem?.id || keycloakPatientId;
+      this.router.navigate(
+        ['/doctor/patients', profileId, 'prescriptions'],
+        { queryParams: { action: 'replace' } }
+      );
+      this.onModalClosed();
+      return;
+    }
+
     this.onModalClosed();
-    return;
   }
-
-  // Fermer modal principal
-  this.showActivePlanModal = false;
-
-  // 3 actions possibles
-  if (result.action === 'ADJUST_CURRENT') {
-    this.planToAdjust = plan;
-    this.showAdjustPlanModal = true;
-    return;
-  }
-
-  if (result.action === 'ADD_MEDICATION') {
-    // ouvrir prescriptions avec action add-medication
-    // Convertir Keycloak UUID -> patient.id (profil)
-    const patientItem = this.patientListItems.find(p => p.userId === keycloakPatientId);
-    const profileId = patientItem?.id || keycloakPatientId;
-    this.router.navigate(
-      ['/doctor/patients', profileId, 'prescriptions'],
-      { queryParams: { action: 'add-medication', planId: plan.id } }
-    );
-    this.onModalClosed();
-    return;
-  }
-
-  if (result.action === 'REPLACE_TREATMENT') {
-    // ouvrir prescriptions avec replace=true
-    // Convertir Keycloak UUID -> patient.id (profil)
-    const patientItem = this.patientListItems.find(p => p.userId === keycloakPatientId);
-    const profileId = patientItem?.id || keycloakPatientId;
-    this.router.navigate(
-      ['/doctor/patients', profileId, 'prescriptions'],
-{ queryParams: { action: 'replace' } }    );
-    this.onModalClosed();
-    return;
-  }
-
-  this.onModalClosed();
-}
 
   /**
    * Called when the modal is closed without action
    */
   onModalClosed(): void {
-    console.log('Modal closed without action');
     this.showActivePlanModal = false;
     
     if (this.modalResolve) {
@@ -644,19 +649,17 @@ onModalActionSelected(result: { action: any; plan?: MedicationPlan }): void {
    * Called when adjustment is confirmed
    */
   onAdjustConfirmed(result: AdjustPlanResult): void {
-    console.log('Plan adjustment confirmed:', result);
     this.showAdjustPlanModal = false;
     this.planToAdjust = null;
     
     // Refresh the patient data to reflect changes
-    this.loadData();
+    this.refresh();
   }
 
   /**
    * Called when adjustment is cancelled
    */
   onAdjustCancelled(): void {
-    console.log('Plan adjustment cancelled');
     this.showAdjustPlanModal = false;
     this.planToAdjust = null;
   }

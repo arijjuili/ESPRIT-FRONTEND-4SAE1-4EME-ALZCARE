@@ -1,17 +1,18 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
-import { UserManagementService } from '../../../core/services/user-management.service';
+import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
+import { Subject } from 'rxjs';
+import { takeUntil, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import {
   MedicationPlan,
   PlanStatus,
   Appointment,
-  AppointmentStatus,
-  AppointmentType,
-  AppointmentPriority
+  AppointmentStatus
 } from '../../../core/models/medical-followup.model';
-import { ManagedUser } from '../../../core/models/user-management.model';
 import { AuthUser } from '../../../core/models/user.model';
 
 /**
@@ -22,7 +23,7 @@ import { AuthUser } from '../../../core/models/user.model';
  * - Past treatment history (STOPPED/COMPLETED medication plans)
  * - Appointment history
  * 
- * This is a historical record view - no editing capabilities.
+ * SECURITY: Only shows records for patients assigned to this doctor.
  */
 @Component({
   selector: 'app-doctor-records',
@@ -31,7 +32,7 @@ import { AuthUser } from '../../../core/models/user.model';
   templateUrl: './doctor-records.component.html',
   styleUrls: ['./doctor-records.component.scss']
 })
-export class DoctorRecordsComponent implements OnInit {
+export class DoctorRecordsComponent implements OnInit, OnDestroy {
   readonly treatmentPreviewLimit = 6;
   readonly appointmentPreviewLimit = 8;
 
@@ -39,10 +40,10 @@ export class DoctorRecordsComponent implements OnInit {
   currentUser: AuthUser | null = null;
   doctorId = '';
 
-  // Data
+  // Data - only assigned patients
+  assignedPatients: PatientProfileResponse[] = [];
   allMedicationPlans: MedicationPlan[] = [];
   allAppointments: Appointment[] = [];
-  patients: Map<string, ManagedUser> = new Map();
 
   // Filtered data (read-only view)
   treatmentHistory: MedicationPlan[] = [];
@@ -52,6 +53,7 @@ export class DoctorRecordsComponent implements OnInit {
   appointmentCurrentPage = 1;
 
   // Loading states
+  loadingPatients = false;
   loadingPlans = false;
   loadingAppointments = false;
   error: string | null = null;
@@ -60,15 +62,22 @@ export class DoctorRecordsComponent implements OnInit {
   selectedPlan: MedicationPlan | null = null;
   showPlanDetailsModal = false;
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private medicalService: MedicalFollowupService,
-    private userService: UserManagementService,
+    private doctorPatientContext: DoctorPatientContextService,
     private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.loadCurrentUser();
     this.loadData();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   /**
@@ -84,29 +93,33 @@ export class DoctorRecordsComponent implements OnInit {
   }
 
   /**
-   * Load all necessary data
+   * Load all necessary data - only for assigned patients
    */
   loadData(): void {
-    this.loadPatients();
+    this.loadAssignedPatients();
   }
 
   /**
-   * Load patients then medication plans and appointments
+   * Load assigned patients then medication plans and appointments
    */
-  loadPatients(): void {
-    this.userService.getActivePatients().subscribe({
+  loadAssignedPatients(): void {
+    this.loadingPatients = true;
+    this.error = null;
+
+    this.doctorPatientContext.getAssignedPatients().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (patients) => {
-        // Store patients with both profile id and user id when available
-        patients.forEach(patient => {
-          this.indexPatient(patient);
-        });
+        this.assignedPatients = patients;
+        this.loadingPatients = false;
         // Load medication plans and appointments after patients are loaded
         this.loadMedicationPlans();
         this.loadAllAppointments();
       },
       error: (err) => {
-        console.error('Error loading patients:', err);
-        this.error = 'Failed to load patient data';
+        console.error('Error loading assigned patients:', err);
+        this.error = 'Failed to load your assigned patients';
+        this.loadingPatients = false;
       }
     });
   }
@@ -116,9 +129,14 @@ export class DoctorRecordsComponent implements OnInit {
    */
   loadMedicationPlans(): void {
     this.loadingPlans = true;
-    this.medicalService.getAllMedicationPlans().subscribe({
+    this.medicalService.getAllMedicationPlans().pipe(
+      takeUntil(this.destroy$),
+      catchError(() => of([]))
+    ).subscribe({
       next: (plans) => {
-        this.allMedicationPlans = plans;
+        // Filter plans to only include assigned patients
+        const assignedPatientIds = new Set(this.assignedPatients.map(p => p.userId || p.id));
+        this.allMedicationPlans = plans.filter(plan => assignedPatientIds.has(plan.patientId));
         this.filterTreatmentHistory();
         this.loadingPlans = false;
       },
@@ -144,9 +162,14 @@ export class DoctorRecordsComponent implements OnInit {
       this.doctorId,
       from.toISOString(),
       to.toISOString()
+    ).pipe(
+      takeUntil(this.destroy$),
+      catchError(() => of([]))
     ).subscribe({
       next: (appointments) => {
-        this.allAppointments = appointments;
+        // Filter appointments to only include assigned patients
+        const assignedPatientIds = new Set(this.assignedPatients.map(p => p.userId || p.id));
+        this.allAppointments = appointments.filter(appt => assignedPatientIds.has(appt.patientId));
         this.filterAppointmentHistory();
         this.loadingAppointments = false;
       },
@@ -253,11 +276,8 @@ export class DoctorRecordsComponent implements OnInit {
   getPatientName(patientId: string): string {
     const patient = this.findPatient(patientId);
     if (patient) {
-      return patient.fullName || 
-        (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
-        patient.username || 
-        patient.email ||
-        'Unknown Patient';
+      const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+      return fullName || (patient as any).username || (patient as any).email || 'Unknown Patient';
     }
     return 'Unknown Patient';
   }
@@ -271,11 +291,10 @@ export class DoctorRecordsComponent implements OnInit {
     const patient = this.findPatient(patientId);
     const haystack = [
       this.getPatientName(patientId),
-      patient?.fullName,
       patient?.firstName,
       patient?.lastName,
-      patient?.email,
-      patient?.username,
+      (patient as any)?.email,
+      (patient as any)?.username,
       patient?.id
     ]
       .filter(Boolean)
@@ -388,7 +407,7 @@ export class DoctorRecordsComponent implements OnInit {
   /**
    * Get appointment type icon
    */
-  getAppointmentTypeIcon(type: AppointmentType): string {
+  getAppointmentTypeIcon(type: string): string {
     const icons: Record<string, string> = {
       'ROUTINE': '🩺',
       'FOLLOW_UP': '🔄',
@@ -401,15 +420,15 @@ export class DoctorRecordsComponent implements OnInit {
   /**
    * Get priority badge class
    */
-  getPriorityBadgeClass(priority: AppointmentPriority): string {
+  getPriorityBadgeClass(priority: string): string {
     switch (priority) {
-      case AppointmentPriority.CRITICAL:
+      case 'CRITICAL':
         return 'bg-red-100 text-red-700 border-red-200';
-      case AppointmentPriority.HIGH:
+      case 'HIGH':
         return 'bg-orange-100 text-orange-700 border-orange-200';
-      case AppointmentPriority.NORMAL:
+      case 'NORMAL':
         return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      case AppointmentPriority.LOW:
+      case 'LOW':
         return 'bg-gray-100 text-gray-600 border-gray-200';
       default:
         return 'bg-gray-100 text-gray-600 border-gray-200';
@@ -436,7 +455,15 @@ export class DoctorRecordsComponent implements OnInit {
    * Check if data is still loading
    */
   isLoading(): boolean {
-    return this.loadingPlans || this.loadingAppointments;
+    return this.loadingPatients || this.loadingPlans || this.loadingAppointments;
+  }
+
+  /**
+   * Refresh data
+   */
+  refresh(): void {
+    this.doctorPatientContext.invalidate();
+    this.loadData();
   }
 
   /**
@@ -455,23 +482,10 @@ export class DoctorRecordsComponent implements OnInit {
     this.selectedPlan = null;
   }
 
-  private indexPatient(patient: ManagedUser): void {
-    if (patient.id) {
-      this.patients.set(patient.id, patient);
-    }
-
-    if (patient.profileId) {
-      this.patients.set(patient.profileId, patient);
-    }
-
-    const profileRecord = patient.profile as { id?: string } | undefined;
-    if (profileRecord?.id) {
-      this.patients.set(profileRecord.id, patient);
-    }
-  }
-
-  private findPatient(patientId: string): ManagedUser | undefined {
-    return this.patients.get(patientId);
+  private findPatient(patientId: string): PatientProfileResponse | undefined {
+    return this.assignedPatients.find(p => 
+      p.id === patientId || p.userId === patientId
+    );
   }
 
   private getSafeTreatmentPage(): number {

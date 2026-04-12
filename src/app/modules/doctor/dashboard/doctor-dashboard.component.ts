@@ -2,14 +2,12 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { forkJoin, of } from 'rxjs';
-import { catchError, finalize, map, switchMap } from 'rxjs/operators';
+import { Subject, of } from 'rxjs';
+import { takeUntil, catchError, finalize } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
-import { DataService } from '../../../core/services/data.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
 import { DoctorWorkflowService } from '../../../core/services/doctor-workflow.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
@@ -43,18 +41,11 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     activeText: '#ffffff'
   };
   
-  // Doctor's assigned patients
+  // Doctor's assigned patients (from care-team)
   doctorAssignments: DoctorAssignment[] = [];
-  /** Keycloak userId -> name from identity (care-team assignments rarely include patientFirstName/LastName) */
-  patientProfilesByUserId: Record<string, { firstName: string; lastName: string }> = {};
-  /** patientIds we looked up in identity but got no profile (orphan care-team rows, tests, or deleted users) */
-  patientIdsMissingProfile = new Set<string>();
+  assignedPatients: PatientProfileResponse[] = [];
   loadingPatients = false;
   
-  // Legacy data for compatibility
-  patients: any[] = [];
-  appointments: any[] = [];
-
   /** Live text from care-team NewsAPI integration (when configured) */
   researchNewsPreview: string | null = null;
   /** Curated bullets when live news is unavailable (reads like content, not an error page) */
@@ -66,9 +57,9 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
 
   /** Shown when live headlines are unavailable; clinical tone only */
   private static readonly RESEARCH_CURATED_DEFAULT = [
-    'Early Alzheimer’s disease often includes memory changes that interfere with everyday activities — use standardized tools (e.g. MMSE/MoCA) alongside history when staging.',
+    'Early Alzheimer\'s disease often includes memory changes that interfere with everyday activities — use standardized tools (e.g. MMSE/MoCA) alongside history when staging.',
     'Combine medication plans with non-pharmacologic support: structured routine, sleep hygiene, and caregiver education often improve safety and quality of life.',
-    'Discuss advance care planning, driving, and supervision needs early; align with your institution’s policies and local regulations.'
+    'Discuss advance care planning, driving, and supervision needs early; align with your institution\'s policies and local regulations.'
   ];
 
   /** PDF: doctor creates patient account */
@@ -79,9 +70,9 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
-    private dataService: DataService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
+    private doctorPatientContext: DoctorPatientContextService,
     private doctorWorkflow: DoctorWorkflowService,
     private toastService: ToastService,
     private fb: FormBuilder
@@ -110,11 +101,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
       this.doctorName = currentUser.name;
       this.doctorId = currentUser.id || null;
 
-      // Get all patients and appointments (legacy)
-      this.patients = this.dataService.getPatients();
-      this.appointments = this.dataService.getAppointments();
-
-      // Load doctor's assigned patients from care team service
+      // Load doctor's assigned patients from context service
       this.loadDoctorPatients();
       this.loadResearchNews();
     }
@@ -151,7 +138,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
         };
 
         if (text === '__NETWORK_ERROR__') {
-          useCurated('We couldn’t load the latest headlines. The reminders below are still available.');
+          useCurated('We couldn\'t load the latest headlines. The reminders below are still available.');
           return;
         }
         const t = (text || '').trim();
@@ -181,59 +168,35 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.loadingPatients = true;
-    this.patientProfilesByUserId = {};
-    this.patientIdsMissingProfile.clear();
-    this.careTeamService
-      .getDoctorPatients(this.doctorId)
-      .pipe(
-        switchMap((assignments) => {
-          const active = assignments.filter((a) => a.status === DoctorAssignmentStatus.ACTIVE);
-          const ids = [...new Set(active.map((a) => a.patientId))];
-          if (ids.length === 0) {
-            return of({
-              active,
-              rows: [] as { id: string; profile: PatientProfileResponse | null }[]
-            });
-          }
-          return forkJoin(
-            ids.map((id) =>
-              this.patientService.getPatientById(id).pipe(
-                map((profile) => ({ id, profile })),
-                catchError(() => of({ id, profile: null as PatientProfileResponse | null }))
-              )
-            )
-          ).pipe(map((rows) => ({ active, rows })));
-        })
-      )
-      .subscribe({
-        next: ({ active, rows }) => {
-          this.patientProfilesByUserId = {};
-          this.patientIdsMissingProfile.clear();
-          for (const row of rows) {
-            if (row.profile?.firstName != null || row.profile?.lastName != null) {
-              this.patientProfilesByUserId[row.id] = {
-                firstName: row.profile.firstName || '',
-                lastName: row.profile.lastName || ''
-              };
-            } else {
-              this.patientIdsMissingProfile.add(row.id);
-            }
-          }
-          const hasDirectoryProfile = (patientId: string): boolean => {
-            const p = this.patientProfilesByUserId[patientId];
-            return !!(p && (p.firstName?.trim() || p.lastName?.trim()));
-          };
-          // Stale care-team rows (deleted Keycloak/identity users, API tests) must not appear
-          this.doctorAssignments = active.filter((a) => hasDirectoryProfile(a.patientId));
-          this.loadingPatients = false;
-        },
-        error: (error) => {
-          console.error('Error loading doctor patients:', error);
-          this.toastService.error('Failed to load your patients', 'Error');
-          this.doctorAssignments = [];
-          this.loadingPatients = false;
-        }
-      });
+    
+    // Load assignments and patients from context service
+    this.doctorPatientContext.getActiveAssignments().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (assignments) => {
+        this.doctorAssignments = assignments;
+      },
+      error: (error) => {
+        console.error('Error loading doctor assignments:', error);
+        this.toastService.error('Failed to load your patient assignments', 'Error');
+        this.doctorAssignments = [];
+      }
+    });
+
+    this.doctorPatientContext.getAssignedPatients().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (patients) => {
+        this.assignedPatients = patients;
+        this.loadingPatients = false;
+      },
+      error: (error) => {
+        console.error('Error loading assigned patients:', error);
+        this.toastService.error('Failed to load your patients', 'Error');
+        this.assignedPatients = [];
+        this.loadingPatients = false;
+      }
+    });
   }
 
   get patientCount(): number {
@@ -241,29 +204,30 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
   }
 
   getPatientFullName(assignment: DoctorAssignment): string {
-    const prof = this.patientProfilesByUserId[assignment.patientId];
-    if (prof) {
-      const full = `${prof.firstName || ''} ${prof.lastName || ''}`.trim();
+    // First check if we have the patient in our assigned patients list
+    const patient = this.assignedPatients.find(p => p.userId === assignment.patientId || p.id === assignment.patientId);
+    if (patient?.firstName || patient?.lastName) {
+      const full = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
       if (full.length > 0) return full;
     }
+    
+    // Fallback to assignment data
     if (assignment.patientFirstName && assignment.patientLastName) {
       return `${assignment.patientFirstName} ${assignment.patientLastName}`;
     }
     if (assignment.patientFirstName) {
       return assignment.patientFirstName;
     }
-    if (this.patientIdsMissingProfile.has(assignment.patientId)) {
-      const id = assignment.patientId;
-      const short = id.length > 10 ? `${id.slice(0, 8)}…` : id;
-      return `Not in patient directory (${short})`;
-    }
-    return `Patient #${assignment.patientId}`;
+    
+    const id = assignment.patientId;
+    const short = id.length > 10 ? `${id.slice(0, 8)}…` : id;
+    return `Patient (${short})`;
   }
 
   /** Avatar letter when we have a real first name */
   getPatientAvatarLetter(assignment: DoctorAssignment): string {
-    const prof = this.patientProfilesByUserId[assignment.patientId];
-    if (prof?.firstName?.length) return prof.firstName.charAt(0).toUpperCase();
+    const patient = this.assignedPatients.find(p => p.userId === assignment.patientId || p.id === assignment.patientId);
+    if (patient?.firstName?.length) return patient.firstName.charAt(0).toUpperCase();
     if (assignment.patientFirstName?.length) {
       return assignment.patientFirstName.charAt(0).toUpperCase();
     }
@@ -281,7 +245,8 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  getAge(dateOfBirth: Date): number {
+  getAge(dateOfBirth: string | undefined): number {
+    if (!dateOfBirth) return 0;
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -292,11 +257,6 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     }
     
     return age;
-  }
-
-  getPatientName(patientId: string): string {
-    const patient = this.patients.find(p => p.id === patientId);
-    return patient ? patient.name : 'Unknown';
   }
 
   openCreatePatientModal(): void {
@@ -340,7 +300,12 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
             this.toastService.info('A temporary password was generated — copy it from the modal.', 'Password');
           }
           this.creatingPatient = false;
-          this.loadDoctorPatients();
+          // Refresh the patient context and reload
+          this.doctorPatientContext.refreshAssignedPatients().pipe(
+            takeUntil(this.destroy$)
+          ).subscribe(() => {
+            this.loadDoctorPatients();
+          });
         },
         error: (err) => {
           const msg =
