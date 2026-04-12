@@ -100,7 +100,7 @@ export class NotificationService {
     // Optimistic update
     this.updateNotificationStatus(notificationId, 'READ');
 
-    return this.http.patch<void>(`${this.apiUrl}/${notificationId}/read`, {}, {
+    return this.http.put<void>(`${this.apiUrl}/${notificationId}/read`, {}, {
       headers: this.getAuthHeaders()
     }).pipe(
       tap(() => {
