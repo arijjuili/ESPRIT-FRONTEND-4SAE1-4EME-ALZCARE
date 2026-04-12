@@ -54,6 +54,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   };
 
   private unreadCountSubscription?: Subscription;
+  private authSubscription?: Subscription;
 
   constructor(
     private elementRef: ElementRef,
@@ -64,8 +65,13 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.loadNotificationSummary();
-    this.loadNotifications();
+    // Subscribe to auth changes to load notifications when user is available
+    this.authSubscription = this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.loadNotificationSummary();
+        this.loadNotifications();
+      }
+    });
     
     // Subscribe to shared notifications state
     this.notificationService.notifications$.subscribe(notifications => {
@@ -78,6 +84,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.unreadCountSubscription) {
       this.unreadCountSubscription.unsubscribe();
+    }
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
     }
   }
 
@@ -104,8 +113,23 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
       this.loadNotifications();
+      // Mark all unread notifications as read when dropdown opens
+      this.markAllVisibleAsRead();
     }
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Mark all visible unread notifications as read when dropdown is opened
+   */
+  private markAllVisibleAsRead(): void {
+    // Small delay to let notifications render first
+    setTimeout(() => {
+      const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
+      unreadNotifications.forEach(notification => {
+        this.notificationService.markAsRead(notification.id).subscribe();
+      });
+    }, 500);
   }
 
   /**
@@ -151,6 +175,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       })
     ).subscribe();
+  }
 
   /**
    * Navigate to notifications page
@@ -283,10 +308,23 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
     });
 
-    // Initial fetch of unread count
+    // Initial fetch of unread count - retry on failure
+    this.fetchUnreadCount(userId);
+  }
+
+  /**
+   * Fetch unread count with retry
+   */
+  private fetchUnreadCount(userId: string, retries = 3): void {
     this.notificationService.getUnreadCount(userId).subscribe({
+      next: () => {
+        // Count updated via subscription
+      },
       error: (error) => {
         console.error('[NotificationBell] Failed to load unread count:', error);
+        if (retries > 0) {
+          setTimeout(() => this.fetchUnreadCount(userId, retries - 1), 1000);
+        }
       }
     });
   }

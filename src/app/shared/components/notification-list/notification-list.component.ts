@@ -304,6 +304,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       })
     ).subscribe();
+  }
 
   /**
    * Mark all notifications as read
