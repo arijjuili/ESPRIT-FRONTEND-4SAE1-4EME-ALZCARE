@@ -76,9 +76,9 @@ export interface NotificationSummaryResponse {
 }
 
 export interface UnreadCountResponse {
-  count: number;
-  criticalCount?: number;
-  highPriorityCount?: number;
+  userId?: string;
+  unreadCount: number;
+  totalCount?: number;
 }
 
 export interface PagedNotificationResponse {

@@ -78,7 +78,7 @@ export class NotificationService {
     return this.http.get<UnreadCountResponse>(`${this.apiUrl}/user/${userId}/unread/count`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => response.count),
+      map(response => response.unreadCount),
       tap(count => this.unreadCountSubject.next(count)),
       catchError(error => {
         console.error('[NotificationService] Failed to get unread count:', error);
@@ -210,7 +210,7 @@ export class NotificationService {
    * @param userId - The user ID to poll for
    * @param intervalMs - Polling interval in milliseconds (default: 30000ms)
    */
-  startPolling(userId: string, intervalMs = 30000): void {
+  startPolling(userId: string, intervalMs = 10000): void {
     this.stopPolling(); // Ensure no duplicate polling
     this.currentUserId = userId;
 
