@@ -38,6 +38,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   criticalCount = 0;
   isLoading = false;
   markingAsReadId: string | null = null; // Track which notification is being marked as read
+  private markAsReadTimeout: any; // Timeout for auto-marking as read
 
   // Default theme fallback
   private defaultTheme: RoleTheme = {
@@ -89,6 +90,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
     }
+    this.clearMarkAsReadTimeout();
   }
 
   /**
@@ -113,10 +115,36 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   toggleDropdown(): void {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
-      // Pass true to mark notifications as read after loading
-      this.loadNotifications(true);
+      // Load notifications but don't mark as read immediately
+      this.loadNotifications(false);
+      // Schedule auto-mark as read after 5 seconds so user can read first
+      this.scheduleMarkAsRead();
+    } else {
+      // Clear timeout if user closes dropdown before 5 seconds
+      this.clearMarkAsReadTimeout();
     }
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Schedule auto-mark as read after 5 seconds
+   */
+  private scheduleMarkAsRead(): void {
+    this.clearMarkAsReadTimeout();
+    this.markAsReadTimeout = setTimeout(() => {
+      console.log('[NotificationBell] Auto-marking notifications as read after 5 seconds');
+      this.markAllVisibleAsRead();
+    }, 5000);
+  }
+
+  /**
+   * Clear the mark-as-read timeout
+   */
+  private clearMarkAsReadTimeout(): void {
+    if (this.markAsReadTimeout) {
+      clearTimeout(this.markAsReadTimeout);
+      this.markAsReadTimeout = null;
+    }
   }
 
   /**
