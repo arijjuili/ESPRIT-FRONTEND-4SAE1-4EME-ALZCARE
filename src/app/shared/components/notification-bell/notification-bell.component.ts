@@ -113,8 +113,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
       this.loadNotifications();
-      // Mark all unread notifications as read when dropdown opens
-      this.markAllVisibleAsRead();
+      // Note: markAllVisibleAsRead() is now called after fresh data loads in loadNotifications()
     }
     this.cdr.markForCheck();
   }
@@ -123,13 +122,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    * Mark all visible unread notifications as read when dropdown is opened
    */
   private markAllVisibleAsRead(): void {
-    // Small delay to let notifications render first
-    setTimeout(() => {
-      const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
-      unreadNotifications.forEach(notification => {
+    const unreadNotifications = this.notifications.filter(n => n.status === 'UNREAD');
+    if (unreadNotifications.length === 0) return;
+    
+    // Mark each notification as read with a small stagger to avoid overwhelming the API
+    unreadNotifications.forEach((notification, index) => {
+      setTimeout(() => {
         this.notificationService.markAsRead(notification.id).subscribe();
-      });
-    }, 500);
+      }, index * 100);
+    });
   }
 
   /**
@@ -283,6 +284,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.notifications = response.content;
         this.isLoading = false;
         this.cdr.markForCheck();
+        
+        // Mark all unread notifications as read after fresh data loads
+        this.markAllVisibleAsRead();
       },
       error: (error) => {
         console.error('[NotificationBell] Failed to load notifications:', error);
