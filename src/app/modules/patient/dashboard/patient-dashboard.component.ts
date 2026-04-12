@@ -307,6 +307,10 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     this.apiService.getDailyCheckInStatus(patientId).subscribe({
       next: (status) => {
         this.checkInStatus = status;
+        if (status.completedToday) {
+          this.dailyCheckInSuccessAccent = '';
+          this.dailyCheckInSuccessMessage = '';
+        }
         this.loadTodayCheckInRecord(status.dueNow);
       },
       error: () => {
@@ -476,6 +480,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   private hasPatientSubmittedToday(): boolean {
     if (!this.todayCheckInRecord) return false;
+    if (this.todayCheckInRecord.skipped) return true;
     return typeof this.todayCheckInRecord.mood === 'number'
       || typeof this.todayCheckInRecord.sleep === 'number'
       || typeof this.todayCheckInRecord.appetite === 'number';

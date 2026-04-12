@@ -34,6 +34,7 @@ export class WordRecallComponent implements OnDestroy, OnInit {
   resultMessage = '';
   started = false;
   showAnswers = false;
+  answersChecked = false;
   voiceSupported = false;
   voiceEnabled = false;
   voiceListening = false;
@@ -88,6 +89,7 @@ export class WordRecallComponent implements OnDestroy, OnInit {
     this.resultMessage = '';
     this.guesses = [];
     this.showAnswers = false;
+    this.answersChecked = false;
     const wordsToShow = this.currentDifficulty === 'HARD' ? 8 : this.currentDifficulty === 'MEDIUM' ? 6 : 4;
     this.roundWords = this.pickWords(wordsToShow);
     this.visibleWords = [...this.roundWords];
@@ -101,7 +103,7 @@ export class WordRecallComponent implements OnDestroy, OnInit {
   }
 
   addGuess(): void {
-    if (this.showAnswers) return;
+    if (this.showAnswers || this.showWords || this.answersChecked) return;
     const value = this.input.trim().toLowerCase();
     if (!value) return;
     if (!this.guesses.includes(value)) {
@@ -111,6 +113,8 @@ export class WordRecallComponent implements OnDestroy, OnInit {
   }
 
   checkAnswers(): void {
+    if (this.showAnswers || this.showWords || this.answersChecked) return;
+    this.answersChecked = true;
     const target = this.roundWords.map(word => word.toLowerCase());
     const correct = this.guesses.filter(word => target.includes(word));
     this.resultMessage = `You recalled ${correct.length} / ${this.roundWords.length} words.`;
@@ -120,7 +124,7 @@ export class WordRecallComponent implements OnDestroy, OnInit {
   }
 
   removeGuess(index: number): void {
-    if (this.showAnswers) return;
+    if (this.showAnswers || this.showWords || this.answersChecked) return;
     this.guesses.splice(index, 1);
   }
 

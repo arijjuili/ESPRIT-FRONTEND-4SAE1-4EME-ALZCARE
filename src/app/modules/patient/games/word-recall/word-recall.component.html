@@ -98,12 +98,12 @@
             [(ngModel)]="input"
             (keydown.enter)="addGuess()"
             type="text"
-            placeholder="Type a word..."
-            [disabled]="showAnswers"
+            [placeholder]="showWords ? 'Wait for words to disappear...' : (answersChecked ? 'Game finished' : 'Type a word...')"
+            [disabled]="showAnswers || showWords || answersChecked"
             class="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-300 disabled:bg-gray-100 transition duration-300">
           <button
             (click)="addGuess()"
-            [disabled]="showAnswers"
+            [disabled]="showAnswers || showWords || answersChecked"
             class="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-105 disabled:opacity-60">
             Add ✓
           </button>
@@ -113,7 +113,7 @@
           <button
             *ngFor="let guess of guesses; let i = index"
             (click)="removeGuess(i)"
-            [disabled]="showAnswers"
+            [disabled]="showAnswers || showWords || answersChecked"
             class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-100 disabled:opacity-60 hover:bg-emerald-100 transition duration-300 hover:scale-105">
             {{ guess }} ✕
           </button>
@@ -129,6 +129,7 @@
         </div>
 
         <button (click)="checkAnswers()" 
+                *ngIf="!showAnswers && !showWords && !answersChecked && started"
                 class="mt-4 w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-emerald-200">
           Check Answers 📋
         </button>
