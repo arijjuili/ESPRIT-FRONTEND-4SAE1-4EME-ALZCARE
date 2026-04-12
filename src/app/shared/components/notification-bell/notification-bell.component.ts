@@ -69,7 +69,8 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.authSubscription = this.authService.currentUser$.subscribe(user => {
       if (user) {
         this.loadNotificationSummary();
-        this.loadNotifications();
+        // Pass false - don't mark as read on initial page load
+        this.loadNotifications(false);
       }
     });
     
@@ -112,8 +113,8 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   toggleDropdown(): void {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
-      this.loadNotifications();
-      // Note: markAllVisibleAsRead() is now called after fresh data loads in loadNotifications()
+      // Pass true to mark notifications as read after loading
+      this.loadNotifications(true);
     }
     this.cdr.markForCheck();
   }
@@ -295,8 +296,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   /**
    * Load recent notifications from the service
+   * @param shouldMarkAsRead - Whether to mark notifications as read after loading (only when bell is clicked)
    */
-  private loadNotifications(): void {
+  private loadNotifications(shouldMarkAsRead: boolean): void {
     const userId = this.authService.getCurrentUser()?.id;
     if (!userId) {
       this.isLoading = false;
@@ -317,8 +319,10 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.isLoading = false;
         this.cdr.markForCheck();
         
-        // Mark all unread notifications as read after fresh data loads
-        this.markAllVisibleAsRead();
+        // Only mark as read when user explicitly opens the bell, not on page load
+        if (shouldMarkAsRead) {
+          this.markAllVisibleAsRead();
+        }
       },
       error: (error) => {
         console.error('[NotificationBell] Failed to load notifications:', error);
