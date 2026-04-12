@@ -2,16 +2,17 @@ import { CommonModule, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, of, forkJoin } from 'rxjs';
-import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { takeUntil, catchError, map } from 'rxjs/operators';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
 import { DailyCheckInStatus, GameActivity, HealthRecord, RecordType } from '../../../core/models/api.model';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
@@ -121,8 +122,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     private dataService: DataService,
     private medicalService: MedicalFollowupService,
     private safetyAlertService: SafetyAlertService,
-    private patientService: PatientService,
     private careTeamService: CareTeamService,
+    private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
     private router: Router
   ) {}
@@ -157,48 +158,24 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadRealPatients(): void {
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
+    forkJoin({
+      assignments: this.caregiverPatientContext.getActiveAssignments(),
+      patients: this.caregiverPatientContext.getAssignedPatients()
+    })
       .pipe(
         takeUntil(this.destroy$),
-        switchMap(assignments => {
-          const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-          this.caregiverAssignments = activeAssignments;
-
-          if (activeAssignments.length === 0) {
-            return of([] as PatientProfileResponse[]);
-          }
-
-          const patientRequests = activeAssignments.map(assignment =>
-            this.patientService.getPatientById(assignment.patientId).pipe(
-              map(patient => ({
-                ...patient,
-                id: patient.id || assignment.patientId,
-                userId: patient.userId || assignment.patientId,
-                firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
-                lastName: patient.lastName || assignment.patientLastName || 'Patient'
-              })),
-              catchError(error => {
-                console.error(`Failed to load patient ${assignment.patientId}:`, error);
-                return of({
-                  id: assignment.patientId,
-                  userId: assignment.patientId,
-                  firstName: assignment.patientFirstName || 'Unknown',
-                  lastName: assignment.patientLastName || 'Patient'
-                } as PatientProfileResponse);
-              })
-            )
-          );
-
-          return forkJoin(patientRequests);
-        }),
         catchError(error => {
           console.error('Failed to load assigned patients:', error);
           this.toastService.error('Failed to load your assigned patients');
-          return of([] as PatientProfileResponse[]);
+          return of({
+            assignments: [] as CaregiverAssignment[],
+            patients: [] as PatientProfileResponse[]
+          });
         })
       )
       .subscribe({
-        next: (patients) => {
+        next: ({ assignments, patients }) => {
+          this.caregiverAssignments = assignments;
           this.patients = patients;
           this.loadTodayCaregiverCheckIns();
           this.loadDailyCheckInStatuses();
@@ -257,6 +234,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .subscribe(result => {
         if (result) {
           this.toastService.success('Invitation accepted! You are now assigned to this patient.');
+          this.caregiverPatientContext.invalidate();
+          this.loadRealPatients();
           this.loadCaregiverAssignments(); // Refresh the lists
         }
         this.acceptingInviteId = null;

@@ -2,16 +2,15 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subject, of } from 'rxjs';
-import { takeUntil, catchError, switchMap } from 'rxjs/operators';
+import { takeUntil, catchError } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
 import { SafetyAlertService } from '../../../../core/services/safety-alert.service';
-import { PatientService, PatientProfileResponse } from '../../../../core/services/patient.service';
+import { PatientProfileResponse } from '../../../../core/services/patient.service';
 import { ApiService } from '../../../../core/services/api.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { CareTeamService } from '../../../../core/services/care-team.service';
 import { BehaviorLogResponse, BehaviorType, BehaviorSeverity } from '../../../../core/models/safety-alert.model';
 import { CaregiverProfile, DoctorProfile } from '../../../../core/models/api.model';
-import { CaregiverAssignment, AssignmentStatus } from '../../../../core/models/care-team.model';
+import { CaregiverPatientContextService } from '../../../../core/services/caregiver-patient-context.service';
 import { BehaviorLogFormComponent } from '../behavior-log-form/behavior-log-form.component';
 
 interface BehaviorFilters {
@@ -123,10 +122,9 @@ export class BehaviorsPageComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private safetyService: SafetyAlertService,
-    private patientService: PatientService,
     private apiService: ApiService,
     private authService: AuthService,
-    private careTeamService: CareTeamService
+    private caregiverPatientContext: CaregiverPatientContextService
   ) {}
   
   ngOnInit(): void {
@@ -167,41 +165,11 @@ export class BehaviorsPageComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.hasNoAssignedPatients = false;
     
-    // First, get caregiver assignments
-    this.careTeamService.getCaregiverAssignments(this.caregiverId).pipe(
+    this.caregiverPatientContext.getAssignedPatients().pipe(
       takeUntil(this.destroy$),
       catchError(error => {
-        console.error('Error loading caregiver assignments:', error);
-        return of([] as CaregiverAssignment[]);
-      }),
-      // Get all patients, then filter to only assigned ones
-      switchMap(assignments => {
-        // Filter for active assignments only
-        const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-        
-        if (activeAssignments.length === 0) {
-          this.hasNoAssignedPatients = true;
-          return of([] as PatientProfileResponse[]);
-        }
-        
-        // Extract patient IDs from assignments
-        const assignedPatientIds = activeAssignments.map(a => a.patientId);
-        
-        // Load all patients and filter to assigned ones
-        return this.patientService.getPatients().pipe(
-          takeUntil(this.destroy$),
-          catchError(err => {
-            console.error('Error loading patients:', err);
-            return of([] as PatientProfileResponse[]);
-          }),
-          switchMap(allPatients => {
-            // Filter patients to only those assigned to this caregiver
-            // Note: patientId from assignments is the userId (Keycloak ID), not the profile id
-            // We need to match by userId, but behavior logs use profile id
-            const myPatients = allPatients.filter(p => assignedPatientIds.includes(p.userId));
-            return of(myPatients);
-          })
-        );
+        console.error('Error loading caregiver patients:', error);
+        return of([] as PatientProfileResponse[]);
       })
     ).subscribe({
       next: (patients) => {
