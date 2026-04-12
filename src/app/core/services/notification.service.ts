@@ -110,7 +110,9 @@ export class NotificationService {
       catchError(error => {
         console.error('[NotificationService] Failed to mark notification as read:', error);
         // Rollback optimistic update on failure
-        this.updateNotificationStatus(notificationId, 'UNREAD');
+        // Rollback to original status - need to track original or refetch
+        // For now, just refetch from server
+        this.refreshUnreadCount();
         this.markingAsRead.delete(notificationId);
         throw error;
       })

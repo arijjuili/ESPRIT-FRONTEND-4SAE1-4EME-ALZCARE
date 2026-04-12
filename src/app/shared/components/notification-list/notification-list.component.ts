@@ -286,7 +286,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    */
   markAsRead(id: string): void {
     const notification = this.notifications.find(n => n.id === id);
-    if (!notification || notification.status !== 'UNREAD' || this.markingAsReadId) {
+    if (!notification || notification.status === 'READ' || this.markingAsReadId) {
       return;
     }
 

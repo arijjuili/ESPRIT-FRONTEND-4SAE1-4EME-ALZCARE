@@ -190,7 +190,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     
     const notification = this.notifications.find(n => n.id === id);
-    if (!notification || notification.status !== 'UNREAD' || this.markingAsReadId) {
+    if (!notification || notification.status === 'READ' || this.markingAsReadId) {
       return;
     }
 
