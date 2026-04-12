@@ -329,6 +329,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       })
     ).subscribe();
+  }
 
   /**
    * Delete a notification
