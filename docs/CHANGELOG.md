@@ -1,5 +1,39 @@
 # Changelog - CareHub
 
+## Session 30 (2026-04-14) - Camera Provisioning Frontend
+
+### Feature: ESP32-CAM Pairing Token Provisioning
+**Purpose:** Allow administrators to generate one-time pairing tokens for ESP32-CAM devices, enabling technicians to provision cameras on-site without modifying source code.
+
+**Features Implemented:**
+- ✅ **Pairing Token Generation** - Admins generate tokens for a specific patient + zone
+- ✅ **QR Code Display** - Scannable QR code for each token (uses free qrserver API, no new npm deps)
+- ✅ **Copy-to-Clipboard** - One-click token copying for manual entry
+- ✅ **Live Expiry Countdown** - Real-time timer showing time remaining until token expires
+- ✅ **Token Status Tracking** - Visual badges for Active, Used, and Expired tokens
+- ✅ **Patient Token History** - Lists all tokens for the selected patient
+- ✅ **Token Revocation** - Admins can revoke unused tokens before expiry
+- ✅ **Navigation Integration** - Added route, sidebar nav, and module card links
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `pairing-token.model.ts` | PairingToken, GeneratePairingTokenRequest, CameraProvisionResponse interfaces |
+| `admin-camera-provisioning.component.ts` | Provisioning page component logic |
+| `admin-camera-provisioning.component.html` | Provisioning UI with form, QR code, token list |
+| `admin-camera-provisioning.component.scss` | Component styles |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `camera-device.service.ts` | Added `generatePairingToken`, `getPatientTokens`, `revokePairingToken`, `provisionCamera` |
+| `app.routes.ts` | Added `/admin/medical/camera-provisioning` route |
+| `navbar.component.ts` | Added Cameras nav item for admin role |
+| `admin-medical.component.ts` | Added Camera Provisioning module card (id 12) |
+| `admin-camera-devices.component.html` | Added "Provision New Camera" button linking to provisioning page |
+
+---
+
 ## Session 29 (2026-04-12) - Doctor Patient Access Control
 
 ### Security Fix: Doctor Dashboard Patient Access Control

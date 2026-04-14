@@ -1,57 +1,56 @@
 # Current Task
 
-> Status: Cloudinary Image Upload for Behavior Logging - ✅ COMPLETE
-> 
-> **Session 23 (2026-02-22)** - See `CHANGELOG.md` for full details
+> Status: Camera Provisioning Frontend - ✅ COMPLETE
+>
+> **Session 30 (2026-04-14)** - See `CHANGELOG.md` for full details
 
 ---
 
-## 📋 Task Summary: Cloudinary Image Upload Integration
+## 📋 Task Summary: ESP32-CAM Pairing Token Provisioning Frontend
 
 ### Overview
-Implemented direct image upload functionality for behavior logging using **Cloudinary unsigned uploads**. Caregivers can now attach photos when logging behavior incidents via drag-drop, gallery selection, or camera capture.
+Implemented the Angular frontend for the new ESP32-CAM provisioning flow where administrators generate pairing tokens via the admin dashboard, and technicians use those tokens to configure cameras on-site without touching source code.
 
 ---
 
 ## ✅ Implementation Complete
 
-### Features Delivered
+### Phase 1: Models & Service Layer
+- [x] Create `pairing-token.model.ts` with `PairingToken`, `GeneratePairingTokenRequest`, `CameraProvisionResponse`
+- [x] Extend `CameraDeviceService` with token endpoints (`/api/cameras/tokens`, `/api/cameras/tokens/patient/{id}`, `/api/cameras/tokens/{token}`)
 
-| Feature | Status |
-|---------|--------|
-| Drag & drop file upload | ✅ |
-| Gallery button (select from device) | ✅ |
-| Camera button (take photo directly) | ✅ |
-| Multi-file upload (max 5 images) | ✅ |
-| Upload progress indicators | ✅ |
-| File validation (size, format) | ✅ |
-| Thumbnail previews with remove | ✅ |
-| Image gallery in behavior lists | ✅ |
-| Full-screen lightbox viewer | ✅ |
-| Lightbox navigation (arrows, keyboard) | ✅ |
-| Mobile-responsive design | ✅ |
+### Phase 2: Admin Camera Provisioning UI
+- [x] Create `admin-camera-provisioning` component
+- [x] Patient selection dropdown
+- [x] Zone selection dropdown (BEDROOM, HALLWAY, BATHROOM, FRONT_DOOR, KITCHEN, LIVING_ROOM)
+- [x] "Generate Pairing Token" button with API integration
+- [x] Display generated token with copy-to-clipboard
+- [x] QR code display (via qrserver API — no new dependencies)
+- [x] Expiry countdown timer (live updating)
+- [x] Status badges (Active / Used / Expired)
+- [x] List existing tokens for selected patient
+- [x] Revoke action for active tokens
+
+### Phase 3: Navigation & Integration
+- [x] Add `/admin/medical/camera-provisioning` route
+- [x] Add "Cameras" nav item to admin sidebar
+- [x] Update Admin Medical page with Camera Provisioning module card
+- [x] Update existing Camera Devices page with "Provision New Camera" button
+
+### Phase 4: Documentation
+- [x] Update `CHANGELOG.md`
+- [x] Update `ARCHITECTURE.md`
+- [x] Update `AGENTS.md`
 
 ---
 
-### Architecture
+### Backend Endpoints Used
 
-```
-┌─────────────────┐     Upload Images      ┌──────────────┐
-│  Angular App    │ ─────────────────────> │  Cloudinary  │
-│  (Frontend)     │   (Unsigned upload     │     CDN      │
-│                 │    with upload preset) │              │
-└─────────────────┘                        └──────┬───────┘
-       │                                          │
-       │ 2. Receive Image URLs                    │
-       │ <────────────────────────────────────────┘
-       │
-       │ 3. Submit Behavior Log with imageUrls[]
-       ▼
-┌─────────────────┐
-│  Safety Alert   │
-│  Engine (8003)  │
-└─────────────────┘
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/cameras/tokens` | POST | Generate new pairing token |
+| `/api/cameras/tokens/patient/{patientId}` | GET | List patient's tokens |
+| `/api/cameras/tokens/{token}` | DELETE | Revoke unused token |
 
 ---
 
@@ -59,82 +58,24 @@ Implemented direct image upload functionality for behavior logging using **Cloud
 
 | File | Purpose |
 |------|---------|
-| `src/app/core/services/image-upload.service.ts` | Cloudinary upload API with progress tracking |
-| `src/app/shared/components/image-upload/image-upload.component.ts` | Reusable upload component |
-| `src/app/shared/components/image-upload/image-upload.component.html` | Upload UI template |
-| `src/app/shared/components/image-upload/image-upload.component.scss` | Component styles |
+| `src/app/core/models/pairing-token.model.ts` | Pairing token TypeScript interfaces |
+| `src/app/modules/admin/camera-provisioning/admin-camera-provisioning.component.ts` | Provisioning page logic |
+| `src/app/modules/admin/camera-provisioning/admin-camera-provisioning.component.html` | Provisioning UI template |
+| `src/app/modules/admin/camera-provisioning/admin-camera-provisioning.component.scss` | Component styles |
 
 ### Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/environments/environment.ts` | Added Cloudinary config |
-| `src/environments/environment.prod.ts` | Added Cloudinary config |
-| `behavior-log-form.component.ts` (caregiver module) | Integrated image upload |
-| `behavior-log-form.component.html` (caregiver module) | Replaced URL input with upload component |
-| `behavior-log-list.component.ts` | Added image gallery & lightbox |
-| `behavior-log-list.component.html` | Added photo thumbnails |
-| `behavior-log-form.component.ts` (shared) | Updated with image upload |
-| `behaviors-page.component.ts` | Added lightbox methods |
-| `behaviors-page.component.html` | Added lightbox modal |
-| `behavior-detail-modal.component.ts` | Added lightbox for images |
+| `src/app/core/services/camera-device.service.ts` | Added pairing token API methods |
+| `src/app/app.routes.ts` | Added `/admin/medical/camera-provisioning` route |
+| `src/app/shared/components/navbar.component.ts` | Added Cameras nav item for admin |
+| `src/app/modules/admin/medical/admin-medical.component.ts` | Added Camera Provisioning module card |
+| `src/app/modules/admin/camera-devices/admin-camera-devices.component.html` | Added link to provisioning page |
+| `docs/CHANGELOG.md` | Added Session 30 entry |
+| `docs/ARCHITECTURE.md` | Updated admin component list |
+| `AGENTS.md` | Updated recently implemented and service status |
 
 ---
 
-### Cloudinary Configuration
-
-| Config | Value |
-|--------|-------|
-| Cloud Name | `dpudy4roo` |
-| Upload Preset | `lzcare_behavior_logs` |
-| Folder | `behavior_logs` |
-| Max File Size | 5MB |
-| Allowed Formats | JPG, JPEG, PNG, HEIC, HEIF |
-
----
-
-### Usage
-
-```html
-<app-image-upload
-  [maxImages]="5"
-  [maxFileSizeMB]="5"
-  (imagesUploaded)="onImagesUploaded($event)"
-  (uploadError)="onUploadError($event)">
-</app-image-upload>
-```
-
----
-
-### Notes
-
-### Quick Access Behavior Log Fix (Caregiver Dashboard)
-- Fixed quick access behavior log functionality from caregiver dashboard
-- Integrated patient selection with real patient data
-- Connected dashboard "Log Behavior" button to behavior form with proper patient pre-selection
-
-### Additional Features Implemented
-
-| Feature | Description |
-|---------|-------------|
-| **Slideshow/Lightbox** | Full-screen image gallery in behavior lists with navigation arrows |
-| **Keyboard Navigation** | Arrow keys (←/→) to navigate images, Escape to close |
-| **Image Counter** | "2 / 5" style counter showing current position |
-| **Thumbnail Strip** | Quick navigation via bottom thumbnail row |
-| **Camera Capture** | Direct camera access on mobile/tablet devices |
-| **Gallery Selection** | Select multiple images from device gallery |
-| **Drag & Drop** | Desktop drag-drop support for image files |
-
----
-
-### Notes
-
-- **No backend changes required** - uses existing `imageUrls` field
-- **Security:** Unsigned uploads with restricted preset (folder, size, formats)
-- **Cost:** Cloudinary free tier includes 25GB storage + 25GB bandwidth
-- **Quick Access:** Dashboard "Log Behavior" now properly opens form with patient context
-- See `CHANGELOG.md` Session 23 for complete technical details
-
----
-
-*Task completed 2026-02-22*
+*Task completed 2026-04-14*

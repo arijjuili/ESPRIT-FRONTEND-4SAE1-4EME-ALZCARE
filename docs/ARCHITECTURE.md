@@ -157,7 +157,8 @@ This module provides social features for patients to connect, share experiences,
 | `admin-settings` | Platform configuration | `/admin/settings` |
 | `schedule-list` | View/manage notification schedules | `/admin/schedules` |
 | `schedule-form` | Create/edit notification schedules | `/admin/schedules/new`, `/admin/schedules/edit/:id` |
-| `admin-camera-devices` | **NEW:** Camera pairing & management | `/admin/medical/cameras` |
+| `admin-camera-devices` | Camera pairing & management | `/admin/medical/cameras` |
+| `admin-camera-provisioning` | **NEW:** Generate pairing tokens for ESP32-CAM | `/admin/medical/camera-provisioning` |
 
 **Camera Device Management:**
 - Pair ESP32 cameras to patients by MAC address
@@ -166,7 +167,7 @@ This module provides social features for patients to connect, share experiences,
 - Unpair cameras with confirmation
 
 **Services:**
-- `CameraDeviceService` - API integration with event-ingestion service (port 8002)
+- `CameraDeviceService` - API integration with event-ingestion service (port 8002), pairing token management
 
 ### Caregiver Module (5 Components)
 | Component | Purpose | Route |

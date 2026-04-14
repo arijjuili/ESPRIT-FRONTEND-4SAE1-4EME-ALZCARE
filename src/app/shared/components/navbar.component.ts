@@ -307,6 +307,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['admin']
     },
     {
+      label: 'Cameras',
+      path: '/admin/medical/cameras',
+      icon: '📹',
+      roles: ['admin']
+    },
+    {
       label: 'Settings',
       path: '/admin/settings',
       icon: '⚙️',

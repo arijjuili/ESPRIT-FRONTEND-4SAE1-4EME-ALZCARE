@@ -111,7 +111,7 @@ src/app/
 | Service | Port | Status |
 |---------|------|--------|
 | Identity Service | 8001 | ✅ Implemented (Patients, Doctors, Caregivers, Autonomy) |
-| Event Ingestion | 8002 | 🔴 Not Implemented |
+| Event Ingestion | 8002 | ✅ Implemented (Camera devices, Pairing tokens, Activity events) |
 | Safety Alert Engine | 8003/8082 | ✅ Implemented (Behavior logs, Alerts) |
 | Notification Service | 8004 | ✅ Implemented (Notifications + Schedules) |
 | Cognitive Memory | 8005 | 🔴 Not Implemented |
@@ -134,10 +134,21 @@ src/app/
 | `/api/v1/care-team/doctors/*` | ALL | Doctor assignments |
 | `/api/v1/care-team/checklists/*` | ALL | Checklist management |
 | `/realms/alzcare/protocol/openid-connect/token` | POST | Login |
+| `/api/cameras/tokens` | POST | Generate camera pairing token |
+| `/api/cameras/tokens/patient/{id}` | GET | List patient pairing tokens |
+| `/api/cameras/tokens/{token}` | DELETE | Revoke pairing token |
+| `/api/cameras/patient/{id}` | GET | Get patient cameras |
+| `/api/cameras/{id}/status` | PUT | Update camera status |
 
 ---
 
 ## ✅ Recently Implemented (See CHANGELOG.md for details)
+
+### Session 30 (2026-04-14) - Camera Provisioning Frontend
+- **Pairing Token UI** - Admin page for generating ESP32-CAM pairing tokens
+- **QR Code Display** - Scannable QR codes for technician on-site setup
+- **Token Management** - Copy, revoke, countdown timer, status tracking
+- **Navigation** - Sidebar nav, route, and module card integration
 
 ### Session 29 (2026-04-12) - Doctor Patient Access Control
 - **Security Fix** - Doctors can now only see patients they are assigned to
@@ -251,5 +262,5 @@ src/app/
 
 ---
 
-*Last Updated: 2026-02-28 (Session 26: Timeline view for behavior tracking)*
+*Last Updated: 2026-04-14 (Session 30: Camera Provisioning Frontend)*
 *Document Version: 3.1*

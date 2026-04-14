@@ -77,6 +77,16 @@ export class AdminMedicalComponent implements OnInit {
       route: '/admin/medical/cameras'
     },
     {
+      id: 12,
+      name: 'Camera Provisioning',
+      description: 'Generate pairing tokens for ESP32-CAM setup',
+      icon: '📡',
+      count: 0,
+      status: 'active',
+      lastUpdated: '—',
+      route: '/admin/medical/camera-provisioning'
+    },
+    {
       id: 2,
       name: 'Appointments',
       description: 'Scheduling & calendar management',
@@ -327,7 +337,8 @@ export class AdminMedicalComponent implements OnInit {
       4: 'from-red-500 to-rose-600',
       6: 'from-cyan-500 to-blue-600',
       10: 'from-violet-500 to-purple-600',
-      11: 'from-fuchsia-500 to-purple-600'
+      11: 'from-fuchsia-500 to-purple-600',
+      12: 'from-pink-500 to-rose-600'
     };
     return colors[id] || 'from-gray-500 to-gray-600';
   }

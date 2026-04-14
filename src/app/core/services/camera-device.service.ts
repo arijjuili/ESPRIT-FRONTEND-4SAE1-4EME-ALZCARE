@@ -8,6 +8,11 @@ import {
   CameraDeviceRequest,
   CameraStatus
 } from '../models/camera-device.model';
+import {
+  PairingToken,
+  GeneratePairingTokenRequest,
+  CameraProvisionResponse
+} from '../models/pairing-token.model';
 
 /**
  * Camera Device Service
@@ -24,6 +29,73 @@ export class CameraDeviceService {
   private apiUrl = `${environment.apiUrl}/cameras`;
 
   constructor(private http: HttpClient) { }
+
+  // ==================== PAIRING TOKEN METHODS ====================
+
+  /**
+   * Generate a pairing token for camera provisioning
+   * POST /api/cameras/tokens
+   */
+  generatePairingToken(request: GeneratePairingTokenRequest): Observable<PairingToken> {
+    return this.http.post<PairingToken>(`${this.apiUrl}/tokens`, request).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to generate pairing token:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Get all pairing tokens for a specific patient
+   * GET /api/cameras/tokens/patient/{patientId}
+   */
+  getPatientTokens(patientId: string): Observable<PairingToken[]> {
+    return this.http.get<PairingToken[]>(`${this.apiUrl}/tokens/patient/${patientId}`).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to get patient tokens:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Get a single pairing token by its string value
+   * GET /api/cameras/tokens/{token}
+   */
+  getPairingToken(token: string): Observable<PairingToken> {
+    return this.http.get<PairingToken>(`${this.apiUrl}/tokens/${token}`).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to get pairing token:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Revoke an unused pairing token
+   * DELETE /api/cameras/tokens/{token}
+   */
+  revokePairingToken(token: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/tokens/${token}`).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to revoke pairing token:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Self-provision a camera device (called by ESP32 firmware)
+   * POST /api/cameras/provision
+   */
+  provisionCamera(request: { macAddress: string; pairingToken: string; firmwareVersion: string }): Observable<CameraProvisionResponse> {
+    return this.http.post<CameraProvisionResponse>(`${this.apiUrl}/provision`, request).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to provision camera:', error);
+        throw error;
+      })
+    );
+  }
 
   // ==================== HTTP METHODS ====================
 

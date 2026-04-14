@@ -288,6 +288,11 @@ export const routes: Routes = [
         path: 'medical/cameras',
         loadComponent: () => import('./modules/admin/camera-devices/admin-camera-devices.component')
           .then(m => m.AdminCameraDevicesComponent)
+      },
+      {
+        path: 'medical/camera-provisioning',
+        loadComponent: () => import('./modules/admin/camera-provisioning/admin-camera-provisioning.component')
+          .then(m => m.AdminCameraProvisioningComponent)
       }
     ]
   },
