@@ -1,5 +1,37 @@
 # Changelog - CareHub
 
+## Session 31 (2026-04-14) - Caregiver Activity Events Page
+
+### Feature: Camera Motion Event Inspection for Caregivers
+**Purpose:** Allow caregivers to view ESP32-CAM motion events and inspect snapshot images captured during activity detection.
+
+**Features Implemented:**
+- ✅ **Patient-Filtered Events** - Only shows events for caregivers' assigned patients
+- ✅ **Snapshot Image Cards** - Event cards display Cloudinary snapshot thumbnails
+- ✅ **Fullscreen Lightbox** - Click any snapshot to view it in fullscreen (ESC to close)
+- ✅ **Day Grouping** - Events grouped under Today, Yesterday, or date labels
+- ✅ **Motion Metadata** - Shows zone, timestamp, motion intensity, and duration
+- ✅ **Processing Status** - Badges indicate whether event was processed for behavior analysis
+- ✅ **Quick Access** - Added to caregiver dashboard quick actions and sidebar navigation
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `activity-event.model.ts` | ActivityEvent interface with snapshotUrl support |
+| `activity-event.service.ts` | API service for event-ingestion activity events |
+| `caregiver-events.component.ts` | Main events page component |
+| `caregiver-events.component.html` | Event cards, day grouping, lightbox modal |
+| `caregiver-events.component.scss` | Component styles |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `app.routes.ts` | Added `/caregiver/events` route |
+| `navbar.component.ts` | Added Events nav item for caregiver role |
+| `caregiver-dashboard.component.html` | Added Activity Events quick action button |
+
+---
+
 ## Session 30 (2026-04-14) - Camera Provisioning Frontend
 
 ### Feature: ESP32-CAM Pairing Token Provisioning

@@ -139,10 +139,18 @@ src/app/
 | `/api/cameras/tokens/{token}` | DELETE | Revoke pairing token |
 | `/api/cameras/patient/{id}` | GET | Get patient cameras |
 | `/api/cameras/{id}/status` | PUT | Update camera status |
+| `/api/events/patient/{id}` | GET | Get patient activity events with snapshots |
 
 ---
 
 ## ✅ Recently Implemented (See CHANGELOG.md for details)
+
+### Session 31 (2026-04-14) - Caregiver Activity Events Page
+- **Event Inspection UI** - Caregivers can view camera motion events and snapshot images
+- **Snapshot Lightbox** - Fullscreen image viewer for Cloudinary snapshots
+- **Day Grouping** - Events organized by Today, Yesterday, or date
+- **Patient Filtering** - Only shows events for assigned patients
+- **Navigation** - Added to caregiver sidebar and dashboard quick actions
 
 ### Session 30 (2026-04-14) - Camera Provisioning Frontend
 - **Pairing Token UI** - Admin page for generating ESP32-CAM pairing tokens
@@ -262,5 +270,5 @@ src/app/
 
 ---
 
-*Last Updated: 2026-04-14 (Session 30: Camera Provisioning Frontend)*
+*Last Updated: 2026-04-14 (Session 31: Caregiver Activity Events Page)*
 *Document Version: 3.1*

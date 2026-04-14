@@ -168,6 +168,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
+      label: 'Events',
+      path: '/caregiver/events',
+      icon: '📹',
+      roles: ['caregiver']
+    },
+    {
       label: 'Safety Alerts',
       path: '/alerts',
       icon: '🚨',

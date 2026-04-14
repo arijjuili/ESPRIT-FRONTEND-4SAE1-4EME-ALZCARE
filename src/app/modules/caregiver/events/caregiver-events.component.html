@@ -1,0 +1,189 @@
+<div class="pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8 min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+  <!-- Header -->
+  <div class="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
+        📹 Activity Events
+      </h1>
+      <p class="text-sm sm:text-base text-gray-600 mt-1">
+        Inspect camera motion events and snapshots for your assigned patients
+      </p>
+    </div>
+  </div>
+
+  <!-- Patient Selector -->
+  <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-6 mb-6">
+    <label class="block text-sm font-medium text-gray-700 mb-2">
+      Select Patient <span class="text-rose-500">*</span>
+    </label>
+    <div class="flex items-center gap-4">
+      <select
+        [(ngModel)]="selectedPatientId"
+        (change)="onPatientSelect($any($event.target).value)"
+        [disabled]="loadingPatients"
+        class="flex-1 max-w-md px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white">
+        <option value="">-- Select a patient --</option>
+        <option *ngFor="let patient of patients" [value]="patient.id">
+          {{ patient.firstName }} {{ patient.lastName }}
+        </option>
+      </select>
+      <span *ngIf="loadingPatients" class="text-gray-500 text-sm">Loading patients...</span>
+    </div>
+
+    <div *ngIf="selectedPatientId" class="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+      <p class="text-sm text-gray-600">
+        Selected Patient: <span class="font-semibold text-emerald-700">{{ getSelectedPatientName() }}</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- No Patient Selected -->
+  <div *ngIf="!selectedPatientId && !loadingPatients" class="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center">
+    <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+      👤
+    </div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Select a Patient</h3>
+    <p class="text-gray-500 max-w-md mx-auto">
+      Choose one of your assigned patients to view their camera activity events and snapshots.
+    </p>
+  </div>
+
+  <!-- Loading Events -->
+  <div *ngIf="selectedPatientId && loadingEvents" class="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center">
+    <div class="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+    <p class="text-gray-600">Loading activity events...</p>
+  </div>
+
+  <!-- Events List -->
+  <div *ngIf="selectedPatientId && !loadingEvents" class="space-y-6">
+    <!-- Empty State -->
+    <div *ngIf="groupedEvents.length === 0" class="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center">
+      <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">
+        📹
+      </div>
+      <h3 class="text-lg font-semibold text-gray-900 mb-2">No Activity Events</h3>
+      <p class="text-gray-500 max-w-md mx-auto">
+        No camera motion events have been recorded for this patient yet.
+      </p>
+    </div>
+
+    <!-- Day Groups -->
+    <div *ngFor="let group of groupedEvents" class="space-y-4">
+      <!-- Day Header -->
+      <div class="flex items-center gap-4">
+        <div class="h-px flex-1 bg-gray-200"></div>
+        <span class="px-4 py-1 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 shadow-sm">
+          {{ group.label }}
+        </span>
+        <div class="h-px flex-1 bg-gray-200"></div>
+      </div>
+
+      <!-- Event Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div *ngFor="let event of group.events"
+             class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all">
+
+          <!-- Snapshot Image -->
+          <div class="relative aspect-video bg-gray-900 group cursor-pointer"
+               (click)="event.snapshotUrl ? openLightbox(event.snapshotUrl) : null">
+            <img *ngIf="event.snapshotUrl"
+                 [src]="event.snapshotUrl"
+                 alt="Motion snapshot"
+                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <div *ngIf="!event.snapshotUrl"
+                 class="w-full h-full flex items-center justify-center text-gray-500">
+              <div class="text-center">
+                <span class="text-4xl">📷</span>
+                <p class="text-sm mt-2">No snapshot available</p>
+              </div>
+            </div>
+
+            <!-- Hover Overlay -->
+            <div *ngIf="event.snapshotUrl"
+                 class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+              <span class="opacity-0 group-hover:opacity-100 text-white text-sm font-medium px-4 py-2 bg-black/50 rounded-full transition-opacity">
+                🔍 View Snapshot
+              </span>
+            </div>
+
+            <!-- Zone Badge -->
+            <div class="absolute top-3 left-3">
+              <span class="px-2.5 py-1 text-xs font-medium bg-black/60 text-white rounded-full backdrop-blur-sm">
+                {{ getZoneIcon(event.zone) }} {{ getZoneLabel(event.zone) }}
+              </span>
+            </div>
+
+            <!-- Time Badge -->
+            <div class="absolute top-3 right-3">
+              <span class="px-2.5 py-1 text-xs font-medium bg-white/90 text-gray-800 rounded-full backdrop-blur-sm">
+                {{ formatTime(event.timestamp) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Motion Intensity</p>
+                <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full border mt-1"
+                      [ngClass]="getMotionIntensityClass(event.motionIntensity)">
+                  {{ getMotionIntensityLabel(event.motionIntensity) }}
+                  <span class="ml-1 opacity-75">({{ (event.motionIntensity * 100).toFixed(0) }}%)</span>
+                </span>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-gray-500 uppercase tracking-wide">Duration</p>
+                <p class="text-sm font-semibold text-gray-900 mt-1">{{ event.duration }}s</p>
+              </div>
+            </div>
+
+            <!-- Processed Badge -->
+            <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+              <span *ngIf="event.processedForBehavior"
+                    class="px-2 py-0.5 text-[10px] font-medium bg-violet-100 text-violet-700 rounded-full">
+                ✅ Processed
+              </span>
+              <span *ngIf="!event.processedForBehavior"
+                    class="px-2 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded-full">
+                ⏳ Pending Review
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox Modal -->
+<div *ngIf="lightboxOpen && lightboxImageUrl"
+     class="fixed inset-0 z-[200] bg-black/95 flex flex-col"
+     (click)="closeLightbox()"
+     (keydown)="onLightboxKeydown($event)"
+     tabindex="0">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between p-4 flex-shrink-0">
+    <div class="text-white text-sm font-medium bg-white/20 px-4 py-2 rounded-full">
+      Motion Snapshot
+    </div>
+    <button type="button"
+            (click)="closeLightbox()"
+            class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+      ✕
+    </button>
+  </div>
+
+  <!-- Image -->
+  <div class="flex-1 flex items-center justify-center p-4" (click)="$event.stopPropagation()">
+    <img [src]="lightboxImageUrl"
+         alt="Motion snapshot fullscreen"
+         class="max-w-full max-h-[calc(100vh-120px)] object-contain rounded-lg shadow-2xl" />
+  </div>
+
+  <!-- Footer hint -->
+  <div class="p-4 text-center text-white/60 text-sm flex-shrink-0">
+    Press ESC to close
+  </div>
+</div>

@@ -64,7 +64,7 @@ alzheimerApp/src/app/
 | Total Components | 43+ |
 | Admin Dashboard Pages | 9 (Medical, Caregivers, Interactive, Community, Users, Analytics, Settings, Schedules) |
 | Patient Pages | 8 (Dashboard, Activities, Medications, Games, Community, Community Detail, Profile, Redesign) |
-| Caregiver Pages | 5 (Dashboard, Behaviors, Tasks, Handovers, Patients) |
+| Caregiver Pages | 6 (Dashboard, Behaviors, Events, Tasks, Handovers, Patients) |
 | Doctor Pages | 3 (Dashboard, Patient Detail, Checklist) |
 | Routes | 30+ |
 | Profile Types | 4 (Patient, Doctor, Caregiver, Admin) |
@@ -158,7 +158,7 @@ This module provides social features for patients to connect, share experiences,
 | `schedule-list` | View/manage notification schedules | `/admin/schedules` |
 | `schedule-form` | Create/edit notification schedules | `/admin/schedules/new`, `/admin/schedules/edit/:id` |
 | `admin-camera-devices` | Camera pairing & management | `/admin/medical/cameras` |
-| `admin-camera-provisioning` | **NEW:** Generate pairing tokens for ESP32-CAM | `/admin/medical/camera-provisioning` |
+| `admin-camera-provisioning` | Generate pairing tokens for ESP32-CAM | `/admin/medical/camera-provisioning` |
 
 **Camera Device Management:**
 - Pair ESP32 cameras to patients by MAC address
@@ -168,8 +168,9 @@ This module provides social features for patients to connect, share experiences,
 
 **Services:**
 - `CameraDeviceService` - API integration with event-ingestion service (port 8002), pairing token management
+- `ActivityEventService` - Activity events and snapshot retrieval from event-ingestion service
 
-### Caregiver Module (5 Components)
+### Caregiver Module (6 Components)
 | Component | Purpose | Route |
 |-----------|---------|-------|
 | `caregiver-layout` | Layout wrapper | - |
@@ -177,6 +178,7 @@ This module provides social features for patients to connect, share experiences,
 | `behaviors-page` | Full behavior tracking with filters | `/caregiver/behaviors`, `/caregiver/behaviors/:patientId` |
 | `behavior-log-form` | Log manual behavior incidents | Modal/Inline |
 | `behavior-log-list` | Display patient behavior history with filtering | `/caregiver/behaviors/:patientId` |
+| `caregiver-events` | View camera motion events and snapshots | `/caregiver/events` |
 
 **Services:**
 - `CareTeamService` - Caregiver assignments, patient access control, handover notes

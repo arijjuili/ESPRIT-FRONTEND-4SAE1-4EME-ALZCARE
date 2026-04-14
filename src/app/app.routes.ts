@@ -132,6 +132,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
       },
       {
+        path: 'events',
+        loadComponent: () => import('./modules/caregiver/events/caregiver-events.component').then(m => m.CaregiverEventsComponent)
+      },
+      {
         path: 'tasks',
         loadComponent: () => import('./modules/caregiver/tasks/caregiver-tasks.component').then(m => m.CaregiverTasksComponent)
       },
