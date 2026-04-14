@@ -126,10 +126,11 @@ export class AdminCommunityComponent implements OnInit, OnDestroy {
         finalize(() => { this.loadingPosts = false; }),
         takeUntil(this.destroy$)
       )
-      .subscribe(result => {
-        this.posts = result.content;
-        this.totalPostElements = result.totalElements;
-        this.recentPosts = result.content.slice(0, 4);
+      .subscribe((result: any) => {
+        const list: Post[] = Array.isArray(result) ? result : (result?.content ?? []);
+        this.posts = list;
+        this.totalPostElements = Array.isArray(result) ? result.length : (result?.totalElements ?? list.length);
+        this.recentPosts = list.slice(0, 4);
       });
   }
 
@@ -177,7 +178,9 @@ export class AdminCommunityComponent implements OnInit, OnDestroy {
         finalize(() => { this.loadingActivities = false; }),
         takeUntil(this.destroy$)
       )
-      .subscribe(activities => { this.activities = activities; });
+      .subscribe((result: any) => {
+        this.activities = Array.isArray(result) ? result : (result?.content ?? []);
+      });
   }
 
   applyActivityFilter(): void {
