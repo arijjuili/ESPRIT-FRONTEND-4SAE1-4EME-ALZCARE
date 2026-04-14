@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, of } from 'rxjs';
 import { takeUntil, catchError, finalize } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
@@ -13,13 +13,17 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { SafetyAlertBellComponent } from '../../../shared/components/safety-alert-bell/safety-alert-bell.component';
+import { AlertPollingService } from '../../../core/services/alert-polling.service';
+import { SafetyAlertService } from '../../../core/services/safety-alert.service';
+import { AlertResponse, ResolveAlertRequest } from '../../../core/models/safety-alert.model';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { DoctorAssignment, DoctorAssignmentStatus } from '../../../core/models/care-team.model';
 
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, RouterLink, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent, SafetyAlertBellComponent],
   templateUrl: './doctor-dashboard.component.html',
   styleUrls: ['./doctor-dashboard.component.scss']
 })
@@ -68,6 +72,16 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
   createPatientForm: FormGroup;
   lastGeneratedPatientPassword: string | null = null;
 
+  // Safety alerts
+  escalatedAlerts: AlertResponse[] = [];
+  resolvingAlertId: string | null = null;
+  resolveNotes = '';
+  resolutionType = 'CHECKED_OK';
+  resolveSubmitting = false;
+  acknowledgeAlertId: string | null = null;
+  acknowledgeNotes = '';
+  acknowledgeSubmitting = false;
+
   constructor(
     private authService: AuthService,
     private patientService: PatientService,
@@ -75,6 +89,8 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     private doctorPatientContext: DoctorPatientContextService,
     private doctorWorkflow: DoctorWorkflowService,
     private toastService: ToastService,
+    private alertPolling: AlertPollingService,
+    private safetyAlertService: SafetyAlertService,
     private fb: FormBuilder
   ) {
     const today = new Date();
@@ -111,11 +127,80 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
         this.doctorName = user.name;
       }
     });
+
+    // Subscribe to alerts — show only those at DOCTOR or EMERGENCY_CONTACT level
+    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe(alerts => {
+      this.escalatedAlerts = alerts.filter(
+        a => a.currentLevel === 'DOCTOR' || a.currentLevel === 'EMERGENCY_CONTACT'
+      ).slice(0, 5);
+    });
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  // ─── Alert helpers ─────────────────────────────────────────────
+  openAcknowledge(alertId: string): void {
+    this.acknowledgeAlertId = alertId;
+    this.acknowledgeNotes = '';
+  }
+
+  submitAcknowledge(): void {
+    if (!this.acknowledgeAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.acknowledgeSubmitting = true;
+    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId, notes: this.acknowledgeNotes })
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.acknowledgeSubmitting = false;
+        this.acknowledgeAlertId = null;
+        this.toastService.success('Alert acknowledged');
+        this.alertPolling.refresh();
+      });
+  }
+
+  openResolve(alertId: string): void {
+    this.resolvingAlertId = alertId;
+    this.resolveNotes = '';
+    this.resolutionType = 'CHECKED_OK';
+  }
+
+  submitResolve(): void {
+    if (!this.resolvingAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.resolveSubmitting = true;
+    const req: ResolveAlertRequest = {
+      resolutionType: this.resolutionType as any,
+      resolutionNotes: this.resolveNotes,
+      isFalsePositive: false,
+      resolvedBy: userId
+    };
+    this.safetyAlertService.resolveAlert(this.resolvingAlertId, req)
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.resolveSubmitting = false;
+        this.resolvingAlertId = null;
+        this.toastService.success('Alert resolved');
+        this.alertPolling.refresh();
+      });
+  }
+
+  alertSeverityClass(sev: string): string {
+    const m: Record<string, string> = {
+      CRITICAL: 'bg-red-100 text-red-800 border-red-200',
+      HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
+      MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      LOW: 'bg-green-100 text-green-800 border-green-200'
+    };
+    return m[sev] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  alertCountdown(mins: number): string {
+    if (mins <= 0) return 'Overdue';
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
 
   private loadResearchNews(): void {

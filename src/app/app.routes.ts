@@ -294,6 +294,11 @@ export const routes: Routes = [
     loadComponent: () => import('./shared/components/notification-list/notification-list.component').then(m => m.NotificationListComponent)
   },
   {
+    path: 'alerts',
+    canActivate: [AuthGuard],
+    loadComponent: () => import('./modules/alerts/alert-list/alert-list.component').then(m => m.AlertListComponent)
+  },
+  {
     path: '**',
     redirectTo: '/landing'
   }

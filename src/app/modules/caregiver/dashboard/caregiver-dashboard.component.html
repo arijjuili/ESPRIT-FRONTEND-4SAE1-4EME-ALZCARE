@@ -6,6 +6,7 @@
       <p class="text-sm sm:text-base text-gray-600 mt-2">Manage your patients and daily care tasks</p>
     </div>
     <div class="flex items-center gap-3">
+      <app-safety-alert-bell [theme]="currentTheme"></app-safety-alert-bell>
       <app-notification-bell [theme]="currentTheme"></app-notification-bell>
     </div>
   </div>
@@ -70,20 +71,104 @@
     </div>
   </div>
 
-  <!-- Alerts Section 
-  <div class="mb-6 sm:mb-8 space-y-2 sm:space-y-4">
-    <app-alert-card 
-      type="warning"
-      title="Action Required: Medication Due"
-      message="Margaret Johnson needs evening medications in 2 hours">
-    </app-alert-card>
-    
-    <app-alert-card 
-      type="info"
-      title="Upcoming Appointment"
-      message="Margaret has a cognitive assessment scheduled for tomorrow at 10:00 AM">
-    </app-alert-card>
-  </div> -->
+  <!-- ═══ Safety Alerts Banner ════════════════════════════════════ -->
+  <div *ngIf="activeAlerts.length > 0" class="mb-6">
+    <!-- Critical banner -->
+    <div *ngIf="criticalAlertCount > 0"
+      class="mb-4 flex items-center gap-3 bg-red-600 text-white px-5 py-3 rounded-2xl shadow-lg">
+      <span class="text-xl animate-pulse">🚨</span>
+      <span class="font-bold text-sm">{{ criticalAlertCount }} CRITICAL alert{{ criticalAlertCount > 1 ? 's' : '' }} require immediate attention</span>
+      <a routerLink="/alerts" class="ml-auto text-xs underline underline-offset-2 hover:no-underline font-semibold">View All</a>
+    </div>
+
+    <!-- Alert cards -->
+    <div class="space-y-3">
+      <div *ngFor="let alert of activeAlerts"
+        class="bg-white rounded-2xl border shadow-sm overflow-hidden"
+        [class.border-red-300]="alert.severity === 'CRITICAL'"
+        [class.border-orange-200]="alert.severity === 'HIGH'"
+        [class.border-yellow-200]="alert.severity === 'MEDIUM'"
+        [class.border-gray-100]="alert.severity === 'LOW'">
+        <div class="h-1"
+          [class.bg-red-500]="alert.severity === 'CRITICAL'"
+          [class.bg-orange-400]="alert.severity === 'HIGH'"
+          [class.bg-yellow-400]="alert.severity === 'MEDIUM'"
+          [class.bg-green-400]="alert.severity === 'LOW'"></div>
+        <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="alertSeverityClass(alert.severity)">
+              {{ alert.severity }}
+            </span>
+            <span class="text-sm font-semibold text-gray-800">{{ alert.ruleCode.replace('_',' ') }}</span>
+            <span class="text-xs text-gray-500">Patient {{ alert.patientId | slice:0:8 }}…</span>
+            <span *ngIf="alert.isEscalationOverdue"
+              class="text-[10px] text-red-600 font-semibold">⏰ Overdue</span>
+            <span *ngIf="!alert.isEscalationOverdue"
+              class="text-[10px] text-gray-400">escalates {{ alertCountdown(alert.escalationMinutesRemaining) }}</span>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="openAcknowledge(alert.id)"
+              class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+              ✔ Ack
+            </button>
+            <button (click)="openResolve(alert.id)"
+              class="px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
+              🔒 Resolve
+            </button>
+          </div>
+        </div>
+
+        <!-- Acknowledge inline form -->
+        <div *ngIf="acknowledgeAlertId === alert.id" class="px-4 pb-3 pt-0">
+          <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
+            <textarea [(ngModel)]="acknowledgeNotes" rows="2" placeholder="Optional notes…"
+              class="w-full text-xs border border-blue-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none mb-2">
+            </textarea>
+            <div class="flex gap-2">
+              <button (click)="submitAcknowledge()" [disabled]="acknowledgeSubmitting"
+                class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold disabled:opacity-50">
+                {{ acknowledgeSubmitting ? 'Saving…' : 'Confirm' }}
+              </button>
+              <button (click)="acknowledgeAlertId = null"
+                class="px-3 py-1 rounded-lg bg-white text-gray-600 text-xs border border-gray-200">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolve inline form -->
+        <div *ngIf="resolvingAlertId === alert.id" class="px-4 pb-3 pt-0">
+          <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 space-y-2">
+            <select [(ngModel)]="resolutionType"
+              class="w-full text-xs border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none">
+              <option value="CHECKED_OK">Checked — OK</option>
+              <option value="APPOINTMENT_SCHEDULED">Appointment Scheduled</option>
+              <option value="EMERGENCY_CONTACTED">Emergency Contacted</option>
+              <option value="MEDICATION_ADJUSTED">Medication Adjusted</option>
+              <option value="ENVIRONMENT_MODIFIED">Environment Modified</option>
+              <option value="INCIDENT_REPORT_CREATED">Incident Report Created</option>
+            </select>
+            <textarea [(ngModel)]="resolveNotes" rows="2" placeholder="Resolution notes…"
+              class="w-full text-xs border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none">
+            </textarea>
+            <div class="flex gap-2">
+              <button (click)="submitResolve()" [disabled]="resolveSubmitting"
+                class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">
+                {{ resolveSubmitting ? 'Resolving…' : 'Resolve' }}
+              </button>
+              <button (click)="resolvingAlertId = null"
+                class="px-3 py-1 rounded-lg bg-white text-gray-600 text-xs border border-gray-200">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="alertCount > 5" class="mt-2 text-center">
+      <a routerLink="/alerts" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">
+        + {{ alertCount - 5 }} more alerts — View all →
+      </a>
+    </div>
+  </div>
 
   <!-- Stats Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
@@ -151,11 +236,16 @@
     </div>
   </div>
 
+  <!-- ═══ Pending AI Validations ════════════════════════════════ -->
+  <div class="mb-6">
+    <app-pending-validations></app-pending-validations>
+  </div>
+
   <!-- Main Content Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
     <!-- Left Column (2/3 width on large screens) -->
     <div class="lg:col-span-2 space-y-4 sm:space-y-6">
-      
+
       <!-- My Patients Section (NEW - Phase 4) -->
       <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 lg:p-8">
         <div class="flex justify-between items-center mb-4 sm:mb-6">

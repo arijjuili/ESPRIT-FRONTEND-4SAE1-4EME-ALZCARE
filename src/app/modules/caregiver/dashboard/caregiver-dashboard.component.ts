@@ -19,16 +19,19 @@ import { AlertCardComponent } from '../../../shared/components/alert-card.compon
 import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import { BehaviorLogFormComponent } from '../../../shared/components/behavior-log-form.component';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { SafetyAlertBellComponent } from '../../../shared/components/safety-alert-bell/safety-alert-bell.component';
+import { PendingValidationsComponent } from '../../alerts/pending-validations/pending-validations.component';
+import { AlertPollingService } from '../../../core/services/alert-polling.service';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { CareTask } from '../../../core/models/user.model';
 import { Appointment } from '../../../core/models/medical-followup.model';
-import { BehaviorLogResponse, BehaviorSeverity } from '../../../core/models/safety-alert.model';
+import { AlertResponse, BehaviorLogResponse, BehaviorSeverity, ResolveAlertRequest, AcknowledgeAlertRequest } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent, BehaviorLogFormComponent, NotificationBellComponent, SafetyAlertBellComponent, PendingValidationsComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
@@ -116,12 +119,25 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     [CaregiverRole.EMERGENCY]: 'bg-rose-100 text-rose-800 border-rose-200'
   };
 
+  // Safety alerts (from polling service)
+  activeAlerts: AlertResponse[] = [];
+  alertCount = 0;
+  criticalAlertCount = 0;
+  resolvingAlertId: string | null = null;
+  acknowledgeAlertId: string | null = null;
+  acknowledgeNotes = '';
+  resolveNotes = '';
+  resolutionType: string = 'CHECKED_OK';
+  resolveSubmitting = false;
+  acknowledgeSubmitting = false;
+
   constructor(
-    private authService: AuthService, 
+    private authService: AuthService,
     private apiService: ApiService,
     private dataService: DataService,
     private medicalService: MedicalFollowupService,
     private safetyAlertService: SafetyAlertService,
+    private alertPolling: AlertPollingService,
     private careTeamService: CareTeamService,
     private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
@@ -147,11 +163,80 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         this.caregiverName = user.name;
       }
     });
+
+    // Subscribe to safety alert polling
+    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe(alerts => {
+      this.activeAlerts = alerts.slice(0, 5); // show top 5 on dashboard
+      this.alertCount = alerts.length;
+      this.criticalAlertCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+    });
   }
-  
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  // ─── Alert helpers ─────────────────────────────────────────────
+  openAcknowledge(alertId: string): void {
+    this.acknowledgeAlertId = alertId;
+    this.acknowledgeNotes = '';
+  }
+
+  submitAcknowledge(): void {
+    if (!this.acknowledgeAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.acknowledgeSubmitting = true;
+    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId, notes: this.acknowledgeNotes })
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.acknowledgeSubmitting = false;
+        this.acknowledgeAlertId = null;
+        this.toastService.success('Alert acknowledged');
+        this.alertPolling.refresh();
+      });
+  }
+
+  openResolve(alertId: string): void {
+    this.resolvingAlertId = alertId;
+    this.resolveNotes = '';
+    this.resolutionType = 'CHECKED_OK';
+  }
+
+  submitResolve(): void {
+    if (!this.resolvingAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.resolveSubmitting = true;
+    const req: ResolveAlertRequest = {
+      resolutionType: this.resolutionType as any,
+      resolutionNotes: this.resolveNotes,
+      isFalsePositive: false,
+      resolvedBy: userId
+    };
+    this.safetyAlertService.resolveAlert(this.resolvingAlertId, req)
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.resolveSubmitting = false;
+        this.resolvingAlertId = null;
+        this.toastService.success('Alert resolved');
+        this.alertPolling.refresh();
+      });
+  }
+
+  alertSeverityClass(sev: string): string {
+    const m: Record<string, string> = {
+      CRITICAL: 'bg-red-100 text-red-800 border-red-200',
+      HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
+      MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      LOW: 'bg-green-100 text-green-800 border-green-200'
+    };
+    return m[sev] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  alertCountdown(mins: number): string {
+    if (mins <= 0) return 'Overdue';
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
 
   loadRealPatients(): void {

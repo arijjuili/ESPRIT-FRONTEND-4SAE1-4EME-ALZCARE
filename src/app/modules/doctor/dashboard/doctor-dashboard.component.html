@@ -12,16 +12,107 @@
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow">
         + Create new patient
       </button>
+      <app-safety-alert-bell [theme]="currentTheme"></app-safety-alert-bell>
       <app-notification-bell [theme]="currentTheme"></app-notification-bell>
     </div>
   </div>
 
-  <!-- Alerts -->
-  <div class="mb-8 space-y-4">
-    <app-alert-card 
-      type="warning"
-      title="Follow-up Required"
-      message="Review patient checklists and upcoming appointments regularly.">
+  <!-- Escalated Safety Alerts -->
+  <div *ngIf="escalatedAlerts.length > 0" class="mb-8">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+        <span class="text-red-500">🚨</span> Alerts Escalated to You
+      </h2>
+      <a routerLink="/alerts" class="text-sm text-blue-600 hover:underline font-medium">View all →</a>
+    </div>
+    <div class="space-y-3">
+      <div *ngFor="let alert of escalatedAlerts"
+        class="bg-white rounded-2xl border shadow-sm overflow-hidden"
+        [class.border-red-300]="alert.severity === 'CRITICAL'"
+        [class.border-orange-200]="alert.severity === 'HIGH'"
+        [class.border-yellow-200]="alert.severity === 'MEDIUM'"
+        [class.border-gray-100]="alert.severity === 'LOW'">
+        <div class="h-1"
+          [class.bg-red-500]="alert.severity === 'CRITICAL'"
+          [class.bg-orange-400]="alert.severity === 'HIGH'"
+          [class.bg-yellow-400]="alert.severity === 'MEDIUM'"
+          [class.bg-green-400]="alert.severity === 'LOW'"></div>
+        <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="alertSeverityClass(alert.severity)">
+              {{ alert.severity }}
+            </span>
+            <span class="text-sm font-semibold text-gray-800">{{ alert.ruleCode.replace('_',' ') }}</span>
+            <span class="text-xs text-gray-500">Patient {{ alert.patientId | slice:0:8 }}…</span>
+            <span *ngIf="alert.isEscalationOverdue" class="text-[10px] text-red-600 font-semibold">⏰ Overdue</span>
+            <span *ngIf="!alert.isEscalationOverdue" class="text-[10px] text-gray-400">
+              escalates in {{ alertCountdown(alert.escalationMinutesRemaining) }}
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <button (click)="openAcknowledge(alert.id)"
+              class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+              ✔ Ack
+            </button>
+            <button (click)="openResolve(alert.id)"
+              class="px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
+              🔒 Resolve
+            </button>
+          </div>
+        </div>
+
+        <!-- Acknowledge inline form -->
+        <div *ngIf="acknowledgeAlertId === alert.id" class="px-4 pb-3">
+          <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
+            <textarea [(ngModel)]="acknowledgeNotes" rows="2" placeholder="Optional notes…"
+              class="w-full text-xs border border-blue-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none mb-2">
+            </textarea>
+            <div class="flex gap-2">
+              <button (click)="submitAcknowledge()" [disabled]="acknowledgeSubmitting"
+                class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold disabled:opacity-50">
+                {{ acknowledgeSubmitting ? 'Saving…' : 'Confirm' }}
+              </button>
+              <button (click)="acknowledgeAlertId = null"
+                class="px-3 py-1 rounded-lg bg-white text-gray-600 text-xs border border-gray-200">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolve inline form -->
+        <div *ngIf="resolvingAlertId === alert.id" class="px-4 pb-3">
+          <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 space-y-2">
+            <select [(ngModel)]="resolutionType"
+              class="w-full text-xs border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none">
+              <option value="CHECKED_OK">Checked — OK</option>
+              <option value="APPOINTMENT_SCHEDULED">Appointment Scheduled</option>
+              <option value="EMERGENCY_CONTACTED">Emergency Contacted</option>
+              <option value="MEDICATION_ADJUSTED">Medication Adjusted</option>
+              <option value="ENVIRONMENT_MODIFIED">Environment Modified</option>
+              <option value="INCIDENT_REPORT_CREATED">Incident Report Created</option>
+            </select>
+            <textarea [(ngModel)]="resolveNotes" rows="2" placeholder="Resolution notes…"
+              class="w-full text-xs border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none">
+            </textarea>
+            <div class="flex gap-2">
+              <button (click)="submitResolve()" [disabled]="resolveSubmitting"
+                class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-semibold disabled:opacity-50">
+                {{ resolveSubmitting ? 'Resolving…' : 'Resolve' }}
+              </button>
+              <button (click)="resolvingAlertId = null"
+                class="px-3 py-1 rounded-lg bg-white text-gray-600 text-xs border border-gray-200">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Follow-up reminder (static, only when no escalated alerts) -->
+  <div *ngIf="escalatedAlerts.length === 0" class="mb-8">
+    <app-alert-card
+      type="info"
+      title="No escalated alerts"
+      message="You have no alerts requiring your attention right now.">
     </app-alert-card>
   </div>
 
