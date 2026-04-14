@@ -43,6 +43,14 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/activities/patient-activities.component').then(m => m.PatientActivitiesComponent)
       },
       {
+        path: 'activities/registrations',
+        loadComponent: () => import('./modules/patient/activities/my-registrations/my-registrations.component').then(m => m.MyRegistrationsComponent)
+      },
+      {
+        path: 'activities/:id',
+        loadComponent: () => import('./modules/patient/activities/activity-detail/activity-detail.component').then(m => m.ActivityDetailComponent)
+      },
+      {
         path: 'medications',
         loadComponent: () => import('./modules/patient/medications/patient-medications.component').then(m => m.PatientMedicationsComponent)
       },
