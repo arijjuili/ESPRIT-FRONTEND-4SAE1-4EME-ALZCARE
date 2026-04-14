@@ -32,8 +32,16 @@
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex items-center justify-center py-20 mb-8">
+      <div class="flex flex-col items-center gap-4">
+        <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+        <p class="text-gray-500 text-sm">Loading dashboard data...</p>
+      </div>
+    </div>
+
     <!-- ========== SYSTEM STATS CARDS ========== -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div *ngIf="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <div *ngFor="let stat of systemStats" 
            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group">
         <div class="flex items-start justify-between">
@@ -56,7 +64,7 @@
     </div>
 
     <!-- ========== QUICK ACTIONS ========== -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+    <div *ngIf="!loading" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
       <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
         <span>⚡</span>
         <span>Quick Actions</span>
@@ -75,7 +83,7 @@
     </div>
 
     <!-- ========== MANAGEMENT CATEGORIES (12 AXES) ========== -->
-    <div class="mb-8">
+    <div *ngIf="!loading" class="mb-8">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
           <span>🎯</span>
@@ -273,7 +281,7 @@
     </div>
 
     <!-- ========== BOTTOM SECTION: ALERTS & ACTIVITY ========== -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div *ngIf="!loading" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- System Alerts -->
       <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center justify-between mb-4">

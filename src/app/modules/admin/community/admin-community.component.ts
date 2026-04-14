@@ -142,12 +142,21 @@ export class AdminCommunityComponent implements OnInit, OnDestroy {
   deletePost(post: Post): void {
     if (!confirm(`Delete post "${post.title}"? This cannot be undone.`)) return;
     this.deletingPostId = post.id;
-    // Optimistic removal
-    this.posts = this.posts.filter(p => p.id !== post.id);
-    this.recentPosts = this.recentPosts.filter(p => p.id !== post.id);
-    this.totalPostElements = Math.max(0, this.totalPostElements - 1);
-    this.toastService.success('Post removed');
-    this.deletingPostId = null;
+    this.communityService.deletePost(post.id)
+      .pipe(
+        catchError(() => {
+          this.toastService.error('Failed to delete post');
+          return of(undefined);
+        }),
+        finalize(() => { this.deletingPostId = null; }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.posts = this.posts.filter(p => p.id !== post.id);
+        this.recentPosts = this.recentPosts.filter(p => p.id !== post.id);
+        this.totalPostElements = Math.max(0, this.totalPostElements - 1);
+        this.toastService.success('Post removed');
+      });
   }
 
   prevPostsPage(): void {
