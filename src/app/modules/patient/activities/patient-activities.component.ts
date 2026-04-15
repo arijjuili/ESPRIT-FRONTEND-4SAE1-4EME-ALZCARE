@@ -6,6 +6,9 @@ import { Subject, of } from 'rxjs';
 import { takeUntil, catchError, finalize } from 'rxjs/operators';
 import { ActivityService } from '../../../core/services/activity.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
+import { DailyCareTask } from '../../../core/models/daily-care.model';
+
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
   ActivityResponse,
@@ -27,6 +30,8 @@ type ActiveTab = 'upcoming' | 'recommended' | 'reminders' | 'interests';
 export class PatientActivitiesComponent implements OnInit, OnDestroy {
   private patientId = '';
   private destroy$ = new Subject<void>();
+  todayTasks: DailyCareTask[] = [];
+  loading = false;
 
   activeTab: ActiveTab = 'upcoming';
 
@@ -67,7 +72,9 @@ export class PatientActivitiesComponent implements OnInit, OnDestroy {
     private activityService: ActivityService,
     private authService: AuthService,
     private toastService: ToastService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private dailyCareService: DailyCareService,
+
   ) {
     this.interestsForm = this.fb.group({
       city: ['', Validators.required],
@@ -80,7 +87,24 @@ export class PatientActivitiesComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const user = this.authService.getCurrentUser();
     if (user) this.patientId = user.id;
+      if (!user) {
+      return;
+    }
     this.loadUpcoming();
+
+    this.loading = true;
+    this.dailyCareService
+      .getPatientDailyTasks(user.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: tasks => {
+          this.todayTasks = tasks;
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -184,7 +208,21 @@ export class PatientActivitiesComponent implements OnInit, OnDestroy {
         }
       });
   }
-
+  toggleTask(taskId: string): void {
+    const task = this.todayTasks.find(t => t.id === taskId);
+    if (task) {
+      const updatedValue = !task.completed;
+      this.dailyCareService
+        .updateTaskStatus(taskId, { completed: updatedValue })
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(updatedTask => {
+          const index = this.todayTasks.findIndex(t => t.id === updatedTask.id);
+          if (index !== -1) {
+            this.todayTasks[index] = updatedTask;
+          }
+        });
+    }
+  }
   isTypeSelected(type: ActivityType): boolean {
     const types: ActivityType[] = this.interestsForm.get('activityTypes')?.value ?? [];
     return types.includes(type);

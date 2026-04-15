@@ -51,6 +51,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/activities/activity-detail/activity-detail.component').then(m => m.ActivityDetailComponent)
       },
       {
+        path: 'routines',
+        loadComponent: () => import('./modules/patient/routines/patient-routines.component').then(m => m.PatientRoutinesComponent)
+      },
+      {
         path: 'medications',
         loadComponent: () => import('./modules/patient/medications/patient-medications.component').then(m => m.PatientMedicationsComponent)
       },
@@ -101,6 +105,10 @@ export const routes: Routes = [
       {
         path: 'assessment',
         loadComponent: () => import('./modules/patient/assessment/patient-assessment.component').then(m => m.PatientAssessmentComponent)
+      },
+      {
+        path: 'routines',
+        loadComponent: () => import('./modules/patient/routines/patient-routines.component').then(m => m.PatientRoutinesComponent)
       }
     ]
   },
@@ -231,6 +239,14 @@ export const routes: Routes = [
       {
         path: 'cognitive-patient/:id',
         loadComponent: () => import('./modules/doctor/patient-analytics/patient-analytics.component').then(m => m.PatientAnalyticsComponent)
+      },
+      {
+        path: 'habits',
+        loadComponent: () => import('./modules/doctor/habits/doctor-habits.component').then(m => m.DoctorHabitsComponent)
+      },
+      {
+        path: 'statistics',
+        loadComponent: () => import('./modules/doctor/statistics/doctor-statistics.component').then(m => m.DoctorStatisticsComponent)
       }
     ]
   },
@@ -271,6 +287,10 @@ export const routes: Routes = [
       {
         path: 'care-teams',
         loadComponent: () => import('./modules/admin/care-teams/admin-care-teams.component').then(m => m.AdminCareTeamsComponent)
+      },
+      {
+        path: 'routines',
+        loadComponent: () => import('./modules/admin/routines/admin-routines.component').then(m => m.AdminRoutinesComponent)
       },
       {
         path: 'analytics',

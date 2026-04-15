@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { DailyCareService } from '../../../core/services/daily-care.service';
+import { DailyRoutine } from '../../../core/models/daily-care.model';
 
 interface Caregiver {
   id: number;
@@ -15,7 +17,7 @@ interface Caregiver {
 }
 
 interface Routine {
-  id: number;
+  id: string;
   name: string;
   description: string;
   patients: number;
@@ -49,16 +51,13 @@ export class AdminCaregiversComponent implements OnInit {
   ];
 
   // Daily Routines
-  routines: Routine[] = [
-    { id: 1, name: 'Morning Care Routine', description: 'Wake up, hygiene, breakfast, medications', patients: 28, tasks: 8, status: 'active' },
-    { id: 2, name: 'Afternoon Activities', description: 'Exercise, cognitive games, social time', patients: 32, tasks: 6, status: 'active' },
-    { id: 3, name: 'Evening Wind-down', description: 'Dinner, relaxation, medication, sleep prep', patients: 30, tasks: 7, status: 'active' },
-    { id: 4, name: 'Weekend Special', description: 'Extended activities, family visits', patients: 15, tasks: 10, status: 'draft' }
-  ];
+  routines: Routine[] = [];
 
-  constructor() {}
+  constructor(private dailyCareService: DailyCareService) {}
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.loadRoutines();
+  }
 
   getStatusClass(status: string): string {
     const classes: Record<string, string> = {
@@ -80,5 +79,27 @@ export class AdminCaregiversComponent implements OnInit {
 
   getStarArray(rating: number): number[] {
     return Array(5).fill(0).map((_, i) => i + 1);
+  }
+
+  private loadRoutines(): void {
+    this.dailyCareService.getRoutines().subscribe({
+      next: routines => {
+        this.routines = routines.map(routine => this.mapRoutine(routine));
+      },
+      error: () => {
+        this.routines = [];
+      }
+    });
+  }
+
+  private mapRoutine(routine: DailyRoutine): Routine {
+    return {
+      id: routine.id,
+      name: routine.name,
+      description: routine.description,
+      patients: routine.patientCount,
+      tasks: routine.taskCount,
+      status: routine.active ? 'active' : 'draft'
+    };
   }
 }

@@ -30,3 +30,6 @@ export * from './notification-schedule.model';
 
 // Care Team Models
 export * from './care-team.model';
+
+// Daily Care Models
+export * from './daily-care.model';

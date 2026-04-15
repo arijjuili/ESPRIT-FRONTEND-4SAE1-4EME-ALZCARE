@@ -7,15 +7,15 @@ import { takeUntil, catchError, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
   CaregiverAssignment,
-  ChecklistItem,
   CaregiverRole,
-  ChecklistPriority,
-  ChecklistStatus,
   AssignmentStatus
 } from '../../../core/models/care-team.model';
+import { DailyCareTask } from '../../../core/models/daily-care.model';
+import type { DailyCarePriority, DailyCareStatus } from '../../../core/models/daily-care.model';
 
 @Component({
   selector: 'app-caregiver-tasks',
@@ -31,10 +31,10 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
   assignments: CaregiverAssignment[] = [];
   /** Keycloak userId -> display name from identity */
   patientProfilesByUserId: Record<string, { firstName: string; lastName: string }> = {};
-  allTasks: ChecklistItem[] = [];
-  filteredTasks: ChecklistItem[] = [];
-  completedTasks: ChecklistItem[] = [];
-  pendingTasks: ChecklistItem[] = [];
+  allTasks: DailyCareTask[] = [];
+  filteredTasks: DailyCareTask[] = [];
+  completedTasks: DailyCareTask[] = [];
+  pendingTasks: DailyCareTask[] = [];
 
   loading = false;
   completingTaskId: string | null = null;
@@ -43,8 +43,8 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
 
   // Enums for template
   CaregiverRole = CaregiverRole;
-  ChecklistPriority = ChecklistPriority;
-  ChecklistStatus = ChecklistStatus;
+  DailyCarePriority = { low: 'low', medium: 'medium', high: 'high' } as const;
+  DailyCareStatus = { PENDING: 'PENDING', COMPLETED: 'COMPLETED', MISSED: 'MISSED' } as const;
 
   // Role badge colors
   roleColors: Record<CaregiverRole, string> = {
@@ -54,23 +54,24 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
   };
 
   // Priority badge colors
-  priorityColors: Record<ChecklistPriority, string> = {
-    [ChecklistPriority.LOW]: 'bg-green-100 text-green-800 border-green-200',
-    [ChecklistPriority.MEDIUM]: 'bg-amber-100 text-amber-800 border-amber-200',
-    [ChecklistPriority.HIGH]: 'bg-rose-100 text-rose-800 border-rose-200'
+  priorityColors: Record<DailyCarePriority, string> = {
+    low: 'bg-green-100 text-green-800 border-green-200',
+    medium: 'bg-amber-100 text-amber-800 border-amber-200',
+    high: 'bg-rose-100 text-rose-800 border-rose-200'
   };
 
   // Priority icons
-  priorityIcons: Record<ChecklistPriority, string> = {
-    [ChecklistPriority.LOW]: '🔽',
-    [ChecklistPriority.MEDIUM]: '🔼',
-    [ChecklistPriority.HIGH]: '🔴'
+  priorityIcons: Record<DailyCarePriority, string> = {
+    low: '??',
+    medium: '??',
+    high: '??'
   };
 
   constructor(
     private authService: AuthService,
     private careTeamService: CareTeamService,
     private patientService: PatientService,
+    private dailyCareService: DailyCareService,
     private toastService: ToastService,
     private fb: FormBuilder
   ) {
@@ -88,10 +89,13 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
       this.loadAssignments();
     }
 
-    // Subscribe to filter changes
     this.filterForm.valueChanges
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.applyFilters());
+
+    this.filterForm.get('date')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.loadTasksForAllPatients());
   }
 
   ngOnDestroy(): void {
@@ -111,6 +115,7 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
         catchError(error => {
           console.error('Failed to load assignments:', error);
           this.toastService.error('Failed to load your patient assignments');
+          this.loading = false;
           return of([]);
         })
       )
@@ -160,17 +165,20 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
 
   loadTasksForAllPatients(): void {
     if (this.assignments.length === 0) {
+      this.allTasks = [];
+      this.applyFilters();
       this.loading = false;
       return;
     }
 
+    this.loading = true;
     const date = this.filterForm.get('date')?.value || this.getTodayDate();
 
-    // Load checklist items for each assigned patient
+    // Load daily-care tasks for each assigned patient.
     const taskObservables = this.assignments.map(assignment =>
-      this.careTeamService.getPatientChecklist(assignment.patientId, date).pipe(
+      this.dailyCareService.getPatientDailyTasks(assignment.patientId, date).pipe(
         catchError(error => {
-          console.error(`Failed to load tasks for patient ${assignment.patientId}:`, error);
+          console.error(`Failed to load daily tasks for patient ${assignment.patientId}:`, error);
           return of([]);
         })
       )
@@ -179,12 +187,13 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
     forkJoin(taskObservables)
       .pipe(takeUntil(this.destroy$))
       .subscribe(results => {
-        // Flatten all tasks and filter for this caregiver
         const allItems = results.flat();
+        // Keep tasks assigned to this caregiver or unassigned tasks available to caregivers.
         this.allTasks = allItems.filter(task =>
           task.assignedCaregiverId === this.caregiverId ||
-          task.status === ChecklistStatus.PENDING
+          !task.assignedCaregiverId
         );
+
         this.applyFilters();
         this.loading = false;
       });
@@ -195,33 +204,31 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
 
     let filtered = [...this.allTasks];
 
-    // Filter by patient
     if (patientId) {
       filtered = filtered.filter(task => task.patientId === patientId);
     }
 
-    // Filter by status
     if (status) {
       filtered = filtered.filter(task => task.status === status);
     }
 
-    // Sort by priority (HIGH first) then by date
-    const priorityOrder = { [ChecklistPriority.HIGH]: 0, [ChecklistPriority.MEDIUM]: 1, [ChecklistPriority.LOW]: 2 };
+    // Sort by priority (high first) then by due date.
+    const priorityOrder: Record<DailyCarePriority, number> = { high: 0, medium: 1, low: 2 };
     filtered.sort((a, b) => {
       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
-      return new Date(a.date).getTime() - new Date(b.date).getTime();
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
 
     this.filteredTasks = filtered;
-    this.completedTasks = filtered.filter(t => t.status === ChecklistStatus.COMPLETED);
-    this.pendingTasks = filtered.filter(t => t.status !== ChecklistStatus.COMPLETED);
+    this.completedTasks = filtered.filter(t => t.status === 'COMPLETED');
+    this.pendingTasks = filtered.filter(t => t.status !== 'COMPLETED');
   }
 
   markComplete(itemId: string): void {
     this.completingTaskId = itemId;
 
-    this.careTeamService.completeChecklistItem(itemId, { completedBy: this.caregiverId })
+    this.dailyCareService.updateTaskStatus(itemId, { completed: true })
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
@@ -234,7 +241,6 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
       .subscribe(result => {
         if (result) {
           this.toastService.success('Task marked as complete!');
-          // Update the task in the list
           const taskIndex = this.allTasks.findIndex(t => t.id === itemId);
           if (taskIndex !== -1) {
             this.allTasks[taskIndex] = result;
@@ -282,11 +288,11 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
     return labels[role];
   }
 
-  getPriorityBadgeClass(priority: ChecklistPriority): string {
+  getPriorityBadgeClass(priority: DailyCarePriority): string {
     return this.priorityColors[priority];
   }
 
-  getPriorityIcon(priority: ChecklistPriority): string {
+  getPriorityIcon(priority: DailyCarePriority): string {
     return this.priorityIcons[priority];
   }
 
@@ -296,11 +302,11 @@ export class CaregiverTasksComponent implements OnInit, OnDestroy {
   }
 
   refreshTasks(): void {
-    this.loadAssignments();
+    this.loadTasksForAllPatients();
   }
 
   getHighPriorityPendingCount(): number {
-    return this.filteredTasks.filter(t => t.priority === ChecklistPriority.HIGH && t.status !== ChecklistStatus.COMPLETED).length;
+    return this.filteredTasks.filter(t => t.priority === 'high' && t.status !== 'COMPLETED').length;
   }
 
   clearFilters(): void {
