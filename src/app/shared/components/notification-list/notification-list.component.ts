@@ -206,7 +206,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
         this.filteredNotifications = [...this.notifications];
         break;
       case 'UNREAD':
-        this.filteredNotifications = this.notifications.filter(n => n.status === 'UNREAD');
+        this.filteredNotifications = this.notifications.filter(n => n.status === 'DELIVERED');
         break;
       case 'ALERTS':
         this.filteredNotifications = this.notifications.filter(n => n.type === 'ALERT');
@@ -244,7 +244,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    * Update summary counts
    */
   private updateSummaryCounts(): void {
-    this.unreadCount = this.notifications.filter(n => n.status === 'UNREAD').length;
+    this.unreadCount = this.notifications.filter(n => n.status === 'DELIVERED').length;
     this.totalCount = this.totalElements;
   }
 
@@ -256,7 +256,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
       case 'ALL':
         return this.totalCount;
       case 'UNREAD':
-        return this.notifications.filter(n => n.status === 'UNREAD').length;
+        return this.notifications.filter(n => n.status === 'DELIVERED').length;
       case 'ALERTS':
         return this.notifications.filter(n => n.type === 'ALERT').length;
       case 'REMINDERS':
@@ -275,7 +275,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
    */
   markAsRead(id: string): void {
     const notification = this.notifications.find(n => n.id === id);
-    if (notification && notification.status === 'UNREAD') {
+    if (notification && notification.status === 'DELIVERED') {
       // Update local state optimistically
       notification.status = 'READ';
       notification.readAt = new Date().toISOString();
@@ -300,7 +300,7 @@ export class NotificationListComponent implements OnInit, OnDestroy {
 
     let hasChanges = false;
     this.notifications.forEach(notification => {
-      if (notification.status === 'UNREAD') {
+      if (notification.status === 'DELIVERED') {
         notification.status = 'READ';
         notification.readAt = new Date().toISOString();
         hasChanges = true;

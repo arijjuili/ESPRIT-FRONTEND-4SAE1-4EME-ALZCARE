@@ -366,13 +366,16 @@ export class AuthService {
    */
   getCurrentUserId(): string | null {
     const token = this.getAccessToken();
-    if (!token) return null;
+    if (!token) {
+      return this.getCurrentUser()?.id || null;
+    }
     
     try {
       const payload = this.decodeJwt(token);
-      return payload['sub'] || null;
+      console.log('JWT Token payload extracted:', payload);
+      return payload['sub'] || this.getCurrentUser()?.id || null;
     } catch {
-      return null;
+      return this.getCurrentUser()?.id || null;
     }
   }
 }

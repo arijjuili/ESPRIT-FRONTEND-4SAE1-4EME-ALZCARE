@@ -3,6 +3,7 @@ import { RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { NotificationService } from './core/services/notification.service';
 import { AuthService } from './core/services/auth.service';
+import { HydrationReminderService } from './core/services/hydration-reminder.service';
 import { ToastContainerComponent } from './shared/components/toast/toast-container.component';
 
 @Component({
@@ -18,7 +19,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private notificationService: NotificationService,
-    private authService: AuthService
+    private authService: AuthService,
+    private hydrationReminderService: HydrationReminderService
   ) {}
 
   ngOnInit(): void {
@@ -27,9 +29,15 @@ export class AppComponent implements OnInit, OnDestroy {
       if (user) {
         // User logged in - start polling for notifications
         this.notificationService.startPolling(user.id);
+        if (user.role === 'patient') {
+          this.hydrationReminderService.startForPatient(user.id);
+        } else {
+          this.hydrationReminderService.stop();
+        }
       } else {
         // User logged out - stop polling
         this.notificationService.stopPolling();
+        this.hydrationReminderService.stop();
       }
     });
   }
@@ -37,5 +45,6 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.authSubscription?.unsubscribe();
     this.notificationService.stopPolling();
+    this.hydrationReminderService.stop();
   }
 }

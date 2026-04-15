@@ -138,6 +138,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '👤',
       roles: ['patient']
     },
+    {
+      label: 'My Routines',
+      path: '/patient/routines',
+      icon: '🧩',
+      roles: ['patient']
+    },
     // Caregiver routes
     {
       label: 'Dashboard',
@@ -192,6 +198,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Habits',
       path: '/doctor/habits',
       icon: 'R',
+      roles: ['doctor']
+    },
+    {
+      label: 'Habits',
+      path: '/doctor/habits',
+      icon: '🧩',
+      roles: ['doctor']
+    },
+    {
+      label: 'Statistics',
+      path: '/doctor/statistics',
+      icon: '📈',
       roles: ['doctor']
     },
     // Admin routes - 12 Axes Management

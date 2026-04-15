@@ -1,5 +1,26 @@
 export type HabitType = 'MORNING' | 'EVENING' | 'ACTIVITY';
 export type AutonomyMode = 'INDEPENDENT' | 'ASSISTED' | 'DEPENDENT';
+export type AutonomyAssessmentLevel = 'INDEPENDENT' | 'ASSISTED' | 'DEPENDENT';
+export type AutonomyAssessmentStatus = 'DRAFT' | 'PENDING_DOCTOR' | 'APPROVED' | 'REJECTED';
+
+export interface HabitTask {
+  id: number;
+  habitId: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+  isCritical: boolean;
+  autonomyMode: AutonomyMode;
+}
+
+export interface HabitTaskRequest {
+  habitId: number;
+  title: string;
+  description: string;
+  orderIndex: number;
+  critical: boolean;
+  autonomyMode: AutonomyMode;
+}
 
 export interface Habit {
   id: number;
@@ -7,101 +28,84 @@ export interface Habit {
   type: HabitType;
   targetTime: string;
   active: boolean;
-  createdAt: string;
-  ownerId?: string;
   tasks: HabitTask[];
 }
 
-export interface HabitTask {
-  id: number;
-  title: string;
-  description: string;
-  orderIndex: number;
-  isCritical: boolean;
-  autonomyMode: AutonomyMode;
-  habitId?: number;
-}
-
-export interface HabitTaskRequest {
-  habitId: number;
-  title: string;
-  description: string;
-  orderIndex: number;
-  critical: boolean;
-  autonomyMode: AutonomyMode;
-}
-
-export interface HabitAssignmentRequest {
-  habitId: number;
-}
-
-export interface HabitAssignment {
-  id?: number | string;
-  habitId: number;
-  patientId: string;
-  doctorId: string;
-  assignedAt?: string;
-}
-
-export interface CreateHabitRequest {
+export interface HabitRequest {
   name: string;
   type: HabitType;
   targetTime: string;
-  active?: boolean;
-}
-
-export type UpdateHabitRequest = Partial<CreateHabitRequest>;
-
-export interface CreateHabitTaskRequest {
-  title: string;
-  description: string;
-  orderIndex: number;
-  isCritical: boolean;
-  autonomyMode: AutonomyMode;
-}
-
-export type UpdateHabitTaskRequest = Partial<CreateHabitTaskRequest>;
-
-// Legacy - kept for admin/routines and other pages that still use these
-export type DailyCarePriority = 'low' | 'medium' | 'high';
-export type DailyCareStatus = 'PENDING' | 'COMPLETED' | 'MISSED';
-
-export interface DailyCareTask {
-  id: string;
-  patientId: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  priority: DailyCarePriority;
-  completed: boolean;
-  status: DailyCareStatus;
-  routineId?: string;
-  assignedCaregiverId?: string;
-  notes?: string;
-}
-
-export interface DailyRoutine {
-  id: string;
-  name: string;
-  description: string;
   active: boolean;
-  patientCount: number;
-  taskCount: number;
-  scheduleWindow?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
-export interface UpdateTaskStatusRequest {
-  completed: boolean;
-  notes?: string;
-}
-
-export interface HabitTaskRequest {
+export interface AssignHabitRequest {
   habitId: number;
-  title: string;
-  description: string;
-  orderIndex: number;
-  critical: boolean;
-  autonomyMode: AutonomyMode;
+}
+
+export interface DailyCompletionTrend {
+  date: string;
+  count: number;
+}
+
+export interface DoctorStats {
+  habitsPerPatient: Record<string, number>;
+  tasksByAutonomyMode: Record<string, number>;
+  tasksByCriticality: Record<string, number>;
+  completionTrend: DailyCompletionTrend[];
+}
+
+export interface AutonomyProfile {
+  patientId: string;
+  mobilityLevel: AutonomyAssessmentLevel;
+  hygieneLevel: AutonomyAssessmentLevel;
+  medicationLevel: AutonomyAssessmentLevel;
+  decisionMakingLevel: AutonomyAssessmentLevel;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface AutonomySuggestion {
+  id: number;
+  patientId: string;
+  sourceSummary?: string;
+  mobilityLevel: AutonomyAssessmentLevel;
+  hygieneLevel: AutonomyAssessmentLevel;
+  medicationLevel: AutonomyAssessmentLevel;
+  decisionMakingLevel: AutonomyAssessmentLevel;
+  mobilityReason?: string;
+  hygieneReason?: string;
+  medicationReason?: string;
+  decisionMakingReason?: string;
+  confidenceScore?: number;
+  aiSummary?: string;
+  status: AutonomyAssessmentStatus;
+  createdBy: string;
+  createdAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNotes?: string;
+}
+
+export interface AutonomySuggestionDecisionRequest {
+  reviewNotes?: string;
+  mobilityLevel?: AutonomyAssessmentLevel;
+  hygieneLevel?: AutonomyAssessmentLevel;
+  medicationLevel?: AutonomyAssessmentLevel;
+  decisionMakingLevel?: AutonomyAssessmentLevel;
+}
+
+export interface AutonomyHistoryItem {
+  id: number;
+  patientId: string;
+  oldMobilityLevel?: AutonomyAssessmentLevel;
+  oldHygieneLevel?: AutonomyAssessmentLevel;
+  oldMedicationLevel?: AutonomyAssessmentLevel;
+  oldDecisionMakingLevel?: AutonomyAssessmentLevel;
+  newMobilityLevel: AutonomyAssessmentLevel;
+  newHygieneLevel: AutonomyAssessmentLevel;
+  newMedicationLevel: AutonomyAssessmentLevel;
+  newDecisionMakingLevel: AutonomyAssessmentLevel;
+  changedBy: string;
+  changeReason?: string;
+  changedAt: string;
 }
