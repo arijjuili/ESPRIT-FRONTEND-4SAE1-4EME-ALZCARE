@@ -116,7 +116,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     
     const notification = this.notifications.find(n => n.id === id);
-    if (notification && notification.status === 'UNREAD') {
+    if (notification && notification.status === 'DELIVERED') {
       // Update local state optimistically
       notification.status = 'READ';
       notification.readAt = new Date().toISOString();
@@ -271,7 +271,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     });
 
     // Count critical notifications from current list
-    this.criticalCount = this.notifications.filter(n => n.priority === 'CRITICAL' && n.status === 'UNREAD').length;
+    this.criticalCount = this.notifications.filter(n => n.priority === 'CRITICAL' && n.status === 'DELIVERED').length;
     this.cdr.markForCheck();
   }
 }

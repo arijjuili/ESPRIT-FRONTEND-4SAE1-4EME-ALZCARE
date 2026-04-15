@@ -16,7 +16,7 @@ export type NotificationType =
 
 export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type NotificationStatus = 'READ' | 'UNREAD';
+export type NotificationStatus = 'READ' | 'DELIVERED';
 
 export type NotificationFilterType = 'ALL' | 'UNREAD' | 'ALERTS' | 'REMINDERS' | 'SYSTEM';
 

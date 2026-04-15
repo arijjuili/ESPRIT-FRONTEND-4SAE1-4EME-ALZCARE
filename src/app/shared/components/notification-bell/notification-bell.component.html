@@ -65,7 +65,7 @@
       <div 
         *ngFor="let notification of notifications"
         class="notification-item"
-        [class.unread]="notification.status === 'UNREAD'"
+        [class.unread]="notification.status === 'DELIVERED'"
         [class.clickable]="notification.actionUrl"
         [class.critical]="notification.priority === 'CRITICAL'"
         (click)="onNotificationClick(notification)"
@@ -86,7 +86,7 @@
               {{ notification.title }}
             </h4>
             <span 
-              *ngIf="notification.status === 'UNREAD'" 
+              *ngIf="notification.status === 'DELIVERED'" 
               class="unread-dot"
               [style.background-color]="effectiveTheme.primary">
             </span>
@@ -107,7 +107,7 @@
 
         <!-- Mark as Read Button (visible on hover for unread items) -->
         <button 
-          *ngIf="notification.status === 'UNREAD'"
+          *ngIf="notification.status === 'DELIVERED'"
           class="mark-read-btn"
           (click)="markAsRead(notification.id, $event)"
           title="Mark as read"

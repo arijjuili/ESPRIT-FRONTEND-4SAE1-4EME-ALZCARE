@@ -61,6 +61,10 @@ export const routes: Routes = [
       {
         path: 'profile',
         loadComponent: () => import('./modules/patient/profile/patient-profile.component').then(m => m.PatientProfileComponent)
+      },
+      {
+        path: 'routines',
+        loadComponent: () => import('./modules/patient/routines/patient-routines.component').then(m => m.PatientRoutinesComponent)
       }
     ]
   },
@@ -121,6 +125,14 @@ export const routes: Routes = [
       {
         path: 'checklist',
         loadComponent: () => import('./modules/doctor/checklist/doctor-checklist.component').then(m => m.DoctorChecklistComponent)
+      },
+      {
+        path: 'habits',
+        loadComponent: () => import('./modules/doctor/habits/doctor-habits.component').then(m => m.DoctorHabitsComponent)
+      },
+      {
+        path: 'statistics',
+        loadComponent: () => import('./modules/doctor/statistics/doctor-statistics.component').then(m => m.DoctorStatisticsComponent)
       }
     ]
   },

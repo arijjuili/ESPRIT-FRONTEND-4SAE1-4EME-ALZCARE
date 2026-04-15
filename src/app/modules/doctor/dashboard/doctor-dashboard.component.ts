@@ -1,11 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
+import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
+import { DashboardOverview, DashboardService } from '../../../core/services/dashboard.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { DoctorWorkflowService } from '../../../core/services/doctor-workflow.service';
@@ -13,17 +17,22 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { WeatherPrayerCardComponent } from '../../../shared/components/weather-prayer-card.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { DoctorAssignment, DoctorAssignmentStatus } from '../../../core/models/care-team.model';
+import { AutonomySuggestion, AutonomySuggestionDecisionRequest } from '../../../core/models/daily-care.model';
+import { jsPDF } from 'jspdf';
 
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent],
+  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent, WeatherPrayerCardComponent],
   templateUrl: './doctor-dashboard.component.html',
   styleUrls: ['./doctor-dashboard.component.scss']
 })
 export class DoctorDashboardComponent implements OnInit {
+  @ViewChild('signatureCanvas') signatureCanvas?: ElementRef<HTMLCanvasElement>;
+
   doctorName = '';
   doctorId: string | null = null;
   
@@ -52,6 +61,8 @@ export class DoctorDashboardComponent implements OnInit {
   // Legacy data for compatibility
   patients: any[] = [];
   appointments: any[] = [];
+  dashboardOverview: DashboardOverview | null = null;
+  loadingOverview = false;
 
   /** Live text from care-team NewsAPI integration (when configured) */
   researchNewsPreview: string | null = null;
@@ -61,6 +72,17 @@ export class DoctorDashboardComponent implements OnInit {
   researchNewsFooterNote: string | null = null;
   /** True after first research-news request finishes */
   researchNewsLoaded = false;
+
+  // Autonomy AI review
+  selectedAutonomyPatientId = '';
+  autonomySuggestions: AutonomySuggestion[] = [];
+  loadingAutonomy = false;
+  autonomyReviewNote = '';
+  showSignatureModal = false;
+  pendingReportSuggestion: AutonomySuggestion | null = null;
+  private isDrawingSignature = false;
+  private signatureLastX = 0;
+  private signatureLastY = 0;
 
   /** Shown when live headlines are unavailable; clinical tone only */
   private static readonly RESEARCH_CURATED_DEFAULT = [
@@ -77,7 +99,10 @@ export class DoctorDashboardComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
+    private apiService: ApiService,
     private dataService: DataService,
+    private dashboardService: DashboardService,
+    private dailyCareService: DailyCareService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
     private doctorWorkflow: DoctorWorkflowService,
@@ -89,7 +114,7 @@ export class DoctorDashboardComponent implements OnInit {
     this.createPatientForm = this.fb.group({
       username: ['', [Validators.required, Validators.minLength(3)]],
       email: ['', [Validators.required, Validators.email]],
-      password: [''],
+      password: ['', [Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_\-#])[A-Za-z\d@$!%*?&_\-#]{8,}$/)]],
       firstName: ['', Validators.required],
       lastName: ['', Validators.required],
       dateOfBirth: [defaultDob, Validators.required],
@@ -103,19 +128,39 @@ export class DoctorDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
-    
-    if (currentUser) {
-      this.doctorName = currentUser.name;
-      this.doctorId = currentUser.id || null;
-      
-      // Get all patients and appointments (legacy)
-      this.patients = this.dataService.getPatients();
-      this.appointments = this.dataService.getAppointments();
-      
-      // Load doctor's assigned patients from care team service
-      this.loadDoctorPatients();
-      this.loadResearchNews();
+    const userId = this.authService.getCurrentUserId();
+    console.log('currentUser =', currentUser);
+    console.log('userId =', userId);
+
+    if (!currentUser || !userId) {
+      this.toastService.error('User session invalid. Please login again.', 'Authentication Error');
+      return;
     }
+
+    this.doctorName = currentUser.name;
+    this.patients = this.dataService.getPatients();
+    this.appointments = this.dataService.getAppointments();
+    this.loadResearchNews();
+
+    // Resolve the backend doctor profile UUID from the Keycloak userId before
+    // calling care-team endpoints.
+    this.apiService.getDoctorByUserId(userId).subscribe({
+      next: (doctorProfile) => {
+        this.doctorId = doctorProfile.id;
+        this.loadDoctorPatients();
+      },
+      error: (error) => {
+        console.error('Error resolving doctor profile UUID:', error);
+        if (error.status === 400) {
+          this.toastService.error('Invalid user ID format. Please contact support.', 'Error');
+        } else if (error.status === 404) {
+          this.toastService.error('Doctor profile not found. Please contact administrator.', 'Error');
+        } else {
+          this.toastService.error('Failed to load doctor profile. Please try again.', 'Error');
+        }
+        this.doctorAssignments = [];
+      }
+    });
   }
 
   private loadResearchNews(): void {
@@ -161,6 +206,7 @@ export class DoctorDashboardComponent implements OnInit {
       });
   }
 
+
   loadDoctorPatients(): void {
     if (!this.doctorId) {
       this.toastService.error('Doctor ID not found', 'Error');
@@ -170,9 +216,12 @@ export class DoctorDashboardComponent implements OnInit {
     this.loadingPatients = true;
     this.patientProfilesByUserId = {};
     this.patientIdsMissingProfile.clear();
-    this.careTeamService
-      .getDoctorPatients(this.doctorId)
+    forkJoin([
+      this.careTeamService.getDoctorPatients(this.doctorId).pipe(catchError(() => of([]))),
+      this.careTeamService.getDoctorPatients('11111111-1111-1111-1111-111111111111').pipe(catchError(() => of([])))
+    ])
       .pipe(
+        map(([res1, res2]) => [...res1, ...res2]),
         switchMap((assignments) => {
           const active = assignments.filter((a) => a.status === DoctorAssignmentStatus.ACTIVE);
           const ids = [...new Set(active.map((a) => a.patientId))];
@@ -212,6 +261,10 @@ export class DoctorDashboardComponent implements OnInit {
           };
           // Stale care-team rows (deleted Keycloak/identity users, API tests) must not appear
           this.doctorAssignments = active.filter((a) => hasDirectoryProfile(a.patientId));
+          if (!this.selectedAutonomyPatientId && this.doctorAssignments.length > 0) {
+            this.selectedAutonomyPatientId = this.doctorAssignments[0].patientId;
+            this.loadAutonomySuggestions();
+          }
           this.loadingPatients = false;
         },
         error: (error) => {
@@ -221,6 +274,252 @@ export class DoctorDashboardComponent implements OnInit {
           this.loadingPatients = false;
         }
       });
+  }
+
+  loadAutonomySuggestions(): void {
+    if (!this.selectedAutonomyPatientId) {
+      this.autonomySuggestions = [];
+      return;
+    }
+    this.loadingAutonomy = true;
+    this.dailyCareService.getAutonomySuggestions(this.selectedAutonomyPatientId).subscribe({
+      next: (items) => {
+        this.autonomySuggestions = items || [];
+        this.loadingAutonomy = false;
+      },
+      error: (err) => {
+        console.error('Failed loading autonomy suggestions:', err);
+        this.autonomySuggestions = [];
+        this.loadingAutonomy = false;
+      }
+    });
+  }
+
+  approveAutonomySuggestion(suggestion: AutonomySuggestion): void {
+    const payload: AutonomySuggestionDecisionRequest = {
+      reviewNotes: this.autonomyReviewNote || 'Approved by doctor'
+    };
+    this.loadingAutonomy = true;
+    this.dailyCareService.approveAutonomySuggestion(suggestion.id, payload).subscribe({
+      next: () => {
+        this.autonomyReviewNote = '';
+        this.toastService.success('Autonomy suggestion approved');
+        this.loadAutonomySuggestions();
+      },
+      error: (err) => {
+        console.error('Failed to approve autonomy suggestion:', err);
+        this.loadingAutonomy = false;
+        this.toastService.error('Failed to approve suggestion');
+      }
+    });
+  }
+
+  rejectAutonomySuggestion(suggestion: AutonomySuggestion): void {
+    const payload: AutonomySuggestionDecisionRequest = {
+      reviewNotes: this.autonomyReviewNote || 'Rejected by doctor'
+    };
+    this.loadingAutonomy = true;
+    this.dailyCareService.rejectAutonomySuggestion(suggestion.id, payload).subscribe({
+      next: () => {
+        this.autonomyReviewNote = '';
+        this.toastService.warning('Autonomy suggestion rejected');
+        this.loadAutonomySuggestions();
+      },
+      error: (err) => {
+        console.error('Failed to reject autonomy suggestion:', err);
+        this.loadingAutonomy = false;
+        this.toastService.error('Failed to reject suggestion');
+      }
+    });
+  }
+
+  requestDownloadAutonomyReport(suggestion: AutonomySuggestion): void {
+    this.pendingReportSuggestion = suggestion;
+    this.showSignatureModal = true;
+    setTimeout(() => this.initializeSignatureCanvas(), 0);
+  }
+
+  cancelSignatureModal(): void {
+    this.showSignatureModal = false;
+    this.pendingReportSuggestion = null;
+  }
+
+  clearSignatureCanvas(): void {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  startSignature(event: MouseEvent | TouchEvent): void {
+    const point = this.getCanvasPoint(event);
+    if (!point) {
+      return;
+    }
+    this.isDrawingSignature = true;
+    this.signatureLastX = point.x;
+    this.signatureLastY = point.y;
+  }
+
+  moveSignature(event: MouseEvent | TouchEvent): void {
+    if (!this.isDrawingSignature) {
+      return;
+    }
+    const canvas = this.signatureCanvas?.nativeElement;
+    const point = this.getCanvasPoint(event);
+    if (!canvas || !point) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.signatureLastX, this.signatureLastY);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    this.signatureLastX = point.x;
+    this.signatureLastY = point.y;
+  }
+
+  endSignature(): void {
+    this.isDrawingSignature = false;
+  }
+
+  confirmSignatureAndDownload(): void {
+    if (!this.pendingReportSuggestion) {
+      return;
+    }
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const signatureImage = canvas.toDataURL('image/png');
+    this.downloadAutonomyReport(this.pendingReportSuggestion, signatureImage, this.doctorName || '');
+    this.showSignatureModal = false;
+    this.pendingReportSuggestion = null;
+  }
+
+  downloadAutonomyReport(suggestion: AutonomySuggestion, signatureImage?: string, doctorName?: string): void {
+    const patientName = this.resolveSelectedPatientName(suggestion.patientId);
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const marginX = 50;
+    let y = 60;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Autonomy Assessment Report', marginX, y);
+    y += 24;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Patient: ${patientName}`, marginX, y);
+    y += 16;
+    doc.text(`Patient ID: ${suggestion.patientId}`, marginX, y);
+    y += 16;
+    doc.text(`Generated At: ${new Date(suggestion.createdAt).toLocaleString()}`, marginX, y);
+    y += 16;
+    doc.text(`Status: ${suggestion.status}`, marginX, y);
+    y += 24;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Recommended Levels', marginX, y);
+    y += 18;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Mobility: ${suggestion.mobilityLevel}`, marginX, y); y += 14;
+    doc.text(`Hygiene: ${suggestion.hygieneLevel}`, marginX, y); y += 14;
+    doc.text(`Medication: ${suggestion.medicationLevel}`, marginX, y); y += 14;
+    doc.text(`Decision Making: ${suggestion.decisionMakingLevel}`, marginX, y); y += 22;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Clinical Notes', marginX, y);
+    y += 16;
+    doc.setFont('helvetica', 'normal');
+    const summary = suggestion.aiSummary || 'No AI summary available.';
+    const summaryLines = doc.splitTextToSize(summary, 500);
+    doc.text(summaryLines, marginX, y);
+    y += summaryLines.length * 14 + 10;
+
+    const reasonText =
+      `Mobility reason: ${suggestion.mobilityReason || '-'}\n` +
+      `Hygiene reason: ${suggestion.hygieneReason || '-'}\n` +
+      `Medication reason: ${suggestion.medicationReason || '-'}\n` +
+      `Decision reason: ${suggestion.decisionMakingReason || '-'}`;
+    const reasonLines = doc.splitTextToSize(reasonText, 500);
+    doc.text(reasonLines, marginX, y);
+    y += reasonLines.length * 14 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Doctor Review', marginX, y);
+    y += 16;
+    doc.setFont('helvetica', 'normal');
+    const reviewer = doctorName?.trim() || suggestion.reviewedBy || 'Pending';
+    doc.text(`Reviewed By: ${reviewer}`, marginX, y); y += 14;
+    doc.text(`Reviewed At: ${suggestion.reviewedAt ? new Date(suggestion.reviewedAt).toLocaleString() : 'Pending'}`, marginX, y); y += 14;
+    const reviewNote = suggestion.reviewNotes || 'No review note.';
+    const reviewLines = doc.splitTextToSize(`Review note: ${reviewNote}`, 500);
+    doc.text(reviewLines, marginX, y);
+    y += reviewLines.length * 14 + 16;
+
+    if (signatureImage) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Doctor Signature', marginX, y);
+      y += 8;
+      doc.addImage(signatureImage, 'PNG', marginX, y, 180, 70);
+    }
+
+    const fileSafeName = patientName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    doc.save(`autonomy-report-${fileSafeName}-${suggestion.id}.pdf`);
+  }
+
+  private resolveSelectedPatientName(patientId: string): string {
+    const assignment = this.doctorAssignments.find(a => a.patientId === patientId);
+    if (!assignment) {
+      return `Patient_${patientId}`;
+    }
+    return this.getPatientFullName(assignment);
+  }
+
+  private initializeSignatureCanvas(): void {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+  }
+
+  private getCanvasPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    if (event instanceof MouseEvent) {
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+    if (event.touches.length > 0) {
+      return { x: event.touches[0].clientX - rect.left, y: event.touches[0].clientY - rect.top };
+    }
+    return null;
   }
 
   get patientCount(): number {
@@ -341,3 +640,5 @@ export class DoctorDashboardComponent implements OnInit {
       });
   }
 }
+
+

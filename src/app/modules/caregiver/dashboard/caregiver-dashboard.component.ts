@@ -1,11 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule, SlicePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { Subject, of, forkJoin } from 'rxjs';
 import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { DataService } from '../../../core/services/data.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
@@ -17,11 +19,17 @@ import { RoleTheme } from '../../../shared/components/navbar.component';
 import { CareTask } from '../../../core/models/user.model';
 import { BehaviorLogResponse, BehaviorSeverity } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
+import { AutonomySuggestion } from '../../../core/models/daily-care.model';
+
+type AutonomyPatientOption = {
+  id: string;
+  label: string;
+};
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, SlicePipe, RouterLink, FormsModule, StatCardComponent, AlertCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
@@ -44,6 +52,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   };
   caregiverId = '';
   patients: PatientProfileResponse[] = [];
+  allPatientsDirectory: PatientProfileResponse[] = [];
   allTasks: CareTask[] = [];
   
   // Care Team - My Patients
@@ -61,6 +70,13 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   // Enums for template
   CaregiverRole = CaregiverRole;
 
+  // Autonomy AI
+  selectedAutonomyPatientId = '';
+  autonomyPatientOptions: AutonomyPatientOption[] = [];
+  autonomyNotes = '';
+  autonomyLoading = false;
+  latestAutonomySuggestion: AutonomySuggestion | null = null;
+
   // Role badge colors
   roleColors: Record<CaregiverRole, string> = {
     [CaregiverRole.PRIMARY]: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -72,6 +88,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     private authService: AuthService, 
     private dataService: DataService,
     private safetyAlertService: SafetyAlertService,
+    private dailyCareService: DailyCareService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
     private toastService: ToastService,
@@ -102,7 +119,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   loadRealPatients(): void {
-    // First load caregiver assignments, then fetch only assigned patients
+    // First load caregiver assignments, then fetch assigned patients for main dashboard cards
     this.careTeamService.getCaregiverAssignments(this.caregiverId)
       .pipe(
         takeUntil(this.destroy$),
@@ -131,8 +148,23 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       )
       .subscribe(patients => {
         this.patients = patients;
+        this.buildAutonomyPatientOptions();
         // Load behaviors after patients are loaded
         this.loadRecentBehaviors();
+      });
+
+    // Load all patients directory for AI autonomy combo (not limited to assignments)
+    this.patientService.getPatients()
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Failed to load all patients directory:', error);
+          return of([]);
+        })
+      )
+      .subscribe((allPatients) => {
+        this.allPatientsDirectory = allPatients || [];
+        this.buildAutonomyPatientOptions();
       });
   }
   
@@ -152,8 +184,93 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .subscribe(assignments => {
         // Separate pending invites (assignments already loaded in loadRealPatients)
         this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
+        this.buildAutonomyPatientOptions();
         this.loadingAssignments = false;
       });
+  }
+
+  generateAutonomySuggestion(): void {
+    if (!this.selectedAutonomyPatientId || this.autonomyLoading) {
+      return;
+    }
+    this.autonomyLoading = true;
+    this.dailyCareService.generateAutonomySuggestion(this.selectedAutonomyPatientId, this.autonomyNotes).subscribe({
+      next: (suggestion) => {
+        this.latestAutonomySuggestion = suggestion;
+        this.autonomyLoading = false;
+        this.toastService.success('AI autonomy suggestion generated');
+      },
+      error: (err) => {
+        console.error('Failed to generate autonomy suggestion:', err);
+        this.autonomyLoading = false;
+        this.toastService.error('Failed to generate AI autonomy suggestion');
+      }
+    });
+  }
+
+  submitAutonomySuggestion(): void {
+    if (!this.latestAutonomySuggestion || this.autonomyLoading) {
+      return;
+    }
+    this.autonomyLoading = true;
+    this.dailyCareService.submitAutonomySuggestion(this.latestAutonomySuggestion.id).subscribe({
+      next: (suggestion) => {
+        this.latestAutonomySuggestion = suggestion;
+        this.autonomyLoading = false;
+        this.toastService.success('Suggestion submitted to doctor');
+      },
+      error: (err) => {
+        console.error('Failed to submit autonomy suggestion:', err);
+        this.autonomyLoading = false;
+        this.toastService.error('Failed to submit suggestion');
+      }
+    });
+  }
+
+  private buildAutonomyPatientOptions(): void {
+    const options: AutonomyPatientOption[] = [];
+    const seen = new Set<string>();
+
+    for (const assignment of this.caregiverAssignments) {
+      const id = String(assignment.patientId || '').trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      options.push({
+        id,
+        label: `${assignment.patientFirstName || 'Patient'} ${assignment.patientLastName || ''}`.trim()
+      });
+    }
+
+    for (const patient of this.patients) {
+      const id = String(patient.userId || patient.id || '').trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      options.push({
+        id,
+        label: `${patient.firstName || 'Patient'} ${patient.lastName || ''}`.trim()
+      });
+    }
+
+    for (const patient of this.allPatientsDirectory) {
+      const id = String(patient.userId || patient.id || '').trim();
+      if (!id || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      options.push({
+        id,
+        label: `${patient.firstName || 'Patient'} ${patient.lastName || ''}`.trim()
+      });
+    }
+
+    this.autonomyPatientOptions = options;
+    if (!this.selectedAutonomyPatientId && options.length > 0) {
+      this.selectedAutonomyPatientId = options[0].id;
+    }
   }
 
   acceptInvite(invite: CaregiverAssignment): void {
