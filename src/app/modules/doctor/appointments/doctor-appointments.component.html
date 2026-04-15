@@ -608,7 +608,7 @@
               class="w-full border border-gray-300 rounded-lg px-4 py-3 pl-10 focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-700"
               [placeholder]="modalMode === 'reschedule'
                 ? 'Patient locked while rescheduling'
-                : (patientLocked ? 'Patient locked (follow-up suggestion)' : (routePatientId && selectedPatient ? 'Patient pre-selected from the patient list' : 'Search patient by name, email, or ID...'))"
+                : (patientLocked ? 'Patient locked (follow-up suggestion)' : (routePatientId && selectedPatient ? 'Patient pre-selected from the patient list' : 'Search patient by name or email...'))"
               autocomplete="off">
             <span class="absolute left-3 top-3.5 text-gray-400">🔍</span>
 
@@ -634,7 +634,9 @@
                   <p class="font-semibold text-gray-800">
                     {{ patient.firstName + ' ' + patient.lastName }}
                   </p>
-                  <p class="text-sm text-gray-500">{{ $any(patient).email || patient.userId }}</p>
+                  <p class="text-sm text-gray-500" *ngIf="$any(patient).email || $any(patient).username">
+                    {{ $any(patient).email || $any(patient).username }}
+                  </p>
                 </div>
               </div>
             </div>
