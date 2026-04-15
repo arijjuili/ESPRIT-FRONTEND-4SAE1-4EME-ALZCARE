@@ -194,10 +194,6 @@ export class MedicalFollowupService {
     );
   }
 
-  autoCancelAppointment(id: number): Observable<Appointment> {
-    return this.http.post<Appointment>(`${this.baseUrl}/appointments/${id}/presence/auto-cancel`, null);
-  }
-
   markAppointmentNoShow(id: number): Observable<Appointment> {
     return this.http.post<Appointment>(`${this.baseUrl}/appointments/${id}/presence/no-show`, null);
   }

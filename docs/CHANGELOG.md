@@ -1,5 +1,30 @@
 # Changelog - CareHub
 
+## Session 29 (2026-04-12) - Medication Intake Calendar UX
+
+### Feature: Global Intake Calendar (Segments + Day Modal)
+**Problem:** The medication confirmation UI was a long list per medication, not easy to scan.  
+**Solution:** Replaced confirmation display with a month calendar that aggregates *all* intakes, with per-day progress segments and a day-details modal for confirmation.
+
+**Features Implemented:**
+- ✅ **Month Calendar** - One calendar for all scheduled intakes
+- ✅ **Segments Indicator** - Each intake is one segment; colors reflect status (taken/pending/delayed/missed/refused)
+- ✅ **Day Details Modal** - Click a day to see meds + hours and confirm pending intakes
+- ✅ **Input Validation (Dates)** - Prevent confirming TAKEN/MISSED for future intakes (patient + caregiver)
+- ✅ **Treatment Period Highlight** - Days outside treatment period are greyed out / disabled
+- ✅ **Autonomy Rule Preserved** - Patients with ASSISTED/DEPENDENT autonomy cannot confirm intakes
+
+**Files Changed:**
+- `src/app/modules/patient/medications/patient-medications.component.ts`
+- `src/app/modules/patient/medications/patient-medications.component.html`
+- `src/app/modules/caregiver/medications/caregiver-medications.component.ts`
+
+### Next Session Notes
+- [ ] Optional: week view for mobile
+- [ ] Optional: handle multiple treatment periods (gaps) more precisely
+
+---
+
 ## Session 28 (2026-03-03) - Camera Management & Behavior Validation
 
 ### Feature: Admin Camera Device Management

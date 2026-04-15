@@ -41,7 +41,6 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   patientName = '';
   patientId: string | null = null;
-  fallbackDoctorId = '';
   
   // Role theme for notification bell (teal for patient)
   currentTheme: RoleTheme = {
@@ -115,8 +114,6 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
       if (patient) {
         this.medications = patient.currentMedications;
         this.appointments = this.dataService.getAppointments(patient.id);
-        const firstDoctorId = this.appointments.find(a => !!a.doctorId)?.doctorId;
-        this.fallbackDoctorId = firstDoctorId ? String(firstDoctorId) : '3';
         this.todayTasks = this.dataService.getTasks(patient.id).filter(t => {
           const today = new Date();
           const taskDate = new Date(t.dueDate);
@@ -682,7 +679,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
     const mappedAppointment = {
       id: String(appointment.id ?? `req-${Date.now()}`),
       patientId: this.patientId || 'p1',
-      doctorId: String((appointment.doctorId ?? this.fallbackDoctorId) || ''),
+      doctorId: String(appointment.doctorId || ''),
       date: appointment.startAt ? new Date(appointment.startAt) : new Date(),
       type: appointment.type || 'Appointment',
       notes: 'Appointment request submitted',

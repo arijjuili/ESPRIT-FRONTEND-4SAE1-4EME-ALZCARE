@@ -3,11 +3,11 @@
   <div class="flex justify-between items-center mb-8">
     <div>
       <h1 class="text-4xl font-bold text-gray-900 mb-2">💊 My Medications</h1>
-      <p class="text-gray-600">Manage your prescriptions and dosage schedule</p>
+      <p class="text-gray-600">Manage your prescriptions and intake calendar</p>
     </div>
-    
+
     <!-- Refresh Button -->
-    <button 
+    <button
       (click)="loadMedicationPlans()"
       [disabled]="loading"
       class="bg-primary-100 text-primary-700 px-4 py-2 rounded-lg hover:bg-primary-200 transition font-semibold disabled:opacity-50">
@@ -19,20 +19,18 @@
   <div *ngIf="error" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded">
     <p class="font-bold">⚠️ Mode hors ligne</p>
     <p>{{ error }}</p>
-    
   </div>
 
   <!-- Loading State -->
-  <div *ngIf="loading " class="text-center py-12">
+  <div *ngIf="loading" class="text-center py-12">
     <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
     <p class="text-gray-600 mt-4">Loading your medications...</p>
   </div>
 
   <!-- Real Data View -->
-  <div *ngIf="!loading " class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Main Medications List -->
+  <div *ngIf="!loading" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main -->
     <div class="lg:col-span-2 space-y-6">
-      
       <!-- Plans Overview -->
       <div class="bg-white rounded-2xl shadow-md p-6">
         <h2 class="text-xl font-bold text-gray-800 mb-4">📋 Treatment Plans</h2>
@@ -52,26 +50,108 @@
         </div>
       </div>
 
+      <!-- Intake Calendar -->
+      <div class="bg-white rounded-2xl shadow-md p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-gray-800">📅 Intake Calendar</h2>
+            <p class="text-sm text-gray-600">Click a day to see all medications + hours and confirm intakes.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="prevMonth()"
+              class="w-9 h-9 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold">
+              ‹
+            </button>
+            <span class="px-3 py-2 bg-gray-50 rounded-lg text-sm font-semibold text-gray-800 capitalize">
+              {{ viewMonthLabel }}
+            </span>
+            <button
+              type="button"
+              (click)="nextMonth()"
+              class="w-9 h-9 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold">
+              ›
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="calendarError" class="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-4 text-sm">
+          {{ calendarError }}
+        </div>
+
+        <div class="grid grid-cols-7 gap-2 text-xs text-gray-500 mb-2">
+          <div *ngFor="let label of weekdayLabels" class="text-center font-semibold uppercase tracking-wide">
+            {{ label }}
+          </div>
+        </div>
+
+        <div class="relative">
+          <div class="grid grid-cols-7 gap-2">
+            <button
+              *ngFor="let cell of calendarDays; trackBy: trackByDateKey"
+              type="button"
+              (click)="openDay(cell)"
+              [disabled]="cell.isDisabled"
+              class="relative h-20 rounded-xl border p-2 text-left transition"
+              [ngClass]="{
+                'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed opacity-60': cell.isDisabled,
+                'bg-white hover:bg-primary-50 border-gray-200': !cell.isDisabled,
+                'opacity-70': !cell.isCurrentMonth && !cell.isDisabled,
+                'ring-2 ring-primary-400 border-primary-300': cell.isToday && !cell.isDisabled
+              }">
+              <div class="flex items-start justify-between">
+                <span class="text-sm font-bold">{{ cell.dayNumber }}</span>
+                <span *ngIf="cell.totalCount > 0" class="text-[10px] font-semibold text-gray-500">
+                  {{ cell.completedCount }}/{{ cell.totalCount }}
+                </span>
+              </div>
+
+              <div *ngIf="cell.totalCount > 0" class="mt-2 flex flex-wrap gap-1">
+                <span
+                  *ngFor="let seg of cell.segments"
+                  class="h-1.5 w-4 rounded-sm"
+                  [ngClass]="getSegmentClass(seg)">
+                </span>
+              </div>
+            </button>
+          </div>
+
+          <div
+            *ngIf="calendarLoading"
+            class="absolute inset-0 bg-white/60 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+            <div class="flex items-center gap-3 text-sm text-gray-700 font-semibold">
+              <div class="inline-block animate-spin rounded-full h-5 w-5 border-2 border-primary-500 border-t-transparent"></div>
+              Loading intakes...
+            </div>
+          </div>
+        </div>
+
+        <p class="mt-4 text-xs text-gray-500">
+          Segments: each scheduled intake (green=taken, gray=pending, amber=delayed, red=missed/refused). Days outside the treatment period are greyed out.
+        </p>
+      </div>
+
       <!-- Medication Plans -->
-      <div *ngFor="let plan of medicationPlans" class="bg-white rounded-2xl shadow-md p-6 border-t-4"
-           [class.border-green-500]="plan.status === 'ACTIVE'"
-           [class.border-yellow-500]="plan.status === 'SUSPENDED'"
-           [class.border-red-500]="plan.status === 'STOPPED'">
-        
+      <div
+        *ngFor="let plan of medicationPlans"
+        class="bg-white rounded-2xl shadow-md p-6 border-t-4"
+        [class.border-green-500]="plan.status === 'ACTIVE'"
+        [class.border-yellow-500]="plan.status === 'SUSPENDED'"
+        [class.border-red-500]="plan.status === 'STOPPED'">
         <!-- Plan Header -->
         <div class="flex justify-between items-start mb-4">
           <div>
             <h3 class="text-2xl font-bold text-gray-900">{{ plan.title }}</h3>
             <p class="text-gray-600 mt-1">{{ plan.notes || 'No additional notes' }}</p>
           </div>
-          <span class="px-4 py-2 rounded-lg font-bold text-sm" 
-                [class]="getPlanStatusClass(plan.status)">
+          <span class="px-4 py-2 rounded-lg font-bold text-sm" [class]="getPlanStatusClass(plan.status)">
             {{ plan.status }}
           </span>
         </div>
 
         <!-- Plan Dates -->
-        <div class="flex gap-6 text-sm text-gray-600 mb-4 bg-gray-50 p-3 rounded-lg">
+        <div class="flex flex-wrap gap-6 text-sm text-gray-600 mb-4 bg-gray-50 p-3 rounded-lg">
           <div>
             <span class="font-semibold">Start:</span> {{ formatDate(plan.startDate) }}
           </div>
@@ -83,78 +163,42 @@
           </div>
         </div>
 
-        <!-- Medications in this plan -->
         <div *ngIf="plan.items && plan.items.length > 0" class="space-y-4">
           <h4 class="font-bold text-gray-700 border-b pb-2">💊 Medications</h4>
-          
-          <div *ngFor="let item of plan.items" class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="text-xl">💊</span>
-                  <h5 class="text-lg font-bold text-gray-900">{{ item.name }}</h5>
-                  <span *ngIf="item.isHighRisk" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">
-                    ⚠️ HIGH RISK
-                  </span>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p class="text-gray-500">Dosage</p>
-                    <p class="font-semibold text-primary-700">{{ item.dosage }}</p>
-                  </div>
-                  <div>
-                    <p class="text-gray-500">Frequency</p>
-                    <p class="font-semibold text-gray-800">{{ item.frequency }}</p>
-                  </div>
-                  <div>
-                    <p class="text-gray-500">Times</p>
-                    <p class="font-semibold text-gray-800">{{ item.timesOfDay }}</p>
-                  </div>
-                  <div>
-                    <p class="text-gray-500">Stock</p>
-                    <p class="font-semibold" 
-                       [class.text-green-600]="!isLowStock(item)"
-                       [class.text-red-600]="isLowStock(item)">
-                      {{ item.stockQuantity }} / {{ item.lowThreshold }} min
-                    </p>
-                  </div>
-                </div>
 
-                <!-- Intakes Schedule -->
-                <div *ngIf="item.intakes && item.intakes.length > 0" class="mt-4">
-                  <p class="text-sm font-semibold text-gray-700 mb-2">📅 Today's Schedule</p>
-                  <div class="space-y-2">
-                    <div *ngFor="let intake of item.intakes" 
-                         class="flex items-center gap-3 bg-white p-2 rounded">
-                         
-                      <span class="w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold"
-                            [class.bg-green-500]="intake.status === 'TAKEN'"
-                            [class.bg-yellow-500]="intake.status === 'PENDING'"
-                            [class.bg-red-500]="intake.status === 'MISSED'"
-                            [class.text-white]="true">
-                        {{ intake.status === 'TAKEN' ? '✓' : intake.status === 'MISSED' ? '✕' : '○' }}
-                      </span>
-                      <span class="flex-1 text-gray-700">
-                        {{ formatDate(intake.scheduledAt) }}
-                      </span>
-                      <span class="px-2 py-1 rounded text-xs font-bold"
-                            [class]="getIntakeStatusClass(intake.status)">
-                        {{ intake.status }}
-                      </span>
-                      <button 
-                        *ngIf="intake.status === 'PENDING'"
-                        (click)="confirmIntake(plan, intake)"
-                        [disabled]="!canPatientConfirm(plan)"
-                        class="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
-                        title="{{ !canPatientConfirm(plan) ? 'Confirmation requires INDEPENDENT autonomy level' : 'Confirm medication taken' }}">
-                        ✓ Confirm
-                      </button>
-                    </div>
-                  </div>
-                </div>
+          <div *ngFor="let item of plan.items" class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl">💊</span>
+              <h5 class="text-lg font-bold text-gray-900">{{ item.name }}</h5>
+              <span *ngIf="item.isHighRisk" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">
+                ⚠️ HIGH RISK
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p class="text-gray-500">Dosage</p>
+                <p class="font-semibold text-primary-700">{{ item.dosage }}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">Frequency</p>
+                <p class="font-semibold text-gray-800">{{ item.frequency }}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">Times</p>
+                <p class="font-semibold text-gray-800">{{ parseTimesOfDay(item.timesOfDay).join(', ') }}</p>
+              </div>
+              <div>
+                <p class="text-gray-500">Stock</p>
+                <p class="font-semibold" [ngClass]="{ 'text-danger': isLowStock(item), 'text-success': !isLowStock(item) }">
+                  {{ item.stockQuantity }} / {{ item.lowThreshold }} min
+                </p>
               </div>
             </div>
+
+            <p class="mt-3 text-xs text-gray-500">
+              Schedule and confirmations are available in the intake calendar above.
+            </p>
           </div>
         </div>
 
@@ -171,9 +215,8 @@
       </div>
     </div>
 
-    <!-- Sidebar: Info & Tips -->
+    <!-- Sidebar -->
     <div class="space-y-6">
-      <!-- Medication Tips -->
       <div class="bg-white rounded-2xl shadow-md p-6">
         <h3 class="text-lg font-bold text-gray-900 mb-4">📌 Important Tips</h3>
         <ul class="space-y-3 text-sm text-gray-700">
@@ -196,7 +239,6 @@
         </ul>
       </div>
 
-      <!-- Medication Adherence -->
       <div class="bg-gradient-to-br from-success to-success/80 text-white rounded-2xl shadow-md p-6">
         <h3 class="text-lg font-bold mb-4">🎯 Adherence Rate</h3>
         <p class="text-4xl font-bold mb-2">{{ adherenceRate }}%</p>
@@ -206,26 +248,94 @@
         </div>
       </div>
 
-      <!-- Refill Status -->
       <div class="bg-white rounded-2xl shadow-md p-6 border-l-4 border-warning">
         <h3 class="text-lg font-bold text-gray-900 mb-4">🔄 Refill Status</h3>
         <div class="space-y-3">
-          <div *ngFor="let item of allMedicationItems" 
-               class="flex justify-between items-center"
-               [class.text-warning]="isLowStock(item)">
+          <div
+            *ngFor="let item of allMedicationItems"
+            class="flex justify-between items-center"
+            [class.text-warning]="isLowStock(item)">
             <span class="text-gray-700">{{ item.name }}</span>
             <span class="text-sm font-bold" [class.text-red-600]="isLowStock(item)">
               {{ isLowStock(item) ? '⚠️ Refill needed' : '✓ Stock OK' }}
             </span>
           </div>
         </div>
-        <button class="w-full mt-4 bg-warning text-white py-2 rounded-lg hover:bg-opacity-90 transition font-semibold text-sm">
+        <button
+          class="w-full mt-4 bg-warning text-white py-2 rounded-lg hover:bg-opacity-90 transition font-semibold text-sm">
           Request Refill
         </button>
       </div>
     </div>
   </div>
 
-  
-  
+  <!-- Day Details Modal -->
+  <div *ngIf="selectedDayKey" class="fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/40" (click)="closeDayModal()"></div>
+
+    <div class="relative h-full w-full flex items-center justify-center p-4">
+      <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">Intakes</h3>
+            <p class="text-sm text-gray-600 capitalize">{{ selectedDayLabel }}</p>
+          </div>
+          <button
+            type="button"
+            (click)="closeDayModal()"
+            class="w-9 h-9 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold">
+            ✕
+          </button>
+        </div>
+
+        <div class="p-6 max-h-[70vh] overflow-auto space-y-4">
+          <div *ngIf="selectedDayGroups.length === 0" class="text-center py-10 text-gray-600">
+            No intakes scheduled for this day.
+          </div>
+
+          <div *ngFor="let group of selectedDayGroups; trackBy: trackByGroupKey" class="border rounded-2xl p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-bold text-gray-900">{{ group.name }}</p>
+                <p *ngIf="group.dosage" class="text-xs text-gray-600">{{ group.dosage }}</p>
+                <p *ngIf="group.planTitle" class="text-[11px] text-gray-500 mt-1">Plan: {{ group.planTitle }}</p>
+              </div>
+              <span
+                *ngIf="group.autonomyLevel && group.autonomyLevel !== 'INDEPENDENT'"
+                class="text-[11px] bg-warning/20 text-warning px-3 py-1 rounded-full font-semibold">
+                Assistance required
+              </span>
+            </div>
+
+            <div class="mt-3 space-y-2">
+              <div
+                *ngFor="let intake of group.intakes; trackBy: trackByIntakeId"
+                class="flex items-center justify-between gap-3 bg-gray-50 rounded-xl p-3">
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-semibold text-gray-800 w-16">{{ formatTime(intake.scheduledAt) }}</span>
+                  <span class="px-2 py-1 rounded text-xs font-bold" [class]="getIntakeStatusClass(intake.status)">
+                    {{ intake.status }}
+                  </span>
+                </div>
+
+                <button
+                  *ngIf="intake.status === 'PENDING' && !isDisplayOnlyIntake(intake)"
+                  type="button"
+                  (click)="confirmIntake(intake)"
+                  [disabled]="!canConfirmIntake(intake) || isConfirming(intake)"
+                  class="px-3 py-2 bg-success text-white text-xs font-bold rounded-lg hover:bg-success/90 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition"
+                  [title]="getConfirmButtonTitle(intake)">
+                  {{ isConfirming(intake) ? 'Working...' : '✓ Confirm' }}
+                </button>
+              </div>
+            </div>
+
+            <p *ngIf="group.autonomyLevel && group.autonomyLevel !== 'INDEPENDENT'" class="mt-3 text-xs text-gray-500">
+              Confirmation is disabled because this autonomy level requires assistance.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

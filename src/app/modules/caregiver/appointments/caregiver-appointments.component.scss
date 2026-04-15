@@ -1,0 +1,28 @@
+.caregiver-appointments {
+  .appointment-card {
+    @apply bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 transition hover:border-emerald-200;
+  }
+
+  .status-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border;
+  }
+
+  .pill-confirmed {
+    @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+  .pill-requested {
+    @apply bg-amber-50 text-amber-700 border-amber-200;
+  }
+  .pill-accepted {
+    @apply bg-slate-50 text-slate-700 border-slate-200;
+  }
+  .pill-completed {
+    @apply bg-gray-50 text-gray-700 border-gray-200;
+  }
+  .pill-cancelled {
+    @apply bg-rose-50 text-rose-700 border-rose-200;
+  }
+  .pill-rejected {
+    @apply bg-orange-50 text-orange-700 border-orange-200;
+  }
+}

@@ -2,6 +2,7 @@ import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpHandlerFn } from
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError, of, BehaviorSubject, filter, take, tap } from 'rxjs';
 import { TokenRefreshService } from '../services/token-refresh.service';
+import { environment } from '../../../environments/environment';
 
 // Shared state for refresh (at module level)
 let isRefreshing = false;
@@ -50,6 +51,22 @@ function isTokenRequest(url: string): boolean {
   return url.includes(TOKEN_ENDPOINT_PATTERN);
 }
 
+function shouldAttachAuthHeader(url: string): boolean {
+  // Attach headers only for our backend/gateway calls (same-origin proxy or configured apiUrl).
+  // External APIs (e.g., https://api.fda.gov) often block custom headers via CORS preflight.
+  const normalized = String(url || '').trim();
+  if (!normalized) return false;
+
+  // Same-origin proxy paths
+  if (normalized.startsWith('/api') || normalized.startsWith('api/')) return true;
+  if (normalized.startsWith('/realms') || normalized.startsWith('realms/')) return true;
+
+  // Absolute gateway URL (e.g., http://localhost:8080/api)
+  if (environment?.apiUrl && normalized.startsWith(environment.apiUrl)) return true;
+
+  return false;
+}
+
 /**
  * Add auth header to request
  */
@@ -90,6 +107,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   // Skip auth header for token requests
   if (isTokenRequest(req.url)) {
+    return next(req);
+  }
+
+  // Skip auth header for external APIs (CORS-safe)
+  if (!shouldAttachAuthHeader(req.url)) {
     return next(req);
   }
 

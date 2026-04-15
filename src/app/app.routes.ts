@@ -111,6 +111,10 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/caregiver/dashboard/caregiver-dashboard.component').then(m => m.CaregiverDashboardComponent)
       },
       {
+        path: 'appointments',
+        loadComponent: () => import('./modules/caregiver/appointments/caregiver-appointments.component').then(m => m.CaregiverAppointmentsComponent)
+      },
+      {
 
         path: 'memory-items',
         loadComponent: () => import('./modules/caregiver/memory-items/caregiver-memory-items.component').then(m => m.CaregiverMemoryItemsComponent)

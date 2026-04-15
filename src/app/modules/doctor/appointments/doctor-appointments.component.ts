@@ -7,8 +7,11 @@ import { catchError } from 'rxjs/operators';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ApiService } from '../../../core/services/api.service';
+import { CareTeamService } from '../../../core/services/care-team.service';
 import { ManagedUser, UserRole } from '../../../core/models/user-management.model';
 import { AuthUser } from '../../../core/models/user.model';
+import { AssignmentStatus, CaregiverAssignment, CaregiverRole } from '../../../core/models/care-team.model';
 import {
   AppointmentSchedulingService,
   AvailabilitySource,
@@ -102,6 +105,9 @@ export class DoctorAppointmentsComponent implements OnInit {
   // Linked caregiver info (display only)
   linkedCaregiverName: string | null = null;
   linkedCaregiverId: string | null = null;
+  linkedCaregiverLoading = false;
+  linkedCaregiverError: string | null = null;
+  private caregiverLookupSeq = 0;
 
   // Smart Scheduling (Module 1.2)
   caregiverMustBeAvailable = true;
@@ -122,6 +128,10 @@ export class DoctorAppointmentsComponent implements OnInit {
   // Appointment duration in minutes (default: 30)
   appointmentDuration: number = 30;
 
+  get minStartAt(): string {
+    return this.formatDateTimeLocal(this.getNowRoundedToMinute());
+  }
+
   // Create form
   newAppointment: AppointmentCreateRequest = {
     patientId: '',
@@ -140,6 +150,8 @@ export class DoctorAppointmentsComponent implements OnInit {
 	    private medicalService: MedicalFollowupService,
 	    private userManagementService: UserManagementService,
 	    private authService: AuthService,
+      private apiService: ApiService,
+      private careTeamService: CareTeamService,
 	    private schedulingService: AppointmentSchedulingService,
 	    private route: ActivatedRoute,
 	    private cdr: ChangeDetectorRef
@@ -187,7 +199,7 @@ export class DoctorAppointmentsComponent implements OnInit {
         console.log('Display name set to:', this.patientSearchQuery);
         
         // Load caregiver info
-        this.loadPatientCaregiver(patient.id)
+        this.loadPatientCaregiver(keycloakId);
         
         // Force change detection to update the view
         this.cdr.detectChanges();
@@ -327,31 +339,78 @@ export class DoctorAppointmentsComponent implements OnInit {
 	    this.resetAvailability();
 	    
 	    // Load patient profile to get linked caregiver
-	    this.loadPatientCaregiver(patient.id);
+	    this.loadPatientCaregiver(keycloakId);
   }
 
   /**
-   * Load patient's caregiver info from already loaded patients list
+   * Load patient's caregiver info from care-team assignments
    */
-  loadPatientCaregiver(patientId: string): void {
-    const patient = this.patients.find(p => p.id === patientId);
-    if (!patient) {
-      this.linkedCaregiverName = null;
-      this.linkedCaregiverId = null;
+  loadPatientCaregiver(patientUserId: string): void {
+    const normalizedPatientId = String(patientUserId || '').trim();
+
+    this.linkedCaregiverLoading = false;
+    this.linkedCaregiverError = null;
+    this.linkedCaregiverName = null;
+    this.linkedCaregiverId = null;
+    this.newAppointment.caregiverId = undefined;
+
+    if (!normalizedPatientId) {
       return;
     }
 
-    const caregiverId = this.extractCaregiverId(patient);
-    this.linkedCaregiverId = caregiverId;
+    const requestId = ++this.caregiverLookupSeq;
+    this.linkedCaregiverLoading = true;
 
-    if (!caregiverId) {
-      this.linkedCaregiverName = null;
-      return;
-    }
+    this.careTeamService.getPatientCaregivers(normalizedPatientId).pipe(
+      catchError((err) => {
+        console.error('[DoctorAppointments] Failed to load patient caregivers via care-team:', err);
+        return of([] as CaregiverAssignment[]);
+      })
+    ).subscribe({
+      next: (assignments) => {
+        if (requestId !== this.caregiverLookupSeq) return;
 
-    // We may not have caregiver details here (patients list). Keep a useful fallback label.
-    const caregiver = this.patients.find(p => p.id === caregiverId);
-    this.linkedCaregiverName = caregiver?.fullName || caregiver?.username || `Assigned (${caregiverId})`;
+        const activeAssignments = (assignments || []).filter(a => a.status === AssignmentStatus.ACTIVE && !!a.caregiverId);
+        const primary = activeAssignments.find(a => a.role === CaregiverRole.PRIMARY) || activeAssignments[0] || null;
+
+        const caregiverUserId = primary?.caregiverId ? String(primary.caregiverId) : '';
+
+        if (!caregiverUserId) {
+          this.linkedCaregiverLoading = false;
+          this.linkedCaregiverName = null;
+          this.linkedCaregiverId = null;
+          this.newAppointment.caregiverId = undefined;
+          return;
+        }
+
+        this.linkedCaregiverId = caregiverUserId;
+        this.newAppointment.caregiverId = caregiverUserId;
+
+        const displayName = [primary?.caregiverFirstName, primary?.caregiverLastName].filter(Boolean).join(' ').trim();
+        if (displayName) {
+          this.linkedCaregiverName = displayName;
+          this.linkedCaregiverLoading = false;
+          return;
+        }
+
+        this.apiService.getCaregiverByUserId(caregiverUserId).pipe(
+          catchError((err) => {
+            console.warn('[DoctorAppointments] Failed to resolve caregiver identity:', err);
+            return of(null);
+          })
+        ).subscribe((profile) => {
+          if (requestId !== this.caregiverLookupSeq) return;
+          const name = profile ? `${(profile as any).firstName || ''} ${(profile as any).lastName || ''}`.trim() : '';
+          this.linkedCaregiverName = name || 'Assigned caregiver';
+          this.linkedCaregiverLoading = false;
+        });
+      },
+      error: () => {
+        if (requestId !== this.caregiverLookupSeq) return;
+        this.linkedCaregiverLoading = false;
+        this.linkedCaregiverError = 'Unable to load linked caregiver right now.';
+      }
+    });
   }
 
   /**
@@ -401,7 +460,14 @@ export class DoctorAppointmentsComponent implements OnInit {
    */
   calculateEndDate(): void {
     if (this.newAppointment.startAt) {
-      const startDate = new Date(this.newAppointment.startAt);
+      const startDate = this.schedulingService.parseLocalDateTime(
+        this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt)
+      );
+      if (!startDate) {
+        this.newAppointment.endAt = '';
+        this.resetAvailability();
+        return;
+      }
       const endDate = new Date(startDate.getTime() + this.appointmentDuration * 60000);
       this.newAppointment.endAt = this.formatDateTimeLocal(endDate);
       this.resetAvailability();
@@ -451,6 +517,9 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.newAppointment.patientId = '';
     this.linkedCaregiverName = null;
     this.linkedCaregiverId = null;
+    this.linkedCaregiverLoading = false;
+    this.linkedCaregiverError = null;
+    this.newAppointment.caregiverId = undefined;
     this.filteredPatients = this.patients;
     this.resetAvailability();
   }
@@ -503,7 +572,7 @@ export class DoctorAppointmentsComponent implements OnInit {
     }
 
     if (patient) {
-      this.loadPatientCaregiver(patient.id);
+      this.loadPatientCaregiver(appointment.patientId);
     }
 
     this.onModeChange();
@@ -1190,14 +1259,6 @@ export class DoctorAppointmentsComponent implements OnInit {
     );
   }
 
-  triggerAutoCancel(appointmentId: number): void {
-    this.runAttendanceAction(
-      appointmentId,
-      () => this.medicalService.autoCancelAppointment(appointmentId),
-      'Attendance workflow auto-cancel executed.'
-    );
-  }
-
   private runAttendanceAction(
     appointmentId: number,
     action: () => Observable<Appointment>,
@@ -1273,19 +1334,54 @@ export class DoctorAppointmentsComponent implements OnInit {
    * Form validation
    */
   validateAppointment(): boolean {
+    this.error = null;
     if (!this.newAppointment.patientId) {
-      alert('Please select a patient');
+      this.error = 'Please select a patient.';
       return false;
     }
     if (!this.newAppointment.startAt) {
-      alert('Please set start date and time');
+      this.error = 'Please set a start date and time.';
       return false;
     }
     if (!this.newAppointment.endAt) {
-      alert('Please set an appointment end date and time');
+      this.error = 'Please set an appointment end date and time.';
       return false;
     }
+
+    const startAt = this.schedulingService.normalizeLocalDateTime(this.newAppointment.startAt);
+    const endAt = this.schedulingService.normalizeLocalDateTime(this.newAppointment.endAt);
+
+    const startDate = this.schedulingService.parseLocalDateTime(startAt);
+    const endDate = this.schedulingService.parseLocalDateTime(endAt);
+
+    if (!startDate) {
+      this.error = 'Invalid start date/time.';
+      return false;
+    }
+
+    const now = this.getNowRoundedToMinute();
+    if (startDate.getTime() < now.getTime()) {
+      this.error = 'Start date/time must be now or later.';
+      return false;
+    }
+
+    if (!endDate) {
+      this.error = 'Invalid end date/time.';
+      return false;
+    }
+
+    if (endDate.getTime() <= startDate.getTime()) {
+      this.error = 'End date/time must be after the start date/time.';
+      return false;
+    }
+
     return true;
+  }
+
+  private getNowRoundedToMinute(): Date {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    return now;
   }
 
   onTypeChange(): void {
@@ -1353,14 +1449,6 @@ export class DoctorAppointmentsComponent implements OnInit {
       appointment.attendanceStatus !== AttendanceStatus.CONFIRMED &&
       appointment.attendanceStatus !== AttendanceStatus.NO_SHOW &&
       new Date(appointment.startAt) <= new Date();
-  }
-
-  canTriggerAutoCancel(appointment: Appointment): boolean {
-    return appointment.status !== AppointmentStatus.CANCELLED &&
-      appointment.status !== AppointmentStatus.REJECTED &&
-      appointment.status !== AppointmentStatus.COMPLETED &&
-      appointment.presenceConfirmationStatus !== PresenceConfirmationStatus.CONFIRMED &&
-      new Date(appointment.startAt) > new Date();
   }
 
   canCancel(appointment: Appointment): boolean {

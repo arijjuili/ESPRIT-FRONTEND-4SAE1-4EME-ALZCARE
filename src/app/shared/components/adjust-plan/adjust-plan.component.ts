@@ -11,7 +11,7 @@
  * - Cancels future intakes (>= effectiveDate)
  * - Generates new future intakes
  */
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { 
@@ -19,6 +19,7 @@ import {
   MedicationItem,
   FrequencyType 
 } from '../../../core/models/medical-followup.model';
+import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { 
   AdjustPlanService, 
   AdjustPlanFormData, 
@@ -33,7 +34,7 @@ import {
   templateUrl: './adjust-plan.component.html',
   styleUrls: ['./adjust-plan.component.scss']
 })
-export class AdjustPlanComponent implements OnInit {
+export class AdjustPlanComponent implements OnInit, OnChanges {
   /** The medication plan to adjust */
   @Input() plan!: MedicationPlan;
   
@@ -51,16 +52,13 @@ export class AdjustPlanComponent implements OnInit {
 
   // Form data
   formData: AdjustPlanFormData = {
-    effectiveDate: new Date(),
-    dosage: '',
-    frequency: FrequencyType.DAILY,
-    timesOfDay: ['08:00'],
-    endDate: undefined,
-    notes: ''
+    effectiveDate: new Date()
   };
 
   // UI state
   loading = false;
+  loadingPlanItems = false;
+  planItemsError: string | null = null;
   validationErrors: ValidationError[] = [];
   result: AdjustPlanResult | null = null;
 
@@ -87,16 +85,28 @@ export class AdjustPlanComponent implements OnInit {
    * Gets the selected times as display labels
    */
   getSelectedTimesDisplay(): string {
-    if (!this.formData.timesOfDay || this.formData.timesOfDay.length === 0) {
+    if (this.formData.timesOfDay === undefined) {
+      return 'No change';
+    }
+    if (this.formData.timesOfDay.length === 0) {
       return 'None selected';
     }
     return this.formData.timesOfDay.map(t => this.getTimeLabel(t)).join(', ');
   }
 
-  constructor(private adjustPlanService: AdjustPlanService) {}
+  constructor(
+    private adjustPlanService: AdjustPlanService,
+    private medicalService: MedicalFollowupService
+  ) {}
 
   ngOnInit(): void {
-    this.initializeForm();
+    this.prepareForInputs();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['plan'] || changes['item']) {
+      this.prepareForInputs();
+    }
   }
 
   /**
@@ -111,12 +121,83 @@ export class AdjustPlanComponent implements OnInit {
       this.formData.dosage = this.item.dosage;
       this.formData.frequency = this.item.frequency;
       this.formData.timesOfDay = this.parseTimesOfDay(this.item.timesOfDay);
+    } else {
+      // Plan-level adjustment (all items): prefill only if consistent across items
+      this.prefillFromPlanItems();
     }
     
     // Pre-fill end date from plan if exists
     if (this.plan.endDate) {
       this.formData.endDate = new Date(this.plan.endDate);
+    } else {
+      this.formData.endDate = undefined;
     }
+
+    // Pre-fill notes from plan (keep undefined if plan has no notes to avoid clearing)
+    this.formData.notes = this.plan.notes ?? undefined;
+  }
+
+  private prepareForInputs(): void {
+    if (!this.plan) return;
+
+    // Reset UI state each time we open / change plan
+    this.validationErrors = [];
+    this.result = null;
+    this.planItemsError = null;
+
+    // Ensure items are loaded so we can prefill properly (and apply adjustments correctly)
+    if (!this.item) {
+      this.loadPlanItemsIfNeeded();
+    } else {
+      this.loadingPlanItems = false;
+      this.initializeForm();
+    }
+  }
+
+  private loadPlanItemsIfNeeded(): void {
+    if (!this.plan?.id) {
+      this.initializeForm();
+      return;
+    }
+
+    if (Array.isArray(this.plan.items) && this.plan.items.length > 0) {
+      this.loadingPlanItems = false;
+      this.initializeForm();
+      return;
+    }
+
+    this.loadingPlanItems = true;
+    this.planItemsError = null;
+
+    this.medicalService.getMedicationItems(this.plan.id).subscribe({
+      next: (items) => {
+        this.plan.items = items;
+        this.loadingPlanItems = false;
+        this.initializeForm();
+      },
+      error: (err) => {
+        console.error('Error loading plan items for adjustment:', err);
+        this.planItemsError = 'Failed to load medications for this plan.';
+        this.loadingPlanItems = false;
+        // Still initialize so user can adjust end date / notes if needed
+        this.initializeForm();
+      }
+    });
+  }
+
+  private prefillFromPlanItems(): void {
+    const items = this.plan?.items || [];
+    if (!items || items.length === 0) {
+      return;
+    }
+
+    const first = items[0];
+
+    // Use the first medication as default values for plan-level adjustments.
+    // These changes will apply to all medications in the plan.
+    this.formData.dosage = first.dosage;
+    this.formData.frequency = first.frequency;
+    this.formData.timesOfDay = this.parseTimesOfDay(first.timesOfDay);
   }
 
   /**
@@ -147,14 +228,19 @@ export class AdjustPlanComponent implements OnInit {
    * Toggles a time selection
    */
   toggleTime(time: string): void {
-    const index = this.formData.timesOfDay!.indexOf(time);
+    if (!this.formData.timesOfDay) {
+      this.formData.timesOfDay = [time];
+      return;
+    }
+
+    const index = this.formData.timesOfDay.indexOf(time);
     if (index === -1) {
-      this.formData.timesOfDay!.push(time);
-      this.formData.timesOfDay!.sort();
+      this.formData.timesOfDay.push(time);
+      this.formData.timesOfDay.sort();
     } else {
       // Don't allow removing the last time
-      if (this.formData.timesOfDay!.length > 1) {
-        this.formData.timesOfDay!.splice(index, 1);
+      if (this.formData.timesOfDay.length > 1) {
+        this.formData.timesOfDay.splice(index, 1);
       }
     }
   }
@@ -163,7 +249,7 @@ export class AdjustPlanComponent implements OnInit {
    * Checks if a time is selected
    */
   isTimeSelected(time: string): boolean {
-    return this.formData.timesOfDay!.includes(time);
+    return this.formData.timesOfDay ? this.formData.timesOfDay.includes(time) : false;
   }
 
   /**
@@ -172,9 +258,11 @@ export class AdjustPlanComponent implements OnInit {
   onConfirm(): void {
     this.validationErrors = [];
     this.result = null;
+
+    const normalizedFormData = this.getNormalizedFormData();
     
     // Validate
-    const errors = this.adjustPlanService.validateInputs(this.formData);
+    const errors = this.adjustPlanService.validateInputs(normalizedFormData);
     if (errors.length > 0) {
       this.validationErrors = errors;
       return;
@@ -183,7 +271,7 @@ export class AdjustPlanComponent implements OnInit {
     // Apply adjustments
     this.loading = true;
     
-    this.adjustPlanService.applyAdjustments(this.plan, this.formData).subscribe({
+    this.adjustPlanService.applyAdjustments(this.plan, normalizedFormData).subscribe({
       next: (result) => {
         this.result = result;
         this.loading = false;
@@ -205,6 +293,20 @@ export class AdjustPlanComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  private getNormalizedFormData(): AdjustPlanFormData {
+    const dosageTrimmed = this.formData.dosage?.trim();
+    const notesTrimmed = this.formData.notes?.trim();
+
+    return {
+      ...this.formData,
+      dosage: dosageTrimmed ? dosageTrimmed : undefined,
+      notes: notesTrimmed ? notesTrimmed : undefined,
+      timesOfDay: this.formData.timesOfDay && this.formData.timesOfDay.length > 0
+        ? [...this.formData.timesOfDay]
+        : undefined
+    };
   }
 
   /**

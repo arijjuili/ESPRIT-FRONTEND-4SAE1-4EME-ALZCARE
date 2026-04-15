@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import {
   CaregiverAssignment,
@@ -163,7 +163,9 @@ export class CareTeamService {
    * Returns null if no doctor is assigned (handles 404 gracefully)
    */
   getPatientDoctor(patientId: string): Observable<DoctorAssignment | null> {
-    return this.http.get<DoctorAssignment>(`${this.apiUrl}/patients/${patientId}/doctor`);
+    return this.http.get<DoctorAssignment>(`${this.apiUrl}/patients/${patientId}/doctor`).pipe(
+      catchError((err) => (err?.status === 404 ? of(null) : throwError(() => err)))
+    );
   }
 
   /**

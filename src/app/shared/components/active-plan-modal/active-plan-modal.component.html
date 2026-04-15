@@ -19,7 +19,7 @@
           Active Treatment Detected
         </h2>
         <p id="modal-description" class="modal-subtitle">
-          This patient already has an active medication plan
+          Select a prescription plan to manage
         </p>
       </div>
       <button 
@@ -35,17 +35,31 @@
     <!-- Active Plan Info Card -->
     <div class="plan-info-card">
       <div class="plan-header">
-        <h3 class="plan-title">{{ activePlan?.title }}</h3>
+        <div class="plan-picker">
+          <label class="plan-picker__label">Prescription</label>
+          <select
+            class="plan-picker__select"
+            (change)="onPlanSelected($event)"
+            [disabled]="loadingPlans || plans.length === 0"
+          >
+            <option *ngIf="plans.length === 0" value="" disabled selected>No prescriptions found</option>
+            <option *ngFor="let plan of plans" [value]="plan.id" [selected]="selectedPlan?.id === plan.id">
+              {{ getPlanSelectLabel(plan) }}
+            </option>
+          </select>
+          <div class="plan-picker__hint" *ngIf="loadingPlans">Loading prescriptions...</div>
+          <div class="plan-picker__error" *ngIf="plansError">{{ plansError }}</div>
+        </div>
         <span 
           class="plan-status"
-          [class.status-active]="activePlan?.status === 'ACTIVE'"
-          [class.status-suspended]="activePlan?.status === 'SUSPENDED'"
+          [class.status-active]="selectedPlan?.status === 'ACTIVE'"
+          [class.status-suspended]="selectedPlan?.status === 'SUSPENDED'"
         >
-          {{ activePlan?.status === 'ACTIVE' ? 'Active' : activePlan?.status }}
+          {{ selectedPlan?.status === 'ACTIVE' ? 'Active' : selectedPlan?.status }}
         </span>
       </div>
       
-      <div class="plan-details">
+      <div class="plan-details" *ngIf="selectedPlan">
         <div class="detail-item">
           <span class="detail-icon">📅</span>
           <span class="detail-text">{{ getPlanDateRange() }}</span>
@@ -56,9 +70,9 @@
             {{ getMedicationCount() }} medication(s) in this plan
           </span>
         </div>
-        <div class="detail-item" *ngIf="activePlan?.notes">
+        <div class="detail-item" *ngIf="selectedPlan.notes">
           <span class="detail-icon">📝</span>
-          <span class="detail-text note-text">{{ activePlan?.notes }}</span>
+          <span class="detail-text note-text">{{ selectedPlan.notes }}</span>
         </div>
       </div>
 
@@ -67,7 +81,7 @@
         <button 
           class="btn-toggle-medications"
           (click)="toggleMedications()"
-          [disabled]="loadingMedications"
+          [disabled]="loadingMedications || !selectedPlan"
         >
           <span class="toggle-icon">{{ showMedications ? '🔼' : '🔽' }}</span>
           <span class="toggle-text">
@@ -86,8 +100,8 @@
         </div>
 
         <!-- Medications List -->
-        <div class="medications-list" *ngIf="!medicationsError && activePlan?.items?.length">
-          <div class="medication-item" *ngFor="let item of activePlan.items">
+        <div class="medications-list" *ngIf="!medicationsError && selectedPlan?.items?.length">
+          <div class="medication-item" *ngFor="let item of (selectedPlan?.items || [])">
             <div class="medication-header">
               <span class="medication-name">{{ item.name }}</span>
               <span class="medication-risk" *ngIf="item.isHighRisk" title="High risk medication">⚠️</span>
@@ -110,7 +124,7 @@
         </div>
 
         <!-- Empty State -->
-        <div class="medications-empty" *ngIf="!medicationsError && !loadingMedications && !activePlan?.items?.length">
+        <div class="medications-empty" *ngIf="!medicationsError && !loadingMedications && !selectedPlan?.items?.length">
           <span class="empty-icon">📋</span>
           <span class="empty-text">No medications in this plan</span>
         </div>
@@ -126,7 +140,7 @@
         <button 
           class="option-card option-adjust"
           (click)="onAdjustPlan()"
-          [disabled]="loading"
+          [disabled]="loading || !selectedPlan"
         >
           <div class="option-icon">
             <span>✏️</span>
@@ -144,7 +158,7 @@
         <button 
           class="option-card option-add"
           (click)="onAddMedication()"
-          [disabled]="loading"
+          [disabled]="loading || !selectedPlan"
         >
           <div class="option-icon">
             <span>➕</span>

@@ -39,6 +39,14 @@
         <span class="summary-label">Medication:</span>
         <span class="summary-value">{{ item.name }}</span>
       </div>
+      <div class="summary-item" *ngIf="loadingPlanItems">
+        <span class="summary-label">Medications:</span>
+        <span class="summary-value">Loading...</span>
+      </div>
+      <div class="summary-item" *ngIf="planItemsError">
+        <span class="summary-label">Medications:</span>
+        <span class="summary-value">{{ planItemsError }}</span>
+      </div>
     </div>
 
     <!-- Form -->
@@ -86,6 +94,7 @@
           class="form-select"
           [(ngModel)]="formData.frequency"
         >
+          <option [ngValue]="undefined">No change</option>
           <option *ngFor="let freq of frequencyTypes" [value]="freq">
             {{ freq }}
           </option>
@@ -172,7 +181,7 @@
       <button 
         class="btn-confirm"
         (click)="onConfirm()"
-        [disabled]="loading || result?.success"
+        [disabled]="loading || loadingPlanItems || result?.success"
       >
         <span *ngIf="!loading">Confirm Adjustment</span>
         <span *ngIf="loading">Processing...</span>
