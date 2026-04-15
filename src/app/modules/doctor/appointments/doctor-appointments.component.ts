@@ -515,7 +515,7 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.linkedCaregiverLoading = false;
     this.linkedCaregiverError = null;
     this.newAppointment.caregiverId = undefined;
-    this.filteredPatients = this.patients;
+    this.filteredPatients = this.assignedPatients;
     this.resetAvailability();
   }
 
