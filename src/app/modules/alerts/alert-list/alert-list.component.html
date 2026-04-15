@@ -1,0 +1,233 @@
+<div class="pt-16 lg:pt-8 p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+        <span class="text-red-600">🚨</span> Safety Alerts
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">Monitor and respond to active patient alerts</p>
+    </div>
+    <a routerLink="/dashboard"
+       class="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Dashboard
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-wrap gap-3 mb-6">
+    <!-- Status toggle -->
+    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+      <button
+        (click)="statusFilter = 'ACTIVE'; onStatusFilterChange()"
+        [class.bg-red-600]="statusFilter === 'ACTIVE'"
+        [class.text-white]="statusFilter === 'ACTIVE'"
+        [class.bg-white]="statusFilter !== 'ACTIVE'"
+        [class.text-gray-700]="statusFilter !== 'ACTIVE'"
+        class="px-4 py-2 font-medium transition">Active</button>
+      <button
+        (click)="statusFilter = 'RESOLVED'; onStatusFilterChange()"
+        [class.bg-gray-700]="statusFilter === 'RESOLVED'"
+        [class.text-white]="statusFilter === 'RESOLVED'"
+        [class.bg-white]="statusFilter !== 'RESOLVED'"
+        [class.text-gray-700]="statusFilter !== 'RESOLVED'"
+        class="px-4 py-2 font-medium transition border-l border-gray-200">Resolved</button>
+    </div>
+
+    <!-- Severity -->
+    <select [(ngModel)]="severityFilter"
+      class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-red-300">
+      <option value="ALL">All severities</option>
+      <option value="CRITICAL">Critical</option>
+      <option value="HIGH">High</option>
+      <option value="MEDIUM">Medium</option>
+      <option value="LOW">Low</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex items-center justify-center py-20 text-gray-400">
+    <svg class="animate-spin w-7 h-7 mr-3" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+    </svg>
+    Loading alerts…
+  </div>
+
+  <!-- Empty -->
+  <div *ngIf="!loading && filtered.length === 0" class="text-center py-20">
+    <div class="text-5xl mb-3">✅</div>
+    <p class="text-gray-500 font-medium">
+      {{ statusFilter === 'ACTIVE' ? 'No active alerts' : 'No resolved alerts to show' }}
+    </p>
+    <p class="text-sm text-gray-400 mt-1">
+      {{ statusFilter === 'ACTIVE' ? 'All patients are safe right now.' : 'Resolved alerts are cleared by the backend.' }}
+    </p>
+  </div>
+
+  <!-- Alert Cards -->
+  <div *ngIf="!loading" class="space-y-4">
+    <div *ngFor="let alert of filtered"
+      class="bg-white rounded-2xl shadow-sm border transition-shadow hover:shadow-md overflow-hidden"
+      [class.border-red-300]="alert.severity === 'CRITICAL'"
+      [class.border-orange-200]="alert.severity === 'HIGH'"
+      [class.border-yellow-200]="alert.severity === 'MEDIUM'"
+      [class.border-green-200]="alert.severity === 'LOW'"
+      [class.border-gray-100]="!['CRITICAL','HIGH','MEDIUM','LOW'].includes(alert.severity)">
+
+      <!-- Card top stripe -->
+      <div class="h-1"
+        [class.bg-red-500]="alert.severity === 'CRITICAL'"
+        [class.bg-orange-400]="alert.severity === 'HIGH'"
+        [class.bg-yellow-400]="alert.severity === 'MEDIUM'"
+        [class.bg-green-400]="alert.severity === 'LOW'">
+      </div>
+
+      <div class="p-5">
+        <!-- Top row: severity badge + rule + time -->
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border"
+              [ngClass]="severityClass(alert.severity)">
+              <span class="w-1.5 h-1.5 rounded-full inline-block" [ngClass]="severityDotClass(alert.severity)"></span>
+              {{ alert.severity }}
+            </span>
+            <span class="text-sm font-semibold text-gray-800">{{ alert.ruleCode.replace('_', ' ') }}</span>
+            <span *ngIf="alert.isEscalationOverdue"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+              ⏰ Overdue
+            </span>
+          </div>
+          <span class="text-xs text-gray-400">{{ formatTime(alert.triggeredAt) }}</span>
+        </div>
+
+        <!-- Info row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-xs text-gray-600">
+          <div>
+            <span class="font-medium text-gray-400 uppercase tracking-wide text-[10px] block mb-0.5">Patient</span>
+            <span class="font-semibold text-gray-800">{{ alert.patientId | slice:0:8 }}…</span>
+          </div>
+          <div>
+            <span class="font-medium text-gray-400 uppercase tracking-wide text-[10px] block mb-0.5">Escalation Level</span>
+            <span class="font-semibold">{{ levelIcon(alert.currentLevel) }} {{ alert.currentLevel }}</span>
+          </div>
+          <div>
+            <span class="font-medium text-gray-400 uppercase tracking-wide text-[10px] block mb-0.5">Escalates in</span>
+            <span class="font-semibold"
+              [class.text-red-600]="alert.isEscalationOverdue || alert.escalationMinutesRemaining < 10"
+              [class.text-gray-800]="!alert.isEscalationOverdue && alert.escalationMinutesRemaining >= 10">
+              {{ formatCountdown(alert.escalationMinutesRemaining) }}
+            </span>
+          </div>
+          <div *ngIf="alert.sourceId">
+            <span class="font-medium text-gray-400 uppercase tracking-wide text-[10px] block mb-0.5">Source Log</span>
+            <span class="font-mono text-gray-700">{{ alert.sourceId | slice:0:8 }}…</span>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            (click)="openAcknowledge(alert.id)"
+            [disabled]="acknowledgingId !== null"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition disabled:opacity-50">
+            ✔ Acknowledge
+          </button>
+          <button
+            (click)="openResolve(alert.id)"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
+            🔒 Resolve
+          </button>
+          <button
+            (click)="toggleHistory(alert.id)"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-600 hover:bg-gray-100 transition">
+            {{ historyAlertId === alert.id ? '▲ Hide History' : '📋 History' }}
+          </button>
+        </div>
+
+        <!-- Acknowledge inline form -->
+        <div *ngIf="acknowledgingId === alert.id" class="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+          <p class="text-xs font-semibold text-blue-800 mb-2">Acknowledge Alert</p>
+          <textarea
+            [(ngModel)]="acknowledgeNotes"
+            rows="2"
+            placeholder="Optional notes…"
+            class="w-full text-sm border border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white resize-none">
+          </textarea>
+          <div class="flex gap-2 mt-2">
+            <button (click)="submitAcknowledge()"
+              [disabled]="acknowledgeSubmitting"
+              class="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1">
+              <span *ngIf="acknowledgeSubmitting" class="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
+              {{ acknowledgeSubmitting ? 'Saving…' : 'Confirm' }}
+            </button>
+            <button (click)="cancelAcknowledge()"
+              class="px-4 py-1.5 rounded-lg bg-white text-gray-600 text-xs font-medium hover:bg-gray-50 border border-gray-200 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- Resolve inline form -->
+        <div *ngIf="resolvingAlertId === alert.id" class="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+          <p class="text-xs font-semibold text-emerald-800 mb-3">Resolve Alert</p>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">Resolution Type</label>
+              <select [(ngModel)]="resolveForm.resolutionType"
+                class="w-full text-sm border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                <option *ngFor="let rt of resolutionTypes" [value]="rt.value">{{ rt.label }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-600 block mb-1">Notes</label>
+              <textarea [(ngModel)]="resolveForm.resolutionNotes" rows="2"
+                placeholder="Describe what was done…"
+                class="w-full text-sm border border-emerald-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300 resize-none">
+              </textarea>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+              <input type="checkbox" [(ngModel)]="resolveForm.isFalsePositive" class="rounded">
+              Mark as false positive
+            </label>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button (click)="submitResolve()"
+              [disabled]="resolveSubmitting"
+              class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-1">
+              <span *ngIf="resolveSubmitting" class="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
+              {{ resolveSubmitting ? 'Resolving…' : 'Resolve' }}
+            </button>
+            <button (click)="cancelResolve()"
+              class="px-4 py-1.5 rounded-lg bg-white text-gray-600 text-xs font-medium hover:bg-gray-50 border border-gray-200 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <!-- History panel -->
+        <div *ngIf="historyAlertId === alert.id" class="mt-4 border-t border-gray-100 pt-4">
+          <div *ngIf="historyLoading" class="text-xs text-gray-400 text-center py-3">Loading history…</div>
+          <div *ngIf="!historyLoading && historyItems.length === 0" class="text-xs text-gray-400 text-center py-3">No history yet.</div>
+          <div *ngIf="!historyLoading && historyItems.length > 0" class="space-y-2">
+            <div *ngFor="let h of historyItems"
+              class="flex items-start gap-3 text-xs text-gray-700">
+              <span class="text-base leading-none mt-0.5">{{ actionIcon(h.actionType) }}</span>
+              <div class="flex-1">
+                <span class="font-semibold">{{ h.actionType }}</span>
+                <span *ngIf="h.notes" class="text-gray-500 ml-1">— {{ h.notes }}</span>
+                <span *ngIf="h.isSystemAction" class="ml-1 text-gray-400 italic">(system)</span>
+              </div>
+              <span class="text-gray-400 whitespace-nowrap">{{ formatTime(h.performedAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -21,19 +21,19 @@ export class PatientSidebarComponent {
     {
       label: 'Dashboard',
       path: '/patient/dashboard',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       description: 'Overview & metrics'
     },
     {
       label: 'Activities',
       path: '/patient/activities',
-      icon: 'ðŸ“‹',
+      icon: '📋',
       description: 'Daily tasks & logs'
     },
     {
       label: 'Medications',
       path: '/patient/medications',
-      icon: 'ðŸ’Š',
+      icon: '💊',
       description: 'Prescriptions & schedule'
     },
         {
@@ -44,19 +44,19 @@ export class PatientSidebarComponent {
     },{
       label: 'Brain Games',
       path: '/patient/games',
-      icon: 'ðŸŽ®',
+      icon: '🎮',
       description: 'Cognitive exercises'
     },
     {
       label: 'Community',
       path: '/patient/community',
-      icon: 'ðŸ‘¥',
+      icon: '👥',
       description: 'Connect & support'
     },
     {
       label: 'Profile',
       path: '/patient/profile',
-      icon: 'ðŸ‘¤',
+      icon: '👤',
       description: 'My information'
     }
   ];

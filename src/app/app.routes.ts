@@ -43,6 +43,14 @@ export const routes: Routes = [
         loadComponent: () => import('./modules/patient/activities/patient-activities.component').then(m => m.PatientActivitiesComponent)
       },
       {
+        path: 'activities/registrations',
+        loadComponent: () => import('./modules/patient/activities/my-registrations/my-registrations.component').then(m => m.MyRegistrationsComponent)
+      },
+      {
+        path: 'activities/:id',
+        loadComponent: () => import('./modules/patient/activities/activity-detail/activity-detail.component').then(m => m.ActivityDetailComponent)
+      },
+      {
         path: 'medications',
         loadComponent: () => import('./modules/patient/medications/patient-medications.component').then(m => m.PatientMedicationsComponent)
       },
@@ -126,6 +134,10 @@ export const routes: Routes = [
       {
         path: 'behaviors/:patientId',
         loadComponent: () => import('./modules/caregiver/behaviors/behaviors-page/behaviors-page.component').then(m => m.BehaviorsPageComponent)
+      },
+      {
+        path: 'events',
+        loadComponent: () => import('./modules/caregiver/events/caregiver-events.component').then(m => m.CaregiverEventsComponent)
       },
       {
         path: 'tasks',
@@ -284,6 +296,11 @@ export const routes: Routes = [
         path: 'medical/cameras',
         loadComponent: () => import('./modules/admin/camera-devices/admin-camera-devices.component')
           .then(m => m.AdminCameraDevicesComponent)
+      },
+      {
+        path: 'medical/camera-provisioning',
+        loadComponent: () => import('./modules/admin/camera-provisioning/admin-camera-provisioning.component')
+          .then(m => m.AdminCameraProvisioningComponent)
       }
     ]
   },
@@ -296,6 +313,11 @@ export const routes: Routes = [
     path: 'notifications',
     canActivate: [AuthGuard],
     loadComponent: () => import('./shared/components/notification-list/notification-list.component').then(m => m.NotificationListComponent)
+  },
+  {
+    path: 'alerts',
+    canActivate: [AuthGuard],
+    loadComponent: () => import('./modules/alerts/alert-list/alert-list.component').then(m => m.AlertListComponent)
   },
   {
     path: '**',

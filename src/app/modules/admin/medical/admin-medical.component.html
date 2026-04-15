@@ -21,8 +21,16 @@
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex items-center justify-center py-20 mb-8">
+      <div class="flex flex-col items-center gap-4">
+        <div class="w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+        <p class="text-gray-500 text-sm">Loading medical data...</p>
+      </div>
+    </div>
+
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div *ngIf="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       <div *ngFor="let stat of medicalStats" 
            class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300">
         <div class="flex items-start justify-between">
@@ -45,12 +53,12 @@
     </div>
 
     <!-- Medical Modules Grid -->
-    <div class="mb-8">
+    <div *ngIf="!loading" class="mb-8">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
           <span>🎯</span>
           <span>Medical Modules</span>
-          <span class="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">6 Axes</span>
+          <span class="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">7 Axes</span>
         </h2>
       </div>
 
@@ -99,7 +107,7 @@
     </div>
 
     <!-- Recent Activities -->
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div *ngIf="!loading" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
           <span>📋</span>
@@ -107,7 +115,7 @@
         </h2>
         <button class="text-sm text-violet-600 hover:text-violet-700 font-medium">View All</button>
       </div>
-      <div class="space-y-4">
+      <div *ngIf="recentActivities.length > 0" class="space-y-4">
         <div *ngFor="let activity of recentActivities" 
              class="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors">
           <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
@@ -124,6 +132,9 @@
             </p>
           </div>
         </div>
+      </div>
+      <div *ngIf="recentActivities.length === 0" class="text-center py-8 text-gray-500">
+        <p>No recent medical activities found.</p>
       </div>
     </div>
 

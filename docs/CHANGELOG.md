@@ -1,27 +1,107 @@
 # Changelog - CareHub
 
-## Session 29 (2026-04-12) - Medication Intake Calendar UX
+## Session 31 (2026-04-14) - Caregiver Activity Events Page
 
-### Feature: Global Intake Calendar (Segments + Day Modal)
-**Problem:** The medication confirmation UI was a long list per medication, not easy to scan.  
-**Solution:** Replaced confirmation display with a month calendar that aggregates *all* intakes, with per-day progress segments and a day-details modal for confirmation.
+### Feature: Camera Motion Event Inspection for Caregivers
+**Purpose:** Allow caregivers to view ESP32-CAM motion events and inspect snapshot images captured during activity detection.
 
 **Features Implemented:**
-- ✅ **Month Calendar** - One calendar for all scheduled intakes
-- ✅ **Segments Indicator** - Each intake is one segment; colors reflect status (taken/pending/delayed/missed/refused)
-- ✅ **Day Details Modal** - Click a day to see meds + hours and confirm pending intakes
-- ✅ **Input Validation (Dates)** - Prevent confirming TAKEN/MISSED for future intakes (patient + caregiver)
-- ✅ **Treatment Period Highlight** - Days outside treatment period are greyed out / disabled
-- ✅ **Autonomy Rule Preserved** - Patients with ASSISTED/DEPENDENT autonomy cannot confirm intakes
+- ✅ **Patient-Filtered Events** - Only shows events for caregivers' assigned patients
+- ✅ **Snapshot Image Cards** - Event cards display Cloudinary snapshot thumbnails
+- ✅ **Fullscreen Lightbox** - Click any snapshot to view it in fullscreen (ESC to close)
+- ✅ **Day Grouping** - Events grouped under Today, Yesterday, or date labels
+- ✅ **Motion Metadata** - Shows zone, timestamp, motion intensity, and duration
+- ✅ **Processing Status** - Badges indicate whether event was processed for behavior analysis
+- ✅ **Quick Access** - Added to caregiver dashboard quick actions and sidebar navigation
 
-**Files Changed:**
-- `src/app/modules/patient/medications/patient-medications.component.ts`
-- `src/app/modules/patient/medications/patient-medications.component.html`
-- `src/app/modules/caregiver/medications/caregiver-medications.component.ts`
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `activity-event.model.ts` | ActivityEvent interface with snapshotUrl support |
+| `activity-event.service.ts` | API service for event-ingestion activity events |
+| `caregiver-events.component.ts` | Main events page component |
+| `caregiver-events.component.html` | Event cards, day grouping, lightbox modal |
+| `caregiver-events.component.scss` | Component styles |
 
-### Next Session Notes
-- [ ] Optional: week view for mobile
-- [ ] Optional: handle multiple treatment periods (gaps) more precisely
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `app.routes.ts` | Added `/caregiver/events` route |
+| `navbar.component.ts` | Added Events nav item for caregiver role |
+| `caregiver-dashboard.component.html` | Added Activity Events quick action button |
+
+---
+
+## Session 30 (2026-04-14) - Camera Provisioning Frontend
+
+### Feature: ESP32-CAM Pairing Token Provisioning
+**Purpose:** Allow administrators to generate one-time pairing tokens for ESP32-CAM devices, enabling technicians to provision cameras on-site without modifying source code.
+
+**Features Implemented:**
+- ✅ **Pairing Token Generation** - Admins generate tokens for a specific patient + zone
+- ✅ **QR Code Display** - Scannable QR code for each token (uses free qrserver API, no new npm deps)
+- ✅ **Copy-to-Clipboard** - One-click token copying for manual entry
+- ✅ **Live Expiry Countdown** - Real-time timer showing time remaining until token expires
+- ✅ **Token Status Tracking** - Visual badges for Active, Used, and Expired tokens
+- ✅ **Patient Token History** - Lists all tokens for the selected patient
+- ✅ **Token Revocation** - Admins can revoke unused tokens before expiry
+- ✅ **Navigation Integration** - Added route, sidebar nav, and module card links
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `pairing-token.model.ts` | PairingToken, GeneratePairingTokenRequest, CameraProvisionResponse interfaces |
+| `admin-camera-provisioning.component.ts` | Provisioning page component logic |
+| `admin-camera-provisioning.component.html` | Provisioning UI with form, QR code, token list |
+| `admin-camera-provisioning.component.scss` | Component styles |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `camera-device.service.ts` | Added `generatePairingToken`, `getPatientTokens`, `revokePairingToken`, `provisionCamera` |
+| `app.routes.ts` | Added `/admin/medical/camera-provisioning` route |
+| `navbar.component.ts` | Added Cameras nav item for admin role |
+| `admin-medical.component.ts` | Added Camera Provisioning module card (id 12) |
+| `admin-camera-devices.component.html` | Added "Provision New Camera" button linking to provisioning page |
+
+---
+
+## Session 29 (2026-04-12) - Doctor Patient Access Control
+
+### Security Fix: Doctor Dashboard Patient Access Control
+**Purpose:** Fix security vulnerability where doctors could see all patients instead of only their assigned patients.
+
+**Problem:**
+- Dashboard loaded mock data (`dataService.getPatients()`) alongside real assignments
+- Doctor Patients page showed ALL active patients instead of assigned ones
+- Doctor Appointments page allowed booking for any patient in the system
+- Doctor Records page showed medical history for all patients
+- Doctor Prescriptions page showed ALL patients in dropdown
+
+**Solution:**
+- ✅ **Created `DoctorPatientContextService`** - Shared service for caching doctor's assigned patients
+- ✅ **Updated Dashboard** - Removed legacy mock data sections, now shows only assigned patients
+- ✅ **Updated Patients Page** - Only shows patients assigned via care-team service
+- ✅ **Updated Appointments Page** - Patient dropdown only includes assigned patients
+- ✅ **Updated Records Page** - Only shows records for assigned patients
+- ✅ **Updated Prescriptions Page** - Patient dropdown limited to assigned patients only
+- ✅ **TTL Cache** - 5-minute cache to reduce API calls across pages
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `doctor-patient-context.service.ts` | Shared cache for doctor's assigned patients and assignments |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `doctor-dashboard.component.ts` | Uses DoctorPatientContextService, removed mock data |
+| `doctor-dashboard.component.html` | Removed legacy Patient Details and Appointments sections |
+| `doctor-patients.component.ts` | Now uses DoctorPatientContextService.getAssignedPatients() |
+| `doctor-appointments.component.ts` | Patient search limited to assigned patients only |
+| `doctor-records.component.ts` | Filters records to only show assigned patients |
+| `doctor-prescriptions.component.ts` | Uses DoctorPatientContextService for patient dropdown |
+| `doctor-prescriptions.component.html` | Updated patient display for PatientProfileResponse |
 
 ---
 

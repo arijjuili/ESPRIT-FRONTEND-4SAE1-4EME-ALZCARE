@@ -6,10 +6,8 @@ import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
-import { UserManagementService } from '../../../core/services/user-management.service';
-import { 
-  ManagedUser 
-} from '../../../core/models/user-management.model';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
+import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
 import { 
   MedicationPlan, 
   MedicationItem,
@@ -28,7 +26,7 @@ interface PatientListItem {
   id: string;
   userId: string;  // Keycloak UUID
   fullName: string;
-  email: string;
+  email?: string;
   autonomyLevel: MedicationAutonomyLevel | null;
 }
 
@@ -105,6 +103,7 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
   intakeStatuses = IntakeStatus;
   
   private destroy$ = new Subject<void>();
+  private pendingPatientIdFromRoute: string | null = null;
   private readonly now = () => new Date();
 
   private startOfDay(date: Date): Date {
@@ -124,7 +123,7 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private authService: AuthService,
     private medicalService: MedicalFollowupService,
-    private userService: UserManagementService
+    private caregiverPatientContext: CaregiverPatientContextService
   ) {}
 
   ngOnInit(): void {
@@ -132,17 +131,27 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
     
     if (currentUser) {
       this.caregiverId = currentUser.id;
-      this.loadPatients();
-      
-      // Check for patientId in query params
+
+      // Check for patientId in query params (accepts either profile id or userId)
       this.route.queryParams.pipe(
         takeUntil(this.destroy$)
       ).subscribe(params => {
-        if (params['patientId']) {
-          this.selectedPatientId = params['patientId'];
-          this.onPatientChange();
+        const requestedPatientId = String(params['patientId'] || '').trim();
+
+        if (!requestedPatientId) {
+          this.pendingPatientIdFromRoute = null;
+          if (this.selectedPatientId) {
+            this.selectedPatientId = '';
+            this.onPatientChange();
+          }
+          return;
         }
+
+        const applied = this.tryApplyRoutePatientSelection(requestedPatientId);
+        this.pendingPatientIdFromRoute = applied ? null : requestedPatientId;
       });
+
+      this.loadPatients();
     } else {
       console.error('No current user found');
       this.error = 'You must be logged in to view this page';
@@ -158,26 +167,41 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
    * Load patients assigned to this caregiver
    */
   loadPatients(): void {
-    this.userService.getPatientsForCaregiver(this.caregiverId).pipe(
-      catchError(() => {
-        // Fallback: get all active patients
-        return this.userService.getActivePatients().pipe(
-          catchError(() => of([]))
-        );
+    this.caregiverPatientContext.getAssignedPatients().pipe(
+      catchError((error) => {
+        console.error('Error loading assigned patients:', error);
+        return of([] as PatientProfileResponse[]);
       })
     ).subscribe({
       next: (patients) => {
-        this.patients = patients.map(patient => {
-          const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
-          return {
-            id: patient.id,
-            userId: keycloakId,
-            fullName: patient.fullName ||
-              (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : patient.username),
-            email: patient.email,
-            autonomyLevel: null // Will be set when loading medication data
-          };
-        });
+        this.patients = patients
+          .map(patient => {
+            const profileId = String(patient.id || '').trim();
+            const userId = String(patient.userId || patient.id || '').trim();
+            const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
+
+            return {
+              id: profileId || userId,
+              userId,
+              fullName,
+              autonomyLevel: null // Will be set when loading medication data
+            };
+          })
+          .filter(patient => !!patient.userId);
+
+        // If the current selected patient is no longer in assignments, clear selection.
+        if (this.selectedPatientId && !this.patients.some(patient => patient.userId === this.selectedPatientId)) {
+          this.selectedPatientId = '';
+          this.onPatientChange();
+        }
+
+        // Apply patient pre-selection from query params once patients are loaded.
+        if (this.pendingPatientIdFromRoute) {
+          const applied = this.tryApplyRoutePatientSelection(this.pendingPatientIdFromRoute);
+          if (applied) {
+            this.pendingPatientIdFromRoute = null;
+          }
+        }
       },
       error: (err) => {
         console.error('Error loading patients:', err);
@@ -199,6 +223,28 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
 
     this.selectedPatient = this.patients.find(p => p.userId === this.selectedPatientId) || null;
     this.loadData();
+  }
+
+  private tryApplyRoutePatientSelection(rawPatientId: string): boolean {
+    const requestedId = (rawPatientId || '').trim();
+    if (!requestedId || this.patients.length === 0) {
+      return false;
+    }
+
+    const patient = this.patients.find(
+      entry => entry.userId === requestedId || entry.id === requestedId
+    );
+
+    if (!patient) {
+      return false;
+    }
+
+    if (this.selectedPatientId !== patient.userId || !this.selectedPatient) {
+      this.selectedPatientId = patient.userId;
+      this.onPatientChange();
+    }
+
+    return true;
   }
 
   /**

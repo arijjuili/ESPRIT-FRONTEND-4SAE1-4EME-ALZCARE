@@ -16,7 +16,7 @@ export type NotificationType =
 
 export type NotificationPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type NotificationStatus = 'READ' | 'UNREAD';
+export type NotificationStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'READ';
 
 export type NotificationFilterType = 'ALL' | 'UNREAD' | 'ALERTS' | 'REMINDERS' | 'SYSTEM';
 
@@ -76,9 +76,9 @@ export interface NotificationSummaryResponse {
 }
 
 export interface UnreadCountResponse {
-  count: number;
-  criticalCount?: number;
-  highPriorityCount?: number;
+  userId?: string;
+  unreadCount: number;
+  totalCount?: number;
 }
 
 export interface PagedNotificationResponse {

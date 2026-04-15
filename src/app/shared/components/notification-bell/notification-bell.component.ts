@@ -10,13 +10,13 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 import { RoleTheme } from '../navbar.component';
 import {
   Notification,
   NotificationType,
-  NotificationPriority,
-  NotificationSummaryResponse
+  NotificationPriority
 } from '../../../core/models/notification.model';
 import { NotificationService } from '../../../core/services/notification.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -37,6 +37,8 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   unreadCount = 0;
   criticalCount = 0;
   isLoading = false;
+  markingAsReadId: string | null = null; // Track which notification is being marked as read
+  private markAsReadTimeout: any; // Timeout for auto-marking as read
 
   // Default theme fallback
   private defaultTheme: RoleTheme = {
@@ -53,6 +55,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   };
 
   private unreadCountSubscription?: Subscription;
+  private authSubscription?: Subscription;
 
   constructor(
     private elementRef: ElementRef,
@@ -63,14 +66,40 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.loadNotificationSummary();
-    this.loadNotifications();
+    // Subscribe to auth changes to load notifications when user is available
+    this.authSubscription = this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.loadNotificationSummary();
+        // Pass false - don't mark as read on initial page load
+        this.loadNotifications(false);
+      }
+    });
+    
+    // Subscribe to shared notifications state
+    this.notificationService.notifications$.subscribe(notifications => {
+      this.notifications = notifications;
+      this.updateCriticalCount();
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
     if (this.unreadCountSubscription) {
       this.unreadCountSubscription.unsubscribe();
     }
+    if (this.authSubscription) {
+      this.authSubscription.unsubscribe();
+    }
+    this.clearMarkAsReadTimeout();
+  }
+
+  /**
+   * Update critical count based on current notifications
+   */
+  private updateCriticalCount(): void {
+    this.criticalCount = this.notifications.filter(
+      n => n.status !== 'READ' && n.priority === 'CRITICAL'
+    ).length;
   }
 
   /**
@@ -86,9 +115,83 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   toggleDropdown(): void {
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
-      this.loadNotifications();
+      // Load notifications but don't mark as read immediately
+      this.loadNotifications(false);
+      // Schedule auto-mark as read after 5 seconds so user can read first
+      this.scheduleMarkAsRead();
+    } else {
+      // Clear timeout if user closes dropdown before 5 seconds
+      this.clearMarkAsReadTimeout();
     }
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Schedule auto-mark as read after 5 seconds
+   */
+  private scheduleMarkAsRead(): void {
+    this.clearMarkAsReadTimeout();
+    this.markAsReadTimeout = setTimeout(() => {
+      console.log('[NotificationBell] Auto-marking notifications as read after 5 seconds');
+      this.markAllVisibleAsRead();
+    }, 5000);
+  }
+
+  /**
+   * Clear the mark-as-read timeout
+   */
+  private clearMarkAsReadTimeout(): void {
+    if (this.markAsReadTimeout) {
+      clearTimeout(this.markAsReadTimeout);
+      this.markAsReadTimeout = null;
+    }
+  }
+
+  /**
+   * Mark all visible unread notifications as read when dropdown is opened
+   */
+  private markAllVisibleAsRead(): void {
+    console.log('[NotificationBell] markAllVisibleAsRead() called');
+    console.log('[NotificationBell] Current notifications:', this.notifications);
+    console.log('[NotificationBell] unreadCount:', this.unreadCount);
+    
+    // DEBUG: Log all statuses to see what we're getting
+    console.log('[NotificationBell] All notification statuses:', this.notifications.map(n => ({ id: n.id, status: n.status, title: n.title })));
+    
+    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
+    // Unread = anything that's not READ
+    const unreadNotifications = this.notifications.filter(n => n.status !== 'READ');
+    console.log('[NotificationBell] Filtered with status !== "READ":', unreadNotifications.length);
+    
+    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
+    // Unread = anything that's not READ
+    const notReadNotifications = this.notifications.filter(n => n.status !== 'READ');
+    console.log('[NotificationBell] Filtered with status !== "READ":', notReadNotifications.length);
+    console.log('[NotificationBell] Not-read notifications:', notReadNotifications);
+    
+    console.log('[NotificationBell] Unread notifications:', unreadNotifications);
+    
+    if (unreadNotifications.length === 0) {
+      console.log('[NotificationBell] No unread notifications to mark');
+      // Try marking not-read as read instead
+      if (notReadNotifications.length > 0) {
+        console.log('[NotificationBell] Will try marking not-read instead:', notReadNotifications);
+      }
+      return;
+    }
+    
+    // Mark each notification as read with a small stagger to avoid overwhelming the API
+    // Also update the filter for applying unread class in template
+    notReadNotifications.forEach((notification, index) => {
+      console.log(`[NotificationBell] Marking notification ${index + 1}/${notReadNotifications.length} as read:`, notification.id, notification.status);
+      setTimeout(() => {
+        console.log(`[NotificationBell] Calling markAsRead API for:`, notification.id);
+        this.notificationService.markAsRead(notification.id).subscribe({
+          next: () => console.log(`[NotificationBell] Successfully marked as read:`, notification.id),
+          error: (err) => console.error(`[NotificationBell] Failed to mark as read:`, notification.id, err)
+        });
+      }, index * 100);
+    });
   }
 
   /**
@@ -116,20 +219,24 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     
     const notification = this.notifications.find(n => n.id === id);
-    if (notification && notification.status === 'UNREAD') {
-      // Update local state optimistically
-      notification.status = 'READ';
-      notification.readAt = new Date().toISOString();
-      this.unreadCount = Math.max(0, this.unreadCount - 1);
-      this.cdr.markForCheck();
-
-      // Call service to persist
-      this.notificationService.markAsRead(id).subscribe({
-        error: (error) => {
-          console.error('[NotificationBell] Failed to mark notification as read:', error);
-        }
-      });
+    if (!notification || notification.status === 'READ' || this.markingAsReadId) {
+      return;
     }
+
+    this.markingAsReadId = id;
+    this.cdr.markForCheck();
+
+    // Call service - optimistic update and rollback are handled in service
+    this.notificationService.markAsRead(id).pipe(
+      catchError(() => {
+        // Error already logged in service, just stop loading
+        return of(undefined);
+      }),
+      finalize(() => {
+        this.markingAsReadId = null;
+        this.cdr.markForCheck();
+      })
+    ).subscribe();
   }
 
   /**
@@ -217,8 +324,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   /**
    * Load recent notifications from the service
+   * @param shouldMarkAsRead - Whether to mark notifications as read after loading (only when bell is clicked)
    */
-  private loadNotifications(): void {
+  private loadNotifications(shouldMarkAsRead: boolean): void {
     const userId = this.authService.getCurrentUser()?.id;
     if (!userId) {
       this.isLoading = false;
@@ -238,6 +346,11 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.notifications = response.content;
         this.isLoading = false;
         this.cdr.markForCheck();
+        
+        // Only mark as read when user explicitly opens the bell, not on page load
+        if (shouldMarkAsRead) {
+          this.markAllVisibleAsRead();
+        }
       },
       error: (error) => {
         console.error('[NotificationBell] Failed to load notifications:', error);
@@ -263,15 +376,24 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
     });
 
-    // Initial fetch of unread count
+    // Initial fetch of unread count - retry on failure
+    this.fetchUnreadCount(userId);
+  }
+
+  /**
+   * Fetch unread count with retry
+   */
+  private fetchUnreadCount(userId: string, retries = 3): void {
     this.notificationService.getUnreadCount(userId).subscribe({
+      next: () => {
+        // Count updated via subscription
+      },
       error: (error) => {
         console.error('[NotificationBell] Failed to load unread count:', error);
+        if (retries > 0) {
+          setTimeout(() => this.fetchUnreadCount(userId, retries - 1), 1000);
+        }
       }
     });
-
-    // Count critical notifications from current list
-    this.criticalCount = this.notifications.filter(n => n.priority === 'CRITICAL' && n.status === 'UNREAD').length;
-    this.cdr.markForCheck();
   }
 }

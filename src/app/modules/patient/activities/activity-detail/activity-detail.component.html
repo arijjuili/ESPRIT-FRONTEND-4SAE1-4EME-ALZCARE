@@ -1,0 +1,149 @@
+<div class="min-h-screen bg-gray-50 p-4 md:p-6">
+
+  <!-- Back -->
+  <button (click)="goBack()"
+          class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors">
+    ← Back to Activities
+  </button>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="bg-white rounded-xl border border-gray-200 p-8 animate-pulse max-w-2xl">
+    <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
+    <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+    <div class="h-4 bg-gray-200 rounded w-3/4 mb-6"></div>
+    <div class="h-10 bg-gray-200 rounded w-1/3"></div>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error && !loading"
+       class="bg-red-50 border border-red-200 rounded-xl p-6 max-w-2xl text-center">
+    <p class="text-red-600 font-medium">{{ error }}</p>
+    <button (click)="goBack()" class="mt-3 text-sm text-red-500 underline">Go back</button>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="activity && !loading" class="max-w-2xl space-y-5">
+
+    <!-- Main card -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+
+      <!-- Status bar -->
+      <div [class]="'px-6 py-2 text-xs font-semibold uppercase tracking-wide ' +
+        (activity.status === 'CANCELLED' ? 'bg-gray-100 text-gray-500' :
+         activity.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700')">
+        {{ activity.status }}
+      </div>
+
+      <div class="p-6">
+        <h1 class="text-xl font-bold text-gray-900 mb-2">{{ activity.title }}</h1>
+        <p class="text-gray-600 text-sm leading-relaxed mb-5">{{ activity.description }}</p>
+
+        <!-- Info grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="text-lg">🗓</span>
+            <div>
+              <p class="text-xs text-gray-500 font-medium">Starts</p>
+              <p class="text-sm text-gray-800">{{ formatDate(activity.startDate) }}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="text-lg">🏁</span>
+            <div>
+              <p class="text-xs text-gray-500 font-medium">Ends</p>
+              <p class="text-sm text-gray-800">{{ formatDate(activity.endDate) }}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="text-lg">📍</span>
+            <div>
+              <p class="text-xs text-gray-500 font-medium">Location</p>
+              <p class="text-sm text-gray-800">{{ activity.location }}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="text-lg">🏷️</span>
+            <div>
+              <p class="text-xs text-gray-500 font-medium">Type</p>
+              <p class="text-sm text-gray-800">{{ activity.type }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Capacity -->
+        <div class="mb-5">
+          <div class="flex justify-between text-sm text-gray-600 mb-1.5">
+            <span>{{ activity.registeredCount }} / {{ activity.maxCapacity }} spots filled</span>
+            <span>{{ capacityPercent() }}%</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div [class]="'h-full rounded-full transition-all ' + capacityClass()"
+                 [style.width]="capacityPercent() + '%'"></div>
+          </div>
+          <p *ngIf="isFull" class="text-xs text-red-500 mt-1 font-medium">This activity is fully booked</p>
+        </div>
+
+        <!-- Registration status if already registered -->
+        <div *ngIf="existingRegistration && !checkingRegistration"
+             class="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="text-teal-600 text-lg">✅</span>
+            <div>
+              <p class="text-sm font-medium text-teal-800">You are registered</p>
+              <p class="text-xs text-teal-600 mt-0.5">
+                Status:
+                <span [class]="'ml-1 px-1.5 py-0.5 rounded text-xs font-medium ' + registrationStatusClass(existingRegistration.status)">
+                  {{ existingRegistration.status }}
+                </span>
+              </p>
+            </div>
+          </div>
+          <button *ngIf="existingRegistration.status !== 'CANCELLED'"
+                  (click)="cancelRegistration()" [disabled]="cancelling"
+                  class="text-xs text-red-600 hover:text-red-700 font-medium disabled:opacity-50 transition-colors">
+            {{ cancelling ? 'Cancelling...' : 'Cancel registration' }}
+          </button>
+        </div>
+
+        <!-- Register form (not yet registered) -->
+        <div *ngIf="!existingRegistration && !checkingRegistration && !isCancelled">
+          <div *ngIf="!isFull" class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Special needs (optional)</label>
+              <input [(ngModel)]="specialNeeds" type="text"
+                     placeholder="e.g. Wheelchair access"
+                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" />
+            </div>
+            <button (click)="register()" [disabled]="registering"
+                    class="w-full py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              {{ registering ? 'Registering...' : 'Register for this activity' }}
+            </button>
+          </div>
+          <div *ngIf="isFull"
+               class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+            <p class="text-sm text-amber-700 font-medium">This activity is fully booked</p>
+          </div>
+        </div>
+
+        <div *ngIf="isCancelled"
+             class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+          <p class="text-sm text-gray-500">This activity has been cancelled</p>
+        </div>
+
+        <div *ngIf="checkingRegistration" class="text-center py-2 text-sm text-gray-400 animate-pulse">
+          Checking registration status...
+        </div>
+
+      </div>
+    </div>
+
+    <!-- View my registrations link -->
+    <div class="text-center">
+      <a routerLink="/patient/activities/registrations"
+         class="text-sm text-teal-600 hover:text-teal-700 font-medium underline">
+        View all my registrations →
+      </a>
+    </div>
+
+  </div>
+</div>

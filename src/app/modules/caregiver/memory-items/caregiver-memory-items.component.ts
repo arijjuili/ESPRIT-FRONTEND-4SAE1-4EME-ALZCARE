@@ -3,11 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { CareTeamService } from '../../../core/services/care-team.service';
-import { PatientService } from '../../../core/services/patient.service';
-import { AssignmentStatus, CaregiverAssignment } from '../../../core/models/care-team.model';
-import { catchError, map } from 'rxjs/operators';
-import { forkJoin, of } from 'rxjs';
+import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
+import { catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import {
   MemoryCategory,
   MemoryItem,
@@ -124,8 +122,7 @@ export class CaregiverMemoryItemsComponent implements OnInit {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
-    private careTeamService: CareTeamService,
-    private patientService: PatientService
+    private caregiverPatientContext: CaregiverPatientContextService
   ) {}
 
   ngOnInit(): void {
@@ -548,50 +545,21 @@ export class CaregiverMemoryItemsComponent implements OnInit {
       return;
     }
 
-    this.careTeamService.getCaregiverAssignments(caregiverId)
-      .pipe(catchError(() => of([] as CaregiverAssignment[])))
-      .subscribe(assignments => {
-        const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-        if (activeAssignments.length === 0) {
-          this.patients = [];
-          this.patientNames = {};
-          this.recomputeAnalytics();
-          return;
-        }
-
-        const patientRequests = activeAssignments.map(assignment =>
-          this.patientService.getPatientById(assignment.patientId).pipe(
-            map(patient => ({
-              id: patient.id,
-              userId: patient.userId || assignment.patientId,
-              firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
-              lastName: patient.lastName || assignment.patientLastName || 'Patient'
-            })),
-            catchError(() => of({
-              id: assignment.patientId,
-              userId: assignment.patientId,
-              firstName: assignment.patientFirstName || 'Unknown',
-              lastName: assignment.patientLastName || 'Patient'
-            }))
-          )
-        );
-
-        forkJoin(patientRequests).subscribe({
-          next: (patients) => {
-            this.patients = patients;
-            this.patientNames = {};
-            this.patients.forEach(patient => {
-              const name = `${patient.firstName} ${patient.lastName}`.trim();
-              this.patientNames[patient.userId] = name || patient.userId;
-            });
-            this.recomputeAnalytics();
-          },
-          error: () => {
-            this.patients = [];
-            this.patientNames = {};
-            this.recomputeAnalytics();
-          }
+    this.caregiverPatientContext.getAssignedPatients()
+      .pipe(catchError(() => of([])))
+      .subscribe(patients => {
+        this.patients = patients.map(patient => ({
+          id: patient.id,
+          userId: patient.userId || patient.id,
+          firstName: patient.firstName || 'Unknown',
+          lastName: patient.lastName || 'Patient'
+        }));
+        this.patientNames = {};
+        this.patients.forEach(patient => {
+          const name = `${patient.firstName} ${patient.lastName}`.trim();
+          this.patientNames[patient.userId] = name || patient.userId;
         });
+        this.recomputeAnalytics();
       });
   }
 

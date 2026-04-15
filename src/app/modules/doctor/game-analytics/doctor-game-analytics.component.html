@@ -47,7 +47,7 @@
            [class.translate-y-0]="animatedCards.includes(0)">
         <div class="flex items-center justify-between mb-4">
           <div class="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center text-2xl">🎮</div>
-          <span class="text-green-500 text-sm font-semibold">+18%</span>
+          <span class="text-green-500 text-sm font-semibold"></span>
         </div>
         <p class="text-gray-500 text-sm">Total Sessions</p>
         <p class="text-3xl font-bold text-gray-900">{{ getTotalPlays() }}</p>
@@ -60,7 +60,7 @@
            [class.translate-y-0]="animatedCards.includes(1)">
         <div class="flex items-center justify-between mb-4">
           <div class="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-2xl">📊</div>
-          <span class="text-green-500 text-sm font-semibold">+8%</span>
+          <span class="text-green-500 text-sm font-semibold"></span>
         </div>
         <p class="text-gray-500 text-sm">Avg Score</p>
         <p class="text-3xl font-bold text-gray-900">{{ getAverageScore() }}%</p>
@@ -73,23 +73,10 @@
            [class.translate-y-0]="animatedCards.includes(2)">
         <div class="flex items-center justify-between mb-4">
           <div class="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-2xl">👥</div>
-          <span class="text-green-500 text-sm font-semibold">+5</span>
+          <span class="text-green-500 text-sm font-semibold"></span>
         </div>
         <p class="text-gray-500 text-sm">Active Patients</p>
         <p class="text-3xl font-bold text-gray-900">{{ getActivePatients() }}</p>
-      </div>
-
-      <div class="bg-white rounded-3xl p-6 shadow-lg border border-amber-100 transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
-           [class.opacity-0]="!animatedCards.includes(3)"
-           [class.translate-y-4]="!animatedCards.includes(3)"
-           [class.opacity-100]="animatedCards.includes(3)"
-           [class.translate-y-0]="animatedCards.includes(3)">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-2xl">⏱️</div>
-          <span class="text-green-500 text-sm font-semibold">+12%</span>
-        </div>
-        <p class="text-gray-500 text-sm">Avg Duration</p>
-        <p class="text-3xl font-bold text-gray-900">8.5 min</p>
       </div>
     </div>
 

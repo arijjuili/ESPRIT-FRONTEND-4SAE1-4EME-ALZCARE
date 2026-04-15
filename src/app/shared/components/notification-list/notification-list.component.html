@@ -22,12 +22,14 @@
       <button 
         *ngIf="showMarkAllRead && unreadCount > 0"
         class="mark-all-btn"
-        (click)="markAllAsRead()"
-        [disabled]="isLoading">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        [class.loading]="markingAllAsRead"
+        [disabled]="isLoading || markingAllAsRead"
+        (click)="markAllAsRead()">
+        <svg *ngIf="!markingAllAsRead" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        <span>Mark all as read</span>
+        <div *ngIf="markingAllAsRead" class="btn-spinner"></div>
+        <span>{{ markingAllAsRead ? 'Marking all...' : 'Mark all as read' }}</span>
       </button>
       
       <!-- Return to Dashboard Button -->
@@ -130,7 +132,7 @@
     <div 
       *ngFor="let notification of filteredNotifications; let i = index"
       class="notification-card"
-      [class.unread]="notification.status === 'UNREAD'"
+      [class.unread]="notification.status !== 'READ'"
       [class.critical]="notification.priority === 'CRITICAL'"
       [class.highlighted]="notificationToDelete === notification.id"
       [class]="getNotificationColorClass(notification.priority)">
@@ -162,7 +164,7 @@
 
         <!-- Unread Indicator -->
         <div 
-          *ngIf="notification.status === 'UNREAD'"
+          *ngIf="notification.status !== 'READ'"
           class="unread-indicator"
           [style.background-color]="effectiveTheme.primary">
         </div>
@@ -189,13 +191,16 @@
 
           <!-- Mark as Read Button (unread only) -->
           <button 
-            *ngIf="notification.status === 'UNREAD'"
+            *ngIf="notification.status !== 'READ'"
             class="action-btn mark-read"
+            [class.loading]="markingAsReadId === notification.id"
+            [disabled]="markingAsReadId === notification.id"
             (click)="markAsRead(notification.id)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg *ngIf="markingAsReadId !== notification.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <span>Mark read</span>
+            <div *ngIf="markingAsReadId === notification.id" class="btn-spinner"></div>
+            <span>{{ markingAsReadId === notification.id ? 'Marking...' : 'Mark read' }}</span>
           </button>
         </div>
 

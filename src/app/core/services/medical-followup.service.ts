@@ -567,6 +567,25 @@ confirmMedicationIntake(intakeId: number, body: { notes?: string } = {}) {
     );
   }
 
+  /**
+   * Get all appointments across all patients (for admin view)
+   * Fetches all active patients first, then gets their appointments in the given range
+   */
+  getAllAppointments(patients: { id: string; userId?: string; keycloakId?: string }[], from: string, to: string): Observable<Appointment[]> {
+    if (patients.length === 0) {
+      return of([]);
+    }
+    const requests = patients.map(patient => {
+      const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+      return this.getPatientAppointments(keycloakId, from, to).pipe(
+        catchError(() => of([]))
+      );
+    });
+    return forkJoin(requests).pipe(
+      map(results => results.flat())
+    );
+  }
+
   // ==================== DASHBOARD HELPERS ====================
 
   /**

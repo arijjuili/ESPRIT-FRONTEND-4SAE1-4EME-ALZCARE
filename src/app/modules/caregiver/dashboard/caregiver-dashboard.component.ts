@@ -2,32 +2,36 @@ import { CommonModule, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Subject, of, forkJoin } from 'rxjs';
-import { takeUntil, catchError, switchMap, map } from 'rxjs/operators';
+import { takeUntil, catchError, map } from 'rxjs/operators';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
 import { DailyCheckInStatus, GameActivity, HealthRecord, RecordType } from '../../../core/models/api.model';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { StatCardComponent } from '../../../shared/components/stat-card.component';
 import { AlertCardComponent } from '../../../shared/components/alert-card.component';
 import { AppointmentRequestCardComponent } from '../../../shared/components/appointment-request-card.component';
 import { BehaviorLogFormComponent } from '../../../shared/components/behavior-log-form.component';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { SafetyAlertBellComponent } from '../../../shared/components/safety-alert-bell/safety-alert-bell.component';
+import { PendingValidationsComponent } from '../../alerts/pending-validations/pending-validations.component';
+import { AlertPollingService } from '../../../core/services/alert-polling.service';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { CareTask } from '../../../core/models/user.model';
 import { Appointment } from '../../../core/models/medical-followup.model';
-import { BehaviorLogResponse, BehaviorSeverity } from '../../../core/models/safety-alert.model';
+import { AlertResponse, BehaviorLogResponse, BehaviorSeverity, ResolveAlertRequest, AcknowledgeAlertRequest } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
 
 @Component({
   selector: 'app-caregiver-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent, BehaviorLogFormComponent, NotificationBellComponent],
+  imports: [CommonModule, FormsModule, SlicePipe, RouterLink, StatCardComponent, AlertCardComponent, AppointmentRequestCardComponent, BehaviorLogFormComponent, NotificationBellComponent, SafetyAlertBellComponent, PendingValidationsComponent],
   templateUrl: './caregiver-dashboard.component.html',
   styleUrls: ['./caregiver-dashboard.component.scss']
 })
@@ -115,14 +119,27 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     [CaregiverRole.EMERGENCY]: 'bg-rose-100 text-rose-800 border-rose-200'
   };
 
+  // Safety alerts (from polling service)
+  activeAlerts: AlertResponse[] = [];
+  alertCount = 0;
+  criticalAlertCount = 0;
+  resolvingAlertId: string | null = null;
+  acknowledgeAlertId: string | null = null;
+  acknowledgeNotes = '';
+  resolveNotes = '';
+  resolutionType: string = 'CHECKED_OK';
+  resolveSubmitting = false;
+  acknowledgeSubmitting = false;
+
   constructor(
-    private authService: AuthService, 
+    private authService: AuthService,
     private apiService: ApiService,
     private dataService: DataService,
     private medicalService: MedicalFollowupService,
     private safetyAlertService: SafetyAlertService,
-    private patientService: PatientService,
+    private alertPolling: AlertPollingService,
     private careTeamService: CareTeamService,
+    private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
     private router: Router
   ) {}
@@ -137,11 +154,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       // Get tasks assigned to this caregiver (still from mock for now)
       this.allTasks = this.dataService.getTasksForCaregiver(currentUser.id);
 
-      // Load real patients from backend
+      // Load real patients from backend (includes assignments via context service)
       this.loadRealPatients();
-
-      // Load caregiver assignments (My Patients section)
-      this.loadCaregiverAssignments();
     }
 
     this.authService.currentUser$.subscribe(user => {
@@ -149,68 +163,118 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         this.caregiverName = user.name;
       }
     });
+
+    // Subscribe to safety alert polling
+    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe(alerts => {
+      this.activeAlerts = alerts.slice(0, 5); // show top 5 on dashboard
+      this.alertCount = alerts.length;
+      this.criticalAlertCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+    });
   }
-  
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  // ─── Alert helpers ─────────────────────────────────────────────
+  openAcknowledge(alertId: string): void {
+    this.acknowledgeAlertId = alertId;
+    this.acknowledgeNotes = '';
+  }
+
+  submitAcknowledge(): void {
+    if (!this.acknowledgeAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.acknowledgeSubmitting = true;
+    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId, notes: this.acknowledgeNotes })
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.acknowledgeSubmitting = false;
+        this.acknowledgeAlertId = null;
+        this.toastService.success('Alert acknowledged');
+        this.alertPolling.refresh();
+      });
+  }
+
+  openResolve(alertId: string): void {
+    this.resolvingAlertId = alertId;
+    this.resolveNotes = '';
+    this.resolutionType = 'CHECKED_OK';
+  }
+
+  submitResolve(): void {
+    if (!this.resolvingAlertId) return;
+    const userId = this.authService.getCurrentUser()?.id ?? '';
+    this.resolveSubmitting = true;
+    const req: ResolveAlertRequest = {
+      resolutionType: this.resolutionType as any,
+      resolutionNotes: this.resolveNotes,
+      isFalsePositive: false,
+      resolvedBy: userId
+    };
+    this.safetyAlertService.resolveAlert(this.resolvingAlertId, req)
+      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.resolveSubmitting = false;
+        this.resolvingAlertId = null;
+        this.toastService.success('Alert resolved');
+        this.alertPolling.refresh();
+      });
+  }
+
+  alertSeverityClass(sev: string): string {
+    const m: Record<string, string> = {
+      CRITICAL: 'bg-red-100 text-red-800 border-red-200',
+      HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
+      MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      LOW: 'bg-green-100 text-green-800 border-green-200'
+    };
+    return m[sev] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  alertCountdown(mins: number): string {
+    if (mins <= 0) return 'Overdue';
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+
   loadRealPatients(): void {
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
+    this.loadingAssignments = true;
+    forkJoin({
+      assignments: this.caregiverPatientContext.getActiveAssignments(),
+      patients: this.caregiverPatientContext.getAssignedPatients()
+    })
       .pipe(
         takeUntil(this.destroy$),
-        switchMap(assignments => {
-          const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-          this.caregiverAssignments = activeAssignments;
-
-          if (activeAssignments.length === 0) {
-            return of([] as PatientProfileResponse[]);
-          }
-
-          const patientRequests = activeAssignments.map(assignment =>
-            this.patientService.getPatientById(assignment.patientId).pipe(
-              map(patient => ({
-                ...patient,
-                id: patient.id || assignment.patientId,
-                userId: patient.userId || assignment.patientId,
-                firstName: patient.firstName || assignment.patientFirstName || 'Unknown',
-                lastName: patient.lastName || assignment.patientLastName || 'Patient'
-              })),
-              catchError(error => {
-                console.error(`Failed to load patient ${assignment.patientId}:`, error);
-                return of({
-                  id: assignment.patientId,
-                  userId: assignment.patientId,
-                  firstName: assignment.patientFirstName || 'Unknown',
-                  lastName: assignment.patientLastName || 'Patient'
-                } as PatientProfileResponse);
-              })
-            )
-          );
-
-          return forkJoin(patientRequests);
-        }),
         catchError(error => {
           console.error('Failed to load assigned patients:', error);
           this.toastService.error('Failed to load your assigned patients');
-          return of([] as PatientProfileResponse[]);
+          return of({
+            assignments: [] as CaregiverAssignment[],
+            patients: [] as PatientProfileResponse[]
+          });
         })
       )
       .subscribe({
-        next: (patients) => {
+        next: ({ assignments, patients }) => {
+          this.caregiverAssignments = assignments;
           this.patients = patients;
+          // Separate pending invites from assignments
+          this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
+          this.loadingAssignments = false;
           this.loadTodayCaregiverCheckIns();
           this.loadDailyCheckInStatuses();
           this.loadPatientAppointments();
-        // Load behaviors after patients are loaded
           this.loadRecentBehaviors();
           this.loadGameAnalytics();
         },
         error: (err) => {
           console.error('Failed to load patients:', err);
-          // Fallback to empty array if API fails
           this.patients = [];
+          this.caregiverAssignments = [];
+          this.pendingInvites = [];
+          this.loadingAssignments = false;
           this.todaySharedCheckIns = {};
           this.dailyCheckInStatuses = {};
           this.loadRecentBehaviors();
@@ -220,24 +284,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
   
   // ==================== My Patients Section ====================
-  
-  loadCaregiverAssignments(): void {
-    this.loadingAssignments = true;
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
-          this.toastService.error('Failed to load your patient assignments');
-          return of([]);
-        })
-      )
-      .subscribe(assignments => {
-        // Separate pending invites (assignments already loaded in loadRealPatients)
-        this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
-        this.loadingAssignments = false;
-      });
-  }
 
   acceptInvite(invite: CaregiverAssignment): void {
     if (!invite.inviteToken) return;
@@ -257,7 +303,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .subscribe(result => {
         if (result) {
           this.toastService.success('Invitation accepted! You are now assigned to this patient.');
-          this.loadCaregiverAssignments(); // Refresh the lists
+          this.caregiverPatientContext.invalidate();
+          this.loadRealPatients(); // Refresh the lists (includes pending invites)
         }
         this.acceptingInviteId = null;
       });

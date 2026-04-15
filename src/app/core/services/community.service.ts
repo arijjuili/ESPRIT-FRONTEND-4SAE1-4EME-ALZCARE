@@ -132,6 +132,15 @@ export class CommunityService {
     return this.http.post<void>(`${this.baseUrl}/posts/${id}/like`, {});
   }
 
+  /**
+   * Delete a post
+   * @param id Post ID
+   * @returns void
+   */
+  deletePost(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/posts/${id}`);
+  }
+
   // ==================== COMMENT METHODS ====================
 
   /**

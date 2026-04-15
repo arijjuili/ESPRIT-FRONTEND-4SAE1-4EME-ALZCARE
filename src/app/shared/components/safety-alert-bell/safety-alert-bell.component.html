@@ -1,0 +1,33 @@
+<a
+  routerLink="/alerts"
+  class="relative inline-flex items-center justify-center w-10 h-10 rounded-full transition-colors"
+  [class.bg-red-50]="activeCount > 0"
+  [class.bg-gray-100]="activeCount === 0"
+  [class.hover:bg-red-100]="activeCount > 0"
+  [class.hover:bg-gray-200]="activeCount === 0"
+  title="Safety Alerts">
+
+  <!-- Bell icon -->
+  <svg
+    class="w-5 h-5"
+    [class.text-red-600]="hasCritical"
+    [class.text-orange-500]="!hasCritical && activeCount > 0"
+    [class.text-gray-500]="activeCount === 0"
+    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+  </svg>
+
+  <!-- Critical pulse ring -->
+  <span *ngIf="hasCritical"
+    class="absolute inset-0 rounded-full border-2 border-red-500 animate-ping opacity-75 pointer-events-none">
+  </span>
+
+  <!-- Count badge -->
+  <span *ngIf="activeCount > 0"
+    class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-white text-[10px] font-bold leading-none"
+    [class.bg-red-600]="hasCritical"
+    [class.bg-orange-500]="!hasCritical">
+    {{ activeCount > 99 ? '99+' : activeCount }}
+  </span>
+</a>

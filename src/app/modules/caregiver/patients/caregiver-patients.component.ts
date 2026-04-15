@@ -1,19 +1,19 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+﻿import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, forkJoin, of } from 'rxjs';
-import { takeUntil, catchError, map } from 'rxjs/operators';
+import { takeUntil, catchError } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
+import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import {
   CaregiverAssignment,
   CaregiverRole,
-  AssignmentStatus,
   CaregiverPermissionsDto,
   CaregiverAvailabilitySlotDto
 } from '../../../core/models/care-team.model';
@@ -88,8 +88,8 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
-    private patientService: PatientService,
     private careTeamService: CareTeamService,
+    private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
     private router: Router,
     private fb: FormBuilder
@@ -131,68 +131,54 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
 
-    this.careTeamService.getCaregiverAssignments(this.caregiverId)
+    forkJoin({
+      assignments: this.caregiverPatientContext.getActiveAssignments(),
+      patients: this.caregiverPatientContext.getAssignedPatients()
+    })
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
+          console.error('Failed to load caregiver patients:', error);
           this.error = 'Failed to load your patient assignments';
           this.toastService.error('Failed to load your patients', 'Error');
-          return of([]);
+          return of({
+            assignments: [] as CaregiverAssignment[],
+            patients: [] as PatientProfileResponse[]
+          });
         })
       )
-      .subscribe(assignments => {
-        // Filter only active assignments
-        const activeAssignments = assignments.filter(
-          a => a.status === AssignmentStatus.ACTIVE
-        );
-        
-        if (activeAssignments.length === 0) {
+      .subscribe(({ assignments, patients }) => {
+        if (assignments.length === 0 || patients.length === 0) {
           this.patients = [];
           this.loading = false;
           return;
         }
 
-        // Load patient profiles for each assignment
-        this.loadPatientProfiles(activeAssignments);
-      });
-  }
+        const rows = patients
+          .map(patient => {
+            const assignment = assignments.find(
+              a => a.patientId === patient.id || a.patientId === patient.userId
+            );
+            if (!assignment) {
+              return null;
+            }
+            return {
+              ...patient,
+              assignment,
+              age: this.calculateAge(patient.dateOfBirth),
+              photoUrl: undefined
+            } as PatientWithAssignment;
+          })
+          .filter((row): row is PatientWithAssignment => row !== null);
 
-  /**
-   * Load patient profiles from IDs in assignments
-   */
-  private loadPatientProfiles(assignments: CaregiverAssignment[]): void {
-    const patientRequests = assignments.map((assignment) =>
-      this.patientService.getPatientById(assignment.patientId).pipe(
-        map((patient) => ({ patient, assignment })),
-        catchError(() => {
-          // No Keycloak/identity user — hide stale care-team assignment (same as doctor dashboard)
-          return of(null);
-        })
-      )
-    );
-
-    forkJoin(patientRequests)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((results) => {
-        const rows = results.filter(
-          (r): r is { patient: PatientProfileResponse; assignment: CaregiverAssignment } => r !== null
+        this.patients = rows.sort(
+          (a, b) =>
+            this.getRolePriority(a.assignment.role) - this.getRolePriority(b.assignment.role)
         );
-        this.patients = rows
-          .map(({ patient, assignment }) => ({
-            ...patient,
-            assignment,
-            age: this.calculateAge(patient.dateOfBirth),
-            photoUrl: undefined
-          }))
-          .sort(
-            (a, b) =>
-              this.getRolePriority(a.assignment.role) - this.getRolePriority(b.assignment.role)
-          );
-
         this.loading = false;
       });
   }
+
 
   /**
    * Calculate age from date of birth
@@ -265,9 +251,9 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
   getGenderDisplay(gender?: string): string {
     if (!gender) return '';
     const displayMap: Record<string, string> = {
-      'MALE': '👨 Male',
-      'FEMALE': '👩 Female',
-      'OTHER': '⚧ Other',
+      'MALE': 'ðŸ‘¨ Male',
+      'FEMALE': 'ðŸ‘© Female',
+      'OTHER': 'âš§ Other',
       'PREFER_NOT_TO_SAY': 'Not specified'
     };
     return displayMap[gender.toUpperCase()] || gender;
@@ -456,7 +442,7 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res) => {
           this.lastInviteUrl = res.inviteUrl;
-          this.toastService.success('Invite link created — share it with the new caregiver');
+          this.toastService.success('Invite link created â€” share it with the new caregiver');
           this.generatingInvite = false;
         },
         error: (err) => {
@@ -475,7 +461,7 @@ export class CaregiverPatientsComponent implements OnInit, OnDestroy {
     if (!this.lastInviteUrl) return;
     void navigator.clipboard.writeText(this.lastInviteUrl).then(
       () => this.toastService.success('Link copied'),
-      () => this.toastService.warning('Copy failed — select the link manually')
+      () => this.toastService.warning('Copy failed â€” select the link manually')
     );
   }
 }

@@ -99,19 +99,19 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Dashboard',
       path: '/patient/dashboard',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       roles: ['patient']
     },
     {
       label: 'Activities',
       path: '/patient/activities',
-      icon: 'ðŸ“‹',
+      icon: '📋',
       roles: ['patient']
     },
     {
       label: 'Medications',
       path: '/patient/medications',
-      icon: 'ðŸ’Š',
+      icon: '💊',
       roles: ['patient']
     },
         {
@@ -122,7 +122,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     },{
       label: 'Brain Games',
       path: '/patient/games',
-      icon: 'ðŸŽ®',
+      icon: '🎮',
       roles: ['patient']
     },
     {
@@ -134,20 +134,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Community',
       path: '/patient/community',
-      icon: 'ðŸ‘¥',
+      icon: '👥',
       roles: ['patient']
     },
     {
       label: 'Profile',
       path: '/patient/profile',
-      icon: 'ðŸ‘¤',
+      icon: '👤',
       roles: ['patient']
     },
     // Caregiver routes
     {
       label: 'Dashboard',
       path: '/caregiver/dashboard',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       roles: ['caregiver']
     },
     {
@@ -159,7 +159,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Patients',
       path: '/caregiver/patients',
-      icon: 'ðŸ‘¥',
+      icon: '👥',
       roles: ['caregiver']
     },
         {
@@ -170,25 +170,37 @@ export class NavbarComponent implements OnInit, OnDestroy {
     },{
       label: 'Behaviors',
       path: '/caregiver/behaviors',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       roles: ['caregiver']
+    },
+    {
+      label: 'Events',
+      path: '/caregiver/events',
+      icon: '📹',
+      roles: ['caregiver']
+    },
+    {
+      label: 'Safety Alerts',
+      path: '/alerts',
+      icon: '🚨',
+      roles: ['caregiver', 'doctor', 'admin']
     },
     {
       label: 'Tasks',
       path: '/caregiver/tasks',
-      icon: 'ðŸ“‹',
+      icon: '📋',
       roles: ['caregiver']
     },
     {
       label: 'Handovers',
       path: '/caregiver/handovers',
-      icon: 'ðŸ“',
+      icon: '📝',
       roles: ['caregiver']
     },
     {
       label: 'Schedule',
       path: '/caregiver/schedule',
-      icon: 'ðŸ“…',
+      icon: '📅',
       roles: ['caregiver']
     },
     {
@@ -207,7 +219,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Dashboard',
       path: '/doctor/dashboard',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       roles: ['doctor']
     },
         {
@@ -236,7 +248,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     },{
       label: 'Checklist',
       path: '/doctor/checklist',
-      icon: 'ðŸ“‹',
+      icon: '📋',
       roles: ['doctor']
     },
     {
@@ -255,61 +267,67 @@ export class NavbarComponent implements OnInit, OnDestroy {
     {
       label: 'Dashboard',
       path: '/admin/dashboard',
-      icon: 'ðŸ“Š',
+      icon: '📊',
       roles: ['admin']
     },
     {
       label: 'Medical',
       path: '/admin/medical',
-      icon: 'ðŸ¥',
+      icon: '🏥',
       roles: ['admin']
     },
     {
       label: 'Caregivers',
       path: '/admin/caregivers',
-      icon: 'ðŸ¤',
+      icon: '🤝',
       roles: ['admin']
     },
     {
       label: 'Interactive',
       path: '/admin/interactive',
-      icon: 'ðŸ§©',
+      icon: '🧩',
       roles: ['admin']
     },
     {
       label: 'Community',
       path: '/admin/community',
-      icon: 'ðŸ’¬',
+      icon: '💬',
       roles: ['admin']
     },
     {
       label: 'Users',
       path: '/admin/users',
-      icon: 'ðŸ‘¥',
+      icon: '👥',
       roles: ['admin']
     },
     {
       label: 'Care Teams',
       path: '/admin/care-teams',
-      icon: 'ðŸ‘¨â€âš•ï¸',
+      icon: '👨‍⚕️',
       roles: ['admin']
     },
     {
       label: 'Analytics',
       path: '/admin/analytics',
-      icon: 'ðŸ“ˆ',
+      icon: '📈',
       roles: ['admin']
     },
     {
       label: 'Schedules',
       path: '/admin/schedules',
-      icon: 'ðŸ“…',
+      icon: '📅',
+      roles: ['admin']
+    },
+    {
+      label: 'Cameras',
+      path: '/admin/medical/cameras',
+      icon: '📹',
       roles: ['admin']
     },
     {
       label: 'Settings',
       path: '/admin/settings',
-      icon: 'âš™ï¸',
+      icon: '⚙️',
       roles: ['admin']
     }
   ];

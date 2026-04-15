@@ -37,6 +37,38 @@
   &:active {
     transform: scale(0.95);
   }
+
+  // Bell turns red when there are unread notifications
+  &.has-unread {
+    color: #ef4444;
+    animation: bellShake 2s ease-in-out infinite;
+    
+    .bell-icon {
+      filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4));
+    }
+  }
+
+  // Critical notifications - more intense
+  &.has-critical {
+    color: #dc2626;
+    animation: bellShake 1s ease-in-out infinite;
+    
+    .bell-icon {
+      filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.6));
+    }
+  }
+}
+
+@keyframes bellShake {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: rotate(-8deg);
+  }
+  20%, 40%, 60%, 80% {
+    transform: rotate(8deg);
+  }
 }
 
 .bell-icon {
@@ -52,25 +84,27 @@
 // Unread Badge
 .unread-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--theme-primary, #14b8a6) 0%, #ef4444 100%);
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  animation: badgePulse 2s infinite;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+  animation: badgePulse 1.5s infinite;
+  border: 2px solid white;
 
   &.critical {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    animation: criticalPulse 1s infinite;
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    animation: criticalPulse 0.8s infinite;
+    box-shadow: 0 2px 12px rgba(220, 38, 38, 0.7);
   }
 }
 
@@ -429,11 +463,33 @@
     transform: scale(0.95);
   }
 
+  // Loading state
+  &.loading {
+    opacity: 1;
+    visibility: visible;
+    cursor: not-allowed;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
   // Always visible on mobile
   @media (max-width: 768px) {
     opacity: 1;
     visibility: visible;
   }
+}
+
+// Button spinner
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 // Footer

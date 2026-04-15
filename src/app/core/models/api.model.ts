@@ -207,6 +207,8 @@ export interface HealthRecord {
   executiveScore?: number;
   reviewedScore?: number;
   reviewedAnswers?: Record<string, boolean>;
+  submittedBy?: string;
+  skipped?: boolean;
 }
 
 // Health Record Create Request

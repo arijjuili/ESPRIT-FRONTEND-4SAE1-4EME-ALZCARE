@@ -2,15 +2,14 @@ import { Component, Output, EventEmitter, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SafetyAlertService } from '../../../../core/services/safety-alert.service';
-import { PatientService, PatientProfileResponse } from '../../../../core/services/patient.service';
-import { CareTeamService } from '../../../../core/services/care-team.service';
+import { PatientProfileResponse } from '../../../../core/services/patient.service';
+import { CaregiverPatientContextService } from '../../../../core/services/caregiver-patient-context.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ImageUploadComponent } from '../../../../shared/components/image-upload/image-upload.component';
 import { BehaviorLogResponse, UpdateBehaviorLogRequest } from '../../../../core/models/safety-alert.model';
-import { AssignmentStatus } from '../../../../core/models/care-team.model';
-import { switchMap, catchError } from 'rxjs/operators';
-import { of, forkJoin } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 @Component({
   selector: 'app-behavior-log-form',
@@ -59,8 +58,7 @@ export class BehaviorLogFormComponent implements OnInit {
   constructor(
     private fb: FormBuilder, 
     private safetyService: SafetyAlertService,
-    private patientService: PatientService,
-    private careTeamService: CareTeamService,
+    private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
     private authService: AuthService
   ) {
@@ -156,31 +154,8 @@ export class BehaviorLogFormComponent implements OnInit {
       return;
     }
     
-    this.careTeamService.getCaregiverAssignments(currentUser.id)
+    this.caregiverPatientContext.getAssignedPatients()
       .pipe(
-        switchMap(assignments => {
-          const activeAssignments = assignments.filter(a => a.status === AssignmentStatus.ACTIVE);
-
-          if (activeAssignments.length === 0) {
-            return of([] as PatientProfileResponse[]);
-          }
-
-          const patientRequests = activeAssignments.map(assignment =>
-            this.patientService.getPatientById(assignment.patientId).pipe(
-              catchError(error => {
-                console.error(`Failed to load patient ${assignment.patientId}:`, error);
-                return of({
-                  id: assignment.patientId,
-                  userId: assignment.patientId,
-                  firstName: assignment.patientFirstName || 'Unknown',
-                  lastName: assignment.patientLastName || 'Patient'
-                } as PatientProfileResponse);
-              })
-            )
-          );
-
-          return forkJoin(patientRequests);
-        }),
         catchError(error => {
           console.error('Failed to load assigned patients:', error);
           this.patientLoadError = 'Failed to load your assigned patients. Please try again.';

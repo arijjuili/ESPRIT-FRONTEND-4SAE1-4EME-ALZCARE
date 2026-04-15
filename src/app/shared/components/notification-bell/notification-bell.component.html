@@ -2,6 +2,8 @@
   <!-- Bell Button with Badge -->
   <button 
     class="bell-button"
+    [class.has-unread]="unreadCount > 0"
+    [class.has-critical]="criticalCount > 0"
     (click)="toggleDropdown()"
     [attr.aria-label]="'Notifications' + (unreadCount > 0 ? ' (' + unreadCount + ' unread)' : '')"
     [attr.aria-expanded]="isDropdownOpen"
@@ -65,7 +67,7 @@
       <div 
         *ngFor="let notification of notifications"
         class="notification-item"
-        [class.unread]="notification.status === 'UNREAD'"
+        [class.unread]="notification.status !== 'READ'"
         [class.clickable]="notification.actionUrl"
         [class.critical]="notification.priority === 'CRITICAL'"
         (click)="onNotificationClick(notification)"
@@ -86,7 +88,7 @@
               {{ notification.title }}
             </h4>
             <span 
-              *ngIf="notification.status === 'UNREAD'" 
+              *ngIf="notification.status !== 'READ'" 
               class="unread-dot"
               [style.background-color]="effectiveTheme.primary">
             </span>
@@ -107,14 +109,17 @@
 
         <!-- Mark as Read Button (visible on hover for unread items) -->
         <button 
-          *ngIf="notification.status === 'UNREAD'"
+          *ngIf="notification.status !== 'READ'"
           class="mark-read-btn"
+          [class.loading]="markingAsReadId === notification.id"
+          [disabled]="markingAsReadId === notification.id"
           (click)="markAsRead(notification.id, $event)"
           title="Mark as read"
           [style.--theme-primary]="effectiveTheme.primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg *ngIf="markingAsReadId !== notification.id" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
+          <div *ngIf="markingAsReadId === notification.id" class="btn-spinner"></div>
         </button>
       </div>
     </div>

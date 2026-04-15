@@ -3,13 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { Observable, forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
-import { UserManagementService } from '../../../core/services/user-management.service';
+import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
-import { ManagedUser, UserRole } from '../../../core/models/user-management.model';
+import { PatientProfileResponse } from '../../../core/services/patient.service';
 import { AuthUser } from '../../../core/models/user.model';
 import { AssignmentStatus, CaregiverAssignment, CaregiverRole } from '../../../core/models/care-team.model';
 import {
@@ -42,6 +43,8 @@ import {
  * - Auto-populate doctor from logged-in user
  * - Update appointment status (confirm, complete, cancel)
  * - Filter by date
+ * 
+ * SECURITY: Only shows patients assigned to this doctor in the patient dropdown.
  */
 @Component({
   selector: 'app-doctor-appointments',
@@ -94,11 +97,11 @@ export class DoctorAppointmentsComponent implements OnInit {
   completeAfterOutcomeSave = false;
   outcomeSaving = false;
 
-  // Patient Search
+  // Patient Search - ONLY assigned patients
   patientSearchQuery = '';
-  patients: ManagedUser[] = [];
-  filteredPatients: ManagedUser[] = [];
-  selectedPatient: ManagedUser | null = null;
+  assignedPatients: PatientProfileResponse[] = [];
+  filteredPatients: PatientProfileResponse[] = [];
+  selectedPatient: PatientProfileResponse | null = null;
   showPatientDropdown = false;
   loadingPatients = false;
 
@@ -146,45 +149,49 @@ export class DoctorAppointmentsComponent implements OnInit {
   // Route parameter for pre-selected patient
   routePatientId: string | null = null;
 
-	  constructor(
-	    private medicalService: MedicalFollowupService,
-	    private userManagementService: UserManagementService,
-	    private authService: AuthService,
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private medicalService: MedicalFollowupService,
+    private doctorPatientContext: DoctorPatientContextService,
+    private authService: AuthService,
       private apiService: ApiService,
       private careTeamService: CareTeamService,
-	    private schedulingService: AppointmentSchedulingService,
-	    private route: ActivatedRoute,
-	    private cdr: ChangeDetectorRef
-	  ) {}
+    private schedulingService: AppointmentSchedulingService,
+    private route: ActivatedRoute,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadCurrentUser();
     this.initializeDateFilters();
     this.loadAppointments();
-    this.loadPatients();
+    this.loadAssignedPatients();
     
     // Check for patient ID in route params (from /doctor/patients/:id/appointments)
     this.route.params.subscribe(params => {
       this.routePatientId = params['id'] || null;
       if (this.routePatientId) {
-        console.log('Patient ID from route:', this.routePatientId);
         this.preselectPatientFromRoute();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   /**
    * Pre-select patient when coming from patient list
    */
   preselectPatientFromRoute(): void {
-    if (!this.routePatientId || this.patients.length === 0) {
+    if (!this.routePatientId || this.assignedPatients.length === 0) {
       return;
     }
     
-    const patient = this.patients.find(p => p.id === this.routePatientId);
+    const patient = this.assignedPatients.find(p => p.id === this.routePatientId || p.userId === this.routePatientId);
     if (patient) {
-      console.log('Found patient for appointment:', patient);
-      
       // First open the modal
       this.openModal();
       
@@ -192,11 +199,9 @@ export class DoctorAppointmentsComponent implements OnInit {
       setTimeout(() => {
         this.selectedPatient = patient;
         // Use Keycloak ID (userId) if available - same as selectPatient
-        const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+        const keycloakId = patient.userId || patient.id;
         this.newAppointment.patientId = keycloakId;
-        console.log('[DoctorAppointments] Preselected patient ID:', keycloakId);
         this.patientSearchQuery = this.getPatientDisplayName(patient);
-        console.log('Display name set to:', this.patientSearchQuery);
         
         // Load caregiver info
         this.loadPatientCaregiver(keycloakId);
@@ -204,8 +209,6 @@ export class DoctorAppointmentsComponent implements OnInit {
         // Force change detection to update the view
         this.cdr.detectChanges();
       }, 0);
-    } else {
-      console.warn('Patient not found for ID:', this.routePatientId);
     }
   }
 
@@ -271,14 +274,16 @@ export class DoctorAppointmentsComponent implements OnInit {
   }
 
   /**
-   * Load all patients for autocomplete
+   * Load assigned patients for autocomplete (NOT all patients)
    */
-  loadPatients(): void {
+  loadAssignedPatients(): void {
     this.loadingPatients = true;
-    this.userManagementService.getActivePatients().subscribe({
+    this.doctorPatientContext.getAssignedPatients().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (patients) => {
-        this.patients = patients;
-        this.filteredPatients = this.patients;
+        this.assignedPatients = patients;
+        this.filteredPatients = this.assignedPatients;
         this.loadingPatients = false;
         // If we have a route patient ID, try to pre-select now
         if (this.routePatientId) {
@@ -286,7 +291,7 @@ export class DoctorAppointmentsComponent implements OnInit {
         }
       },
       error: (err) => {
-        console.error('Error loading patients:', err);
+        console.error('Error loading assigned patients:', err);
         this.loadingPatients = false;
       }
     });
@@ -303,35 +308,34 @@ export class DoctorAppointmentsComponent implements OnInit {
     const query = input.value;
     this.patientSearchQuery = query;
     this.showPatientDropdown = true;
-	    this.selectedPatient = null;
-	    this.newAppointment.patientId = '';
-	    this.linkedCaregiverName = null;
-	    this.linkedCaregiverId = null;
-	    this.resetAvailability();
+    this.selectedPatient = null;
+    this.newAppointment.patientId = '';
+    this.linkedCaregiverName = null;
+    this.linkedCaregiverId = null;
+    this.resetAvailability();
 
     if (!query.trim()) {
-      this.filteredPatients = this.patients;
+      this.filteredPatients = this.assignedPatients;
       return;
     }
 
     const lowerQuery = query.toLowerCase();
-    this.filteredPatients = this.patients.filter(patient => 
-      (patient.fullName && patient.fullName.toLowerCase().includes(lowerQuery)) ||
-      (patient.firstName && patient.firstName.toLowerCase().includes(lowerQuery)) ||
-      (patient.lastName && patient.lastName.toLowerCase().includes(lowerQuery)) ||
-      (patient.email && patient.email.toLowerCase().includes(lowerQuery)) ||
-      (patient.username && patient.username.toLowerCase().includes(lowerQuery)) ||
-      patient.id.toLowerCase().includes(lowerQuery)
-    );
+    this.filteredPatients = this.assignedPatients.filter(patient => {
+      const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.toLowerCase();
+      return fullName.includes(lowerQuery) ||
+        ((patient as any).email?.toLowerCase() || '').includes(lowerQuery) ||
+        ((patient as any).username?.toLowerCase() || '').includes(lowerQuery) ||
+        patient.id.toLowerCase().includes(lowerQuery);
+    });
   }
 
   /**
    * Select a patient from the dropdown
    */
-  selectPatient(patient: ManagedUser): void {
+  selectPatient(patient: PatientProfileResponse): void {
     this.selectedPatient = patient;
-    // Use Keycloak ID (userId) if available, fallback to id - same as prescriptions
-    const keycloakId = (patient as any).userId || (patient as any).keycloakId || patient.id;
+    // Use Keycloak ID (userId) if available, fallback to id
+    const keycloakId = patient.userId || patient.id;
     this.newAppointment.patientId = keycloakId;
     console.log('[DoctorAppointments] Selected patient ID:', keycloakId);
 	    this.patientSearchQuery = this.getPatientDisplayName(patient);
@@ -416,26 +420,21 @@ export class DoctorAppointmentsComponent implements OnInit {
   /**
    * Get display name for patient (full name only)
    */
-  getPatientDisplayName(patient: ManagedUser): string {
+  getPatientDisplayName(patient: PatientProfileResponse): string {
     if (!patient) return 'Unknown';
     
-    const fullName = patient.fullName?.trim();
-    const firstLast = patient.firstName && patient.lastName 
-      ? `${patient.firstName} ${patient.lastName}`.trim() 
-      : '';
-    const username = patient.username?.trim();
-    const email = patient.email?.trim();
+    const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+    const username = (patient as any).username?.trim();
+    const email = (patient as any).email?.trim();
     
-    return fullName || firstLast || username || email || 'Unknown';
+    return fullName || username || email || 'Unknown';
   }
 
-  private findPatientByAnyId(patientId: string): ManagedUser | undefined {
-    return this.patients.find(patient => {
-      const candidate = patient as ManagedUser & { userId?: string; keycloakId?: string };
+  private findPatientByAnyId(patientId: string): PatientProfileResponse | undefined {
+    return this.assignedPatients.find(patient => {
       return (
         patient.id === patientId ||
-        candidate.userId === patientId ||
-        candidate.keycloakId === patientId
+        patient.userId === patientId
       );
     });
   }
@@ -446,11 +445,7 @@ export class DoctorAppointmentsComponent implements OnInit {
   getPatientNameById(patientId: string): string {
     const patient = this.findPatientByAnyId(patientId);
     if (patient) {
-      return patient.fullName || 
-        (patient.firstName && patient.lastName ? `${patient.firstName} ${patient.lastName}` : null) ||
-        patient.username || 
-        patient.email ||
-        'Unknown Patient';
+      return this.getPatientDisplayName(patient);
     }
     return 'Unknown Patient';
   }
@@ -643,8 +638,6 @@ export class DoctorAppointmentsComponent implements OnInit {
       outcomeType: this.outcomeType
     });
 
-    console.log('[DoctorAppointments] Saving outcome payload:', update);
-
     this.medicalService.updateAppointment(appointmentId, update).subscribe({
       next: (updated) => {
         const index = this.appointments.findIndex(a => a.id === appointmentId);
@@ -725,13 +718,6 @@ export class DoctorAppointmentsComponent implements OnInit {
       this.filterTo
     ).subscribe({
       next: (appointments) => {
-        console.log('[DoctorAppointments] Loaded appointments:', appointments);
-        // Log appointments with ONLINE mode to check meetingUrl
-        appointments.forEach(appt => {
-          if (appt.mode === AppointmentMode.ONLINE) {
-            console.log(`[DoctorAppointments] Online appointment ${appt.id}: status=${appt.status}, meetingUrl=${appt.meetingUrl}`);
-          }
-        });
         this.appointments = appointments.sort((a, b) => this.compareAppointments(a, b));
         this.loading = false;
       },
@@ -1163,17 +1149,11 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.loading = true;
     this.error = null;
     this.activeActionId = appointmentId;
-    console.log('[DoctorAppointments] Updating status to', status, 'for appointment', appointmentId);
     
     this.medicalService.changeAppointmentStatus(appointmentId, status).subscribe({
       next: (updated) => {
-        console.log('[DoctorAppointments] Response from PATCH:', updated);
-        console.log('[DoctorAppointments] Response meetingUrl:', updated.meetingUrl);
-        console.log('[DoctorAppointments] Response status:', updated.status);
-        
         const index = this.appointments.findIndex(a => a.id === appointmentId);
         if (index !== -1) {
-          // 🆕 IMPORTANT: Mettre à jour avec les données du backend (incluant meetingUrl)
           this.appointments[index] = { 
             ...this.appointments[index], 
             ...updated,
@@ -1181,14 +1161,11 @@ export class DoctorAppointmentsComponent implements OnInit {
             meetingUrl: updated.meetingUrl || this.appointments[index].meetingUrl
           };
           
-          console.log('[DoctorAppointments] Updated appointment. meetingUrl:', this.appointments[index].meetingUrl);
-          
           // Si c'est une confirmation d'un RDV ONLINE et qu'on n'a pas encore de meetingUrl,
           // recharger cet appointment spécifique pour récupérer le meetingUrl
           if (status === AppointmentStatus.CONFIRMED && 
               this.appointments[index].mode === AppointmentMode.ONLINE &&
               !this.appointments[index].meetingUrl) {
-            console.log('[DoctorAppointments] No meetingUrl after confirm, fetching specific appointment...');
             this.fetchMeetingUrl(appointmentId);
           }
         }
@@ -1302,12 +1279,8 @@ export class DoctorAppointmentsComponent implements OnInit {
   }
 
   reloadSingleAppointment(appointmentId: number): void {
-    console.log('[DoctorAppointments] Reloading single appointment:', appointmentId);
-    
     this.medicalService.getAppointment(appointmentId).subscribe({
       next: (appointment) => {
-        console.log('[DoctorAppointments] Reloaded appointment:', appointment);
-        
         const index = this.appointments.findIndex(a => a.id === appointmentId);
         if (index !== -1) {
           this.appointments[index] = { 
@@ -1316,12 +1289,6 @@ export class DoctorAppointmentsComponent implements OnInit {
             meetingUrl: appointment.meetingUrl || this.appointments[index].meetingUrl
           };
           this.appointments = [...this.appointments]; // Force change detection
-          
-          if (this.appointments[index].meetingUrl) {
-            console.log('[DoctorAppointments] ✅ Got meetingUrl:', this.appointments[index].meetingUrl);
-          } else {
-            console.warn('[DoctorAppointments] ⚠️ Still no meetingUrl from backend');
-          }
         }
       },
       error: (err) => {
@@ -1629,7 +1596,7 @@ export class DoctorAppointmentsComponent implements OnInit {
     };
     this.patientSearchQuery = '';
     this.selectedPatient = null;
-    this.filteredPatients = this.patients;
+    this.filteredPatients = this.assignedPatients;
     this.linkedCaregiverName = null;
     this.linkedCaregiverId = null;
     this.showPatientDropdown = false;
@@ -1650,7 +1617,7 @@ export class DoctorAppointmentsComponent implements OnInit {
     this.suggestedSlots = [];
   }
 
-  private extractCaregiverId(patient: ManagedUser): string | null {
+  private extractCaregiverId(patient: PatientProfileResponse): string | null {
     const anyPatient: any = patient as any;
     const direct = anyPatient.caregiverId || anyPatient.caregiverUserId;
     const inProfile = anyPatient.profile?.caregiverId || anyPatient.profile?.caregiverUserId;
@@ -1763,7 +1730,7 @@ export class DoctorAppointmentsComponent implements OnInit {
 
   /**
    * Fetch meeting URL for a specific appointment
-   * Le backend génère automatiquement le meetingUrl quand le RDV est CONFIRMÉ
+   * Le meetingUrl est fourni par le backend quand le RDV est CONFIRMÉ
    */
   fetchMeetingUrl(appointmentId: number): void {
     if (!this.currentUser?.id) {
@@ -1777,7 +1744,6 @@ export class DoctorAppointmentsComponent implements OnInit {
     // 1) Preferred: regenerate endpoint (works even if appointment is already CONFIRMED).
     this.medicalService.regenerateTeleconsultationLink(appointmentId, this.currentUser.id).subscribe({
       next: ({ meetingUrl }) => {
-        console.log('[DoctorAppointments] Regenerate teleconsultation response:', meetingUrl);
         this.applyMeetingUrl(appointmentId, meetingUrl);
         this.loading = false;
       },
@@ -1787,7 +1753,6 @@ export class DoctorAppointmentsComponent implements OnInit {
         // 2) Fallback: (re)confirm to trigger generation, then reload the appointment details.
         this.medicalService.changeAppointmentStatus(appointmentId, AppointmentStatus.CONFIRMED).subscribe({
           next: (updated) => {
-            console.log('[DoctorAppointments] Reconfirm response:', updated);
             this.applyMeetingUrl(appointmentId, updated.meetingUrl);
 
             if (updated.meetingUrl) {
@@ -1797,7 +1762,6 @@ export class DoctorAppointmentsComponent implements OnInit {
 
             this.medicalService.getAppointment(appointmentId).subscribe({
               next: (appointment) => {
-                console.log('[DoctorAppointments] Appointment after reconfirm:', appointment);
                 this.applyMeetingUrl(appointmentId, appointment.meetingUrl);
                 this.loading = false;
               },
@@ -1833,8 +1797,6 @@ export class DoctorAppointmentsComponent implements OnInit {
 
     if (meetingUrl) {
       console.log('[DoctorAppointments] Updated with meetingUrl:', meetingUrl);
-    } else {
-      console.warn('[DoctorAppointments] No meetingUrl yet - appointment needs to be confirmed');
     }
   }
 
@@ -1864,7 +1826,6 @@ export class DoctorAppointmentsComponent implements OnInit {
     }
     
     navigator.clipboard.writeText(url).then(() => {
-      console.log('Meeting URL copied to clipboard:', url);
       alert('Meeting link copied to clipboard!');
     }).catch(err => {
       console.error('Failed to copy URL:', err);
