@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +8,14 @@ import { ActivityService } from '../../../../core/services/activity.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ActivityResponse, Registration } from '../../../../core/models/activity.model';
+import * as L from 'leaflet';
+
+interface NominatimResult {
+  place_id: number;
+  lat: string;
+  lon: string;
+  display_name: string;
+}
 
 @Component({
   selector: 'app-activity-detail',
@@ -16,12 +24,18 @@ import { ActivityResponse, Registration } from '../../../../core/models/activity
   templateUrl: './activity-detail.component.html'
 })
 export class ActivityDetailComponent implements OnInit, OnDestroy {
+  @ViewChild('mapContainer') mapContainer!: ElementRef<HTMLDivElement>;
+
   private destroy$ = new Subject<void>();
   private patientId = '';
+  private map?: L.Map;
 
   activity: ActivityResponse | null = null;
   loading = false;
   error: string | null = null;
+  mapLoading = false;
+  mapError: string | null = null;
+  suggestedLocations: NominatimResult[] = [];
 
   // Registration state
   existingRegistration: Registration | null = null;
@@ -53,6 +67,10 @@ export class ActivityDetailComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.map) {
+      this.map.remove();
+      this.map = undefined;
+    }
   }
 
   loadActivity(id: string): void {
@@ -70,8 +88,145 @@ export class ActivityDetailComponent implements OnInit, OnDestroy {
         if (activity) {
           this.activity = activity;
           if (this.patientId) this.checkRegistration(activity.id);
+          // Wait for DOM to render the map container
+          setTimeout(() => this.loadMapData(), 0);
         }
       });
+  }
+
+  private async loadMapData(): Promise<void> {
+    if (!this.activity || !this.mapContainer) return;
+
+    this.mapLoading = true;
+    this.mapError = null;
+    this.suggestedLocations = [];
+
+    let centerLat = this.activity.latitude ?? null;
+    let centerLon = this.activity.longitude ?? null;
+
+    // If backend didn't provide coordinates, geocode the location string
+    if (centerLat == null || centerLon == null) {
+      const geo = await this.geocode(this.activity.location);
+      if (geo) {
+        centerLat = parseFloat(geo.lat);
+        centerLon = parseFloat(geo.lon);
+      }
+    }
+
+    if (centerLat == null || centerLon == null) {
+      this.mapError = 'Could not find coordinates for this location.';
+      this.mapLoading = false;
+      return;
+    }
+
+    // Find nearby similar locations
+    const nearby = await this.searchNearby(this.activity.location, centerLat, centerLon);
+    // Deduplicate and filter out exact coordinate duplicates
+    const seen = new Set<string>();
+    const deduped: NominatimResult[] = [];
+    for (const place of nearby) {
+      const key = `${place.lat},${place.lon}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(place);
+      }
+    }
+
+    this.suggestedLocations = deduped.slice(0, 4);
+    this.initMap(centerLat, centerLon);
+    this.mapLoading = false;
+  }
+
+  private async geocode(query: string): Promise<NominatimResult | null> {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    try {
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data: NominatimResult[] = await res.json();
+      return data[0] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async searchNearby(query: string, lat: number, lon: number): Promise<NominatimResult[]> {
+    // ~7km bounding box for local ranking
+    const delta = 0.06;
+    const viewbox = `${lon - delta},${lat + delta},${lon + delta},${lat - delta}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&viewbox=${viewbox}&bounded=0`;
+    try {
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+      const data: NominatimResult[] = await res.json();
+      return data || [];
+    } catch {
+      return [];
+    }
+  }
+
+  private initMap(centerLat: number, centerLon: number): void {
+    if (!this.mapContainer) return;
+
+    this.map = L.map(this.mapContainer.nativeElement);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(this.map);
+
+    // Custom icons
+    const primaryIcon = L.divIcon({
+      className: 'custom-marker-primary',
+      html: `<div style="width:24px;height:24px;background:#ef4444;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+
+    const suggestionIcon = L.divIcon({
+      className: 'custom-marker-suggestion',
+      html: `<div style="width:18px;height:18px;background:#3b82f6;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.25);"></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    });
+
+    const bounds = L.latLngBounds([]);
+    let primarySet = false;
+
+    for (const place of this.suggestedLocations) {
+      const lat = parseFloat(place.lat);
+      const lon = parseFloat(place.lon);
+      if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
+
+      bounds.extend([lat, lon]);
+
+      if (!primarySet) {
+        // First result = activity location
+        L.marker([lat, lon], { icon: primaryIcon })
+          .addTo(this.map)
+          .bindPopup(`<strong>${this.activity?.title || 'Activity'}</strong><br/>${place.display_name}`);
+        primarySet = true;
+      } else {
+        L.marker([lat, lon], { icon: suggestionIcon })
+          .addTo(this.map)
+          .bindPopup(`<strong>Suggested nearby</strong><br/>${place.display_name}`);
+      }
+    }
+
+    // If no suggestions returned at all, still mark the center
+    if (!primarySet) {
+      bounds.extend([centerLat, centerLon]);
+      L.marker([centerLat, centerLon], { icon: primaryIcon })
+        .addTo(this.map)
+        .bindPopup(`<strong>${this.activity?.title || 'Activity'}</strong><br/>${this.activity?.location || ''}`);
+    }
+
+    if (bounds.isValid()) {
+      this.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+    } else {
+      this.map.setView([centerLat, centerLon], 14);
+    }
+
+    // Ensure Leaflet recalculates container size after layout settles
+    setTimeout(() => {
+      this.map?.invalidateSize();
+    }, 200);
   }
 
   checkRegistration(activityId: string): void {

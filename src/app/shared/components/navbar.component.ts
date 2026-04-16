@@ -109,9 +109,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['patient']
     },
     {
-      label: 'Routines',
+      label: 'My Routines',
       path: '/patient/routines',
-      icon: 'R',
+      icon: '🧩',
       roles: ['patient']
     },
     {
@@ -125,7 +125,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/patient/appointments',
       icon: '📅',
       roles: ['patient']
-    }, {
+    },
+    {
       label: 'Brain Games',
       path: '/patient/games',
       icon: '🎮',
@@ -147,12 +148,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Profile',
       path: '/patient/profile',
       icon: '👤',
-      roles: ['patient']
-    },
-    {
-      label: 'My Routines',
-      path: '/patient/routines',
-      icon: '🧩',
       roles: ['patient']
     },
     // Caregiver routes
@@ -267,6 +262,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Health Records',
       path: '/doctor/assessments',
       icon: '🧠',
+      roles: ['doctor']
+    },
+    {
+      label: 'Habits',
+      path: '/doctor/habits',
+      icon: '🧩',
+      roles: ['doctor']
+    },
+    {
+      label: 'Statistics',
+      path: '/doctor/statistics',
+      icon: '📊',
       roles: ['doctor']
     },
     {

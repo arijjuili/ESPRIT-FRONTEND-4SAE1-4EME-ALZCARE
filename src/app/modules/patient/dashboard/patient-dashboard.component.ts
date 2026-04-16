@@ -2,7 +2,7 @@ import { Component, ElementRef, OnInit, ViewChild, OnDestroy } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { catchError, of, Subscription, switchMap } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { DailyCareService } from '../../../core/services/daily-care.service';
@@ -47,7 +47,7 @@ type DashboardTask = {
 @Component({
   selector: 'app-patient-dashboard',
   standalone: true,
-  imports: [CommonModule, AlertCardComponent, AppointmentRequestCardComponent, NotificationBellComponent, WeatherPrayerCardComponent, PrayerTimesComponent],
+  imports: [CommonModule, RouterLink, AlertCardComponent, AppointmentRequestCardComponent, NotificationBellComponent, WeatherPrayerCardComponent, PrayerTimesComponent],
   templateUrl: './patient-dashboard.component.html',
   styleUrls: ['./patient-dashboard.component.scss']
 })
@@ -56,6 +56,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
 
   patientName = '';
   patientId: string | null = null;
+  internalPatientId: string | null = null;
 
   // Role theme for notification bell (teal for patient)
   currentTheme: RoleTheme = {
@@ -148,6 +149,20 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
         this.healthMetrics = this.dataService.getHealthMetrics(patient.id);
         this.updateCompletedCount();
       }
+
+      // Resolve internal patient id for cognitive/medical endpoints
+      this.patientService.getPatientById(currentUser.id).pipe(
+        catchError(() => of(null))
+      ).subscribe(profile => {
+        this.internalPatientId = profile?.id || currentUser.id || null;
+        this.loadCheckInStatus();
+        this.loadAssessmentStatus();
+        this.loadGamificationData();
+        this.startGamificationAutoRefresh();
+        this.loadTodayTasks();
+        this.loadAutonomyProfile();
+        this.loadAutonomyHistory();
+      });
     }
 
     this.authService.currentUser$.subscribe(user => {
@@ -156,18 +171,10 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.loadCheckInStatus();
-    this.loadAssessmentStatus();
-    this.loadGamificationData();
-    this.startGamificationAutoRefresh();
-
     const navState = history.state as { assessmentSubmitted?: boolean; nextDueDate?: string };
     if (navState?.assessmentSubmitted) {
       this.assessmentSubmittedMessage = 'Assessment submitted successfully.';
       this.assessmentSubmittedDueDate = navState.nextDueDate || '';
-      this.loadTodayTasks();
-      this.loadAutonomyProfile();
-      this.loadAutonomyHistory();
     }
   }
 
@@ -255,13 +262,12 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadAutonomyProfile(): void {
-    const authUser = this.authService.getCurrentUser();
-    const userId = this.authService.getCurrentUserId() || authUser?.id || '';
-    if (!userId) {
+    const patientId = this.internalPatientId;
+    if (!patientId) {
       return;
     }
     this.loadingAutonomy = true;
-    this.dailyCareService.getAutonomyProfile(userId).subscribe({
+    this.dailyCareService.getAutonomyProfile(patientId).subscribe({
       next: (profile) => {
         this.autonomyProfile = profile;
         this.loadingAutonomy = false;
@@ -274,12 +280,11 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadAutonomyHistory(): void {
-    const authUser = this.authService.getCurrentUser();
-    const userId = this.authService.getCurrentUserId() || authUser?.id || '';
-    if (!userId) {
+    const patientId = this.internalPatientId;
+    if (!patientId) {
       return;
     }
-    this.dailyCareService.getAutonomyHistory(userId).subscribe({
+    this.dailyCareService.getAutonomyHistory(patientId).subscribe({
       next: (items) => {
         this.autonomyHistory = items || [];
       },
@@ -533,7 +538,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   // ==================== Daily Check-In ==================== 
 
   loadCheckInStatus(): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId) return;
 
     this.apiService.getDailyCheckInStatus(patientId).subscribe({
@@ -553,7 +558,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadTodayCheckInRecord(fallbackShowModal: boolean): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId) return;
 
     this.dailyCheckInResolved = false;
@@ -632,7 +637,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private saveDailyCheckIn(skipped: boolean): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId || this.checkInSubmitting) return;
 
     if (!skipped && !this.isCurrentCheckInStepValid()) {
@@ -746,7 +751,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   // ==================== Assessment Status ====================
 
   loadAssessmentStatus(): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId) return;
 
     this.isLoadingAssessment = true;
@@ -808,7 +813,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private loadGamificationData(): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId) return;
 
     this.gamificationLoading = true;
@@ -845,7 +850,7 @@ export class PatientDashboardComponent implements OnInit, OnDestroy {
   }
 
   private startGamificationAutoRefresh(): void {
-    const patientId = this.authService.getCurrentUser()?.id;
+    const patientId = this.internalPatientId;
     if (!patientId) return;
 
     if (this.gamificationRefreshTimer) {

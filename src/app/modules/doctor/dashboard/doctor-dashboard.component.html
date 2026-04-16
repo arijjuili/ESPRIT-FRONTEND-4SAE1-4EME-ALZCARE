@@ -335,8 +335,8 @@
         <p class="text-xs text-gray-500 mb-3">Review caregiver Gemini suggestions and approve/reject.</p>
         <select [(ngModel)]="selectedAutonomyPatientId" (change)="loadAutonomySuggestions()" class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
           <option value="">Select patient</option>
-          <option *ngFor="let assignment of doctorAssignments" [value]="assignment.patientId">
-            {{ getPatientFullName(assignment) }}
+          <option *ngFor="let patient of assignedPatients" [value]="patient.id">
+            {{ patient.firstName }} {{ patient.lastName }}
           </option>
         </select>
         <textarea [(ngModel)]="autonomyReviewNote" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"

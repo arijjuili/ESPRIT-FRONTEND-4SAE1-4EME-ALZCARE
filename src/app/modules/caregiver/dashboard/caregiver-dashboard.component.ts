@@ -278,6 +278,10 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         next: ({ assignments, patients }) => {
           this.caregiverAssignments = assignments;
           this.patients = patients;
+          this.autonomyPatientOptions = patients.map(p => ({
+            id: p.id,
+            label: `${p.firstName} ${p.lastName || ''}`.trim()
+          }));
           // Separate pending invites from assignments
           this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
           this.loadingAssignments = false;
@@ -627,7 +631,8 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
 
   private getPatientApiId(patientId: string): string {
     const patient = this.findPatientByAnyId(patientId);
-    return patient?.userId || patient?.id || patientId;
+    // Internal patient id is the correct id for cognitive/medical endpoints
+    return patient?.id || patient?.userId || patientId;
   }
 
   // ==================== Behavior Tracking ====================
@@ -727,8 +732,11 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     this.caregiverCheckInError = '';
     this.caregiverCheckInSuccessMessage = '';
 
+    // Backend workaround: caregiver assignment check currently expects Keycloak userId
+    // instead of the internal patient id. Send userId until backend is fixed.
+    const checkInPatientId = this.findPatientByAnyId(this.caregiverCheckInPatientId)?.userId || this.caregiverCheckInPatientId;
     this.apiService.submitCaregiverDailyCheckIn({
-      patientId: this.caregiverCheckInPatientId,
+      patientId: checkInPatientId,
       caregiverUserId: this.caregiverId,
       confusion: this.caregiverCheckInAnswers.confusion,
       memory: this.caregiverCheckInAnswers.memory,
@@ -1120,5 +1128,37 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       voiceUsage,
       adaptiveAdjustments
     };
+  }
+
+  generateAutonomySuggestion(): void {
+    if (!this.selectedAutonomyPatientId) return;
+    this.autonomyLoading = true;
+    this.dailyCareService.generateAutonomySuggestion(this.selectedAutonomyPatientId, this.autonomyNotes)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: suggestion => {
+          this.latestAutonomySuggestion = suggestion;
+          this.autonomyLoading = false;
+        },
+        error: () => {
+          this.autonomyLoading = false;
+        }
+      });
+  }
+
+  submitAutonomySuggestion(): void {
+    if (!this.latestAutonomySuggestion) return;
+    this.autonomyLoading = true;
+    this.dailyCareService.submitAutonomySuggestion(this.latestAutonomySuggestion.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.latestAutonomySuggestion = null;
+          this.autonomyLoading = false;
+        },
+        error: () => {
+          this.autonomyLoading = false;
+        }
+      });
   }
 }

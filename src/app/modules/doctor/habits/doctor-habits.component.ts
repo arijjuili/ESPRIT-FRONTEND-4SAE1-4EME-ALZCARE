@@ -7,6 +7,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
 import { DoctorAssignmentStatus, DoctorAssignment } from '../../../core/models/care-team.model';
 import { Habit, HabitType, HabitTask, HabitTaskRequest, AutonomyMode } from '../../../core/models/daily-care.model';
 
@@ -67,7 +68,8 @@ export class DoctorHabitsComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private apiService: ApiService,
     private careTeamService: CareTeamService,
-    private patientService: PatientService
+    private patientService: PatientService,
+    private doctorPatientContext: DoctorPatientContextService
   ) {}
 
   ngOnInit(): void {
@@ -113,41 +115,23 @@ export class DoctorHabitsComponent implements OnInit, OnDestroy {
       this.error = 'Missing doctor identity. Please log in again.';
       return;
     }
+    this.doctorId = userId;
 
-    this.apiService.getDoctorByUserId(userId)
-      .pipe(
-        takeUntil(this.destroy$),
-        switchMap(doctor => {
-          this.doctorId = doctor.id;
-          return forkJoin([
-            this.careTeamService.getDoctorPatients(doctor.id).pipe(catchError(() => of([]))),
-            this.careTeamService.getDoctorPatients('11111111-1111-1111-1111-111111111111').pipe(catchError(() => of([])))
-          ]).pipe(
-            map(([res1, res2]) => [...res1, ...res2])
-          );
-        })
-      )
+    forkJoin({
+      assignments: this.doctorPatientContext.getActiveAssignments(),
+      patients: this.doctorPatientContext.getAssignedPatients()
+    })
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (assignments) => {
-          this.doctorAssignments = assignments.filter(
-            assignment => assignment.status === DoctorAssignmentStatus.ACTIVE
-          );
-          
-          const ids = [...new Set(this.doctorAssignments.map((a) => a.patientId))];
-          if (ids.length > 0) {
-            forkJoin(ids.map((id) => this.patientService.getPatientById(id).pipe(catchError(() => of(null)))))
-              .pipe(takeUntil(this.destroy$))
-              .subscribe(profiles => {
-                profiles.forEach((profile, i) => {
-                  if (profile) {
-                    this.patientProfiles[ids[i]] = profile;
-                  }
-                });
-                this.refreshAssignedPatientsByHabit();
-              });
-          } else {
-            this.refreshAssignedPatientsByHabit();
-          }
+        next: ({ assignments, patients }) => {
+          this.doctorAssignments = assignments;
+          patients.forEach(p => {
+            this.patientProfiles[p.id] = p;
+            if (p.userId) {
+              this.patientProfiles[p.userId] = p;
+            }
+          });
+          this.refreshAssignedPatientsByHabit();
         },
         error: () => {
           this.doctorAssignments = [];

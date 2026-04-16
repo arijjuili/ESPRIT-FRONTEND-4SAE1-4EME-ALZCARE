@@ -18,7 +18,7 @@ import {
   ReminderTiming
 } from '../../../core/models/activity.model';
 
-type ActiveTab = 'upcoming' | 'recommended' | 'reminders' | 'interests';
+type ActiveTab = 'upcoming' | 'recommended' | 'reminders' | 'daily' | 'interests';
 
 @Component({
   selector: 'app-patient-activities',
@@ -118,6 +118,7 @@ export class PatientActivitiesComponent implements OnInit, OnDestroy {
     if (tab === 'recommended' && !this.recommendedActivities.length && !this.loadingRecommended) this.loadRecommended();
     if (tab === 'reminders' && !this.reminders.length && !this.loadingReminders) this.loadReminders();
     if (tab === 'interests' && !this.interestsLoaded) this.loadInterests();
+    // daily tab loads on init already, no extra fetch needed
   }
 
   // ── Upcoming ────────────────────────────────────────────────────

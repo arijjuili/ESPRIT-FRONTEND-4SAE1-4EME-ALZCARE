@@ -109,3 +109,34 @@ export interface AutonomyHistoryItem {
   changeReason?: string;
   changedAt: string;
 }
+
+// ── DailyCare stubs for unmerged dailycare branch components ──
+
+export interface DailyRoutine {
+  id: string;
+  name: string;
+  description: string;
+  patientCount: number;
+  taskCount: number;
+  active: boolean;
+  scheduleWindow?: string;
+}
+
+export type DailyCarePriority = 'low' | 'medium' | 'high';
+export type DailyCareStatus = 'PENDING' | 'COMPLETED' | 'MISSED';
+
+export interface DailyCareTask {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  priority: DailyCarePriority;
+  status: DailyCareStatus;
+  patientId: string;
+  patientName?: string;
+  patientFirstName?: string;
+  patientLastName?: string;
+  dueDate: string;
+  routineId?: string;
+  assignedCaregiverId?: string;
+}
