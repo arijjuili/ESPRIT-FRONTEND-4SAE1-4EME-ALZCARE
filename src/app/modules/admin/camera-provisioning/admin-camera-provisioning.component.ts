@@ -32,6 +32,10 @@ export class AdminCameraProvisioningComponent implements OnInit, OnDestroy {
   patientTokens: PairingToken[] = [];
   loadingTokens = false;
 
+  ngrokUrl: string | null = null;
+  loadingNgrokUrl = false;
+  copiedNgrokUrl = false;
+
   now = new Date();
   private timerSubscription: any;
 
@@ -54,6 +58,7 @@ export class AdminCameraProvisioningComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadPatients();
+    this.loadNgrokUrl();
 
     this.timerSubscription = interval(1000)
       .pipe(takeUntil(this.destroy$))
@@ -245,5 +250,30 @@ export class AdminCameraProvisioningComponent implements OnInit, OnDestroy {
       return `${minutes}m ${seconds}s`;
     }
     return `${seconds}s`;
+  }
+
+  loadNgrokUrl(): void {
+    this.loadingNgrokUrl = true;
+    this.cameraService.getNgrokUrl()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          this.ngrokUrl = response.url;
+          this.loadingNgrokUrl = false;
+        },
+        error: () => {
+          this.toastService.error('Failed to load ngrok URL');
+          this.loadingNgrokUrl = false;
+        }
+      });
+  }
+
+  copyNgrokUrl(): void {
+    if (!this.ngrokUrl) return;
+    navigator.clipboard.writeText(this.ngrokUrl).then(() => {
+      this.copiedNgrokUrl = true;
+      this.toastService.success('ngrok URL copied to clipboard');
+      setTimeout(() => this.copiedNgrokUrl = false, 2000);
+    });
   }
 }

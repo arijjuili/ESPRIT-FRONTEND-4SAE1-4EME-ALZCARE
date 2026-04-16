@@ -158,15 +158,15 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
-      label: 'Appointments',
-      path: '/caregiver/appointments',
-      icon: '📅',
-      roles: ['caregiver']
-    },
-    {
       label: 'Patients',
       path: '/caregiver/patients',
       icon: '👥',
+      roles: ['caregiver']
+    },
+    {
+      label: 'Appointments',
+      path: '/caregiver/appointments',
+      icon: '📅',
       roles: ['caregiver']
     },
     {
@@ -174,7 +174,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/caregiver/medications',
       icon: '💊',
       roles: ['caregiver']
-    }, {
+    },
+    {
       label: 'Behaviors',
       path: '/caregiver/behaviors',
       icon: '📊',
@@ -185,12 +186,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/caregiver/events',
       icon: '📹',
       roles: ['caregiver']
-    },
-    {
-      label: 'Safety Alerts',
-      path: '/alerts',
-      icon: '🚨',
-      roles: ['caregiver', 'doctor', 'admin']
     },
     {
       label: 'Tasks',
@@ -205,12 +200,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
-      label: 'Schedule',
-      path: '/caregiver/schedule',
-      icon: '📅',
-      roles: ['caregiver']
-    },
-    {
       label: 'Memory Items',
       path: '/caregiver/memory-items',
       icon: '🧠',
@@ -221,6 +210,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/caregiver/cognitive-analytics',
       icon: '📈',
       roles: ['caregiver']
+    },
+    {
+      label: 'Safety Alerts',
+      path: '/alerts',
+      icon: '🚨',
+      roles: ['caregiver', 'doctor', 'admin']
     },
     // Doctor routes
     {
@@ -242,9 +237,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['doctor']
     },
     {
-      label: 'Prescriptions',
-      path: '/doctor/prescriptions',
-      icon: '💊',
+      label: 'Health Records',
+      path: '/doctor/assessments',
+      icon: '🧠',
       roles: ['doctor']
     },
     {
@@ -252,16 +247,17 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/doctor/records',
       icon: '📄',
       roles: ['doctor']
-    }, {
-      label: 'Checklist',
-      path: '/doctor/checklist',
-      icon: '📋',
+    },
+    {
+      label: 'Prescriptions',
+      path: '/doctor/prescriptions',
+      icon: '💊',
       roles: ['doctor']
     },
     {
-      label: 'Health Records',
-      path: '/doctor/assessments',
-      icon: '🧠',
+      label: 'Checklist',
+      path: '/doctor/checklist',
+      icon: '📋',
       roles: ['doctor']
     },
     {

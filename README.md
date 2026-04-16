@@ -1,118 +1,207 @@
-# 🫀 Alzheimer Care App
+# AlzCare – Alzheimer's Disease Management Platform (Frontend)
 
-A comprehensive care management platform designed to support patients with Alzheimer's disease and their caregivers. Built with Angular, Tailwind CSS, and TypeScript.
+## Overview
 
-## 🎯 Features
+AlzCare is an intelligent web platform for Alzheimer's disease management, designed to support patients, caregivers, doctors, and administrators through a comprehensive microservices architecture.
 
-### Patient Dashboard
-- **Health Metrics**: Track vitals, mood, and wellness indicators
-- **Medications**: Organized prescription management and schedules
-- **Daily Activities**: Task tracking and activity logs
-- **Brain Games**: Cognitive exercises for mental stimulation
-- **Community Forum**: Discussion platform with post creation, comments, likes, and categories (Advice, Support, Resources, Success Stories, Questions)
-- **Profile**: Personal health information management
+This project was developed as part of the **PIDEV – 4th Year Engineering Program** at **Esprit School of Engineering** (Academic Year 2025–2026). It addresses the functional axes of Alzheimer's care through a full-stack application with role-based dashboards, real-time collaboration features, IoT motion detection, and AI-powered assistance.
 
-### Caregiver Dashboard
-- **Dashboard**: Overview of assigned patients and key metrics
-  - Quick access "Log Behavior" button with patient pre-selection
-- **Behavior Tracking**: Log and monitor patient behaviors and incidents
-  - Behavior log form with **image upload** (drag-drop, gallery, camera)
-  - Behavior log list for reviewing history with photo thumbnails
-  - Full-screen lightbox/slideshow for viewing attached images
-  - Keyboard navigation (arrows, escape) in lightbox
-  - Patient-specific behavior tracking
+The platform enables:
+- **Patients** to track health metrics, manage medications, participate in community forums, access cognitive games, follow daily care routines, and interact with an AI memory companion
+- **Caregivers** to monitor patient behaviors, log incidents with photo evidence, track medication compliance, manage tasks and handovers, and receive safety alerts
+- **Doctors** to oversee patient cases, manage prescriptions with drug catalog integration, coordinate habit-based care plans, and track AI-generated autonomy assessments
+- **Admins** to manage users, assign care teams, configure camera devices, moderate content, and monitor system analytics
 
-### Doctor Dashboard
-- **Dashboard**: Overview of patient cases *(Other features: Patient Records, Schedule Management - Not Implemented)*
+---
 
-### Admin Dashboard
-- **Dashboard**: System overview and key metrics
-- **Medical Records**: Access and manage medical records
-- **Caregivers Management**: Manage caregiver accounts
-- **Interactive Features**: Interactive tools and features
-- **Community Management**: Moderate community content
-- **User Management**: Manage system users and roles
-- **Analytics**: Monitor system-wide metrics
-- **Settings**: System configuration
-- **Schedule Management**: Create and manage notification schedules
+## Features
+
+### Patient Features
+- **Health Metrics Dashboard** – Track vitals, mood, and wellness indicators
+- **Medication Calendar** – Calendar-based medication intake tracking with daily intake status and completion history
+- **Daily Care Routines** – View and complete assigned habit routines (morning, evening, activity types)
+- **Brain Games** – Five adaptive cognitive game types: Memory Match, Word Recall, Attention Task, Pattern Recognition, Spatial Navigation — with gamification (points, badges, leaderboard, daily challenges)
+- **Memory Wallet** – AI-powered memory conversation assistant with storybook generation, quiz mode, and voice command support
+- **Self-Assessment** – Patient self-assessment forms for health and autonomy evaluation
+- **Appointments** – View and manage scheduled appointments
+- **Community Forum** – Discussion platform with post creation, comments, likes, and categories (Advice, Support, Resources, Success Stories, Questions)
+- **Profile Management** – Personal health information and care preferences
+
+### Caregiver Features
+- **Patient Overview Dashboard** – Quick access to assigned patients and key metrics, with a direct "Log Behavior" shortcut
+- **Behavior Tracking** – Log and monitor patient behaviors with image upload (drag-drop, gallery, camera) and severity levels
+- **Behavior History** – Review logs with photo thumbnails and full-screen lightbox viewer with keyboard navigation (arrows, escape)
+- **Medication Monitoring** – View medication plan compliance and intake history for assigned patients
+- **Task Management** – Create and manage care tasks for assigned patients
+- **Appointments** – View and manage scheduled caregiver appointments
+- **Events** – Track patient events and activity registrations
+- **Handovers** – Shift handover notes and transfer records between caregivers
+- **Memory Items** – View and manage patient personal memory catalogue (family, places, events)
+- **Game Analytics** – View patient cognitive game performance and trends
+- **Patient List** – Browse and search all assigned patients
+
+### Doctor Features
+- **Patient Cases Dashboard** – Overview of assigned patients via care team, with alerts and key stats
+- **Patient Records & Assessments** – View health records and assessment results with PDF export
+- **Prescriptions** – Full medication plan management: create/edit plans, add medication items with schedules and dosages, drug search powered by OpenFDA catalog autocomplete
+- **Habit Management** – Create habits with structured tasks, set autonomy mode per task (INDEPENDENT / ASSISTED / DEPENDENT), and assign habits to patients
+- **Autonomy Assessment** – Review AI-generated (Gemini) autonomy profiles (mobility, hygiene, medication, decision-making), submit and approve/reject suggestions workflow
+- **Game Analytics** – Monitor patient cognitive performance per game type and over time
+- **Patient Analytics** – Patient-level analytics, history, and trend charts
+- **Statistics** – Doctor-level stats: habits per patient, task distribution by autonomy mode and criticality, completion trends
+- **Appointments** – Schedule and manage patient appointments
+- **Checklist** – Doctor task checklist and follow-up tracking
+- **Patient Detail View** – Detailed profile page per assigned patient
+
+### Admin Features
+- **System Dashboard** – Overview of platform metrics and activity
+- **User Management** – CRUD operations for all user roles (Patient, Caregiver, Doctor, Admin)
+- **Medical Records Access** – View and manage patient medical information
+- **Care Teams** – Assign doctors and caregivers to patients, manage team composition and roles
+- **Camera Devices** – Register and manage IoT camera devices (ESP32-CAM) per patient and zone
+- **Camera Provisioning** – Provision and configure new camera devices
+- **Routines Management** – Manage daily care routines and habit templates across the system
+- **Community Moderation** – Moderate forum posts and comments
+- **Notification Schedule Management** – Create and manage scheduled notification campaigns
+- **Analytics** – Monitor system-wide metrics and usage statistics
+- **Settings** – System configuration and parameters
 
 ### Shared Features
-- **Notification System**: Real-time notifications with polling
-  - Notification bell in navbar
-  - Notification list page (sorted latest → oldest)
-  - Toast notifications
-  - "Return to Dashboard" button on notification page
-- **Safety Alerts**: Safety alert management system
-- **Landing Page**: Public landing page for the application
-- **Dashboard Redirect**: Unified `/dashboard` route that redirects to role-appropriate dashboard
+- **Real-time Notifications** – Notification bell with polling, toast alerts, and dedicated notification list page
+- **Safety Alerts** – Alert creation, acknowledgment, escalation, and resolution with full audit history
+- **Landing Page** – Public-facing introduction to the platform
+- **Unified Dashboard Entry** – `/dashboard` route auto-redirects to role-appropriate interface
+- **Automatic Token Refresh** – Seamless Keycloak OAuth2 session management with silent token refresh (no session timeouts)
+- **PDF Export** – Generate PDF reports for patient health records and assessment results
+- **Weather & Prayer Card** – Contextual weather and prayer time widget shown on dashboards
 
-## 🛠️ Tech Stack
+---
 
-- **Frontend**: Angular 18+ (Standalone Components)
-- **Styling**: Tailwind CSS
+## Tech Stack
+
+### Frontend
+- **Framework**: Angular 18+ (Standalone Components)
 - **Language**: TypeScript
+- **Styling**: Tailwind CSS
 - **Reactive Programming**: RxJS
-- **Authentication**: Keycloak OAuth2
+- **Authentication**: Keycloak OAuth2 / OpenID Connect
 - **Build Tool**: Angular CLI
-- **Version Control**: Git
+- **Image Handling**: Cloudinary integration for behavior log photo uploads
+- **Drug Catalog**: OpenFDA API for medication name search and autocomplete
+- **PDF Generation**: jsPDF for client-side report export
 
-## 🔧 Backend Services
+### Backend Services Connected
 
-| Service | Port | Status |
-|---------|------|--------|
-| Identity Service | 8001 | ✅ Active |
-| Safety Alert Engine | 8003 | ✅ Active |
-| Notification Service | 8004 | ✅ Active |
-| Community Social | 8009 | ✅ Active |
+| Service | Port | Description |
+|---------|------|-------------|
+| Identity Service | 8001 | User management, roles, patient/caregiver/doctor profiles |
+| Event Ingestion Service | 8002 | Receives ESP32-CAM motion events and snapshots |
+| Safety Alert Engine | 8003 | Behavior logs, safety alerts, incident tracking |
+| Notification Service | 8004 | Notification delivery and scheduled campaigns |
+| Cognitive Memory Service | 8005 | Games, gamification, memory items, health records, AI conversations |
+| Daily Care Service | 8006 | Habit management, completions, autonomy assessments, AI suggestions |
+| Medical Management Service | 8007 | Appointments, medication plans, medication intake tracking |
+| Care Team Service | 8008 | Doctor-patient and caregiver-patient assignments |
+| Community Social Service | 8009 | Forum posts, comments, likes, moderation |
 
-## 📦 Project Structure
+All backend communication is routed through the **Spring Cloud Gateway (Port 8080)** using a local Angular proxy (`/api`).
+
+---
+
+## Architecture
+
+The frontend is a single Angular SPA that communicates exclusively through the API Gateway. Role-based route guards ensure each user only accesses their designated module.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        ANGULAR SPA (Port 4200)                        │
+├──────────────┬───────────────┬──────────────┬────────────────────────┤
+│  Patient     │  Caregiver    │  Doctor      │  Admin                 │
+│  Module      │  Module       │  Module      │  Module                │
+│              │               │              │                        │
+│  Dashboard   │  Dashboard    │  Dashboard   │  Dashboard             │
+│  Medications │  Behaviors    │  Patients    │  Users                 │
+│  Routines    │  Medications  │  Prescriptions│  Care Teams           │
+│  Games       │  Tasks        │  Habits      │  Camera Devices        │
+│  Memory      │  Handovers    │  Assessments │  Routines              │
+│  Wallet      │  Events       │  Analytics   │  Schedules             │
+│  Community   │  Patients     │  Statistics  │  Community             │
+│  Profile     │  Analytics    │  Appointments│  Analytics             │
+└──────┬───────┴───────┬───────┴──────┬───────┴───────┬────────────────┘
+       │               │              │               │
+       └───────────────┴──────────────┴───────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│               Spring Cloud Gateway  /api  (Port 8080)                │
+│           (JWT validation, routing, load balancing)                   │
+└──────────────────────────────────────────────────────────────────────┘
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
+   Identity / Care Team   Daily Care / Medical   Cognitive / Community
+   Services (8001, 8008)  Services (8006, 8007)  Services (8005, 8009)
+```
+
+### Key Design Patterns
+- **Standalone Components** – No NgModule-based structure; each component declares its own imports
+- **Role Guards** – Route-level access control based on decoded JWT roles
+- **Context Services** – `DoctorPatientContextService` and `CaregiverPatientContextService` maintain cross-component patient selection state
+- **localStorage Fallback** – Habit assignments and habit catalog cached locally to handle backend RBAC restrictions in development
+
+---
+
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── core/              # Services, guards, interceptors, models
-│   │   ├── guards/        # Auth guards
-│   │   ├── interceptors/  # HTTP interceptors (auth)
-│   │   ├── models/        # Data models (user, notification, safety-alert, etc.)
-│   │   └── services/      # Core services (auth, api, notification, etc.)
-│   ├── modules/           # Feature modules
-│   │   ├── auth/          # Login component
-│   │   ├── landing/       # Landing page
-│   │   ├── patient/       # Patient dashboard, activities, medications, games, community, profile
-│   │   ├── caregiver/     # Caregiver dashboard, behavior tracking
-│   │   ├── doctor/        # Doctor dashboard *(limited features)*
-│   │   └── admin/         # Admin dashboard, medical, users, schedules, settings, etc.
-│   ├── shared/            # Shared components
-│   │   └── components/    # Navbar, sidebars, cards, notifications, toast, etc.
-│   ├── app.component.*    # Root component
-│   └── app.routes.ts      # Main routing configuration
-├── assets/                # Images, icons, static files
-├── environments/          # Environment configurations
-└── styles.css             # Global styles and Tailwind imports
+│   ├── core/
+│   │   ├── guards/        # Auth and role-based route guards
+│   │   ├── interceptors/  # HTTP auth interceptor (JWT injection)
+│   │   ├── models/        # Data models (api, daily-care, medical-followup, care-team, safety-alert, camera-device, etc.)
+│   │   └── services/      # Auth, API, DailyCare, MedicalFollowup, CareTeam, OpenFDA, Notification, SafetyAlert, PdfExport, etc.
+│   ├── modules/
+│   │   ├── auth/          # Login, invite acceptance
+│   │   ├── landing/       # Public landing page
+│   │   ├── alerts/        # Alert list, pending validations
+│   │   ├── patient/       # Dashboard, medications, routines, games, memory-wallet, assessments, appointments, community, profile
+│   │   ├── caregiver/     # Dashboard, behaviors, medications, tasks, appointments, events, handovers, memory-items, patients
+│   │   ├── doctor/        # Dashboard, patients, prescriptions, habits, records, assessments, game-analytics, statistics, appointments, checklist
+│   │   └── admin/         # Dashboard, users, caregivers, care-teams, camera-devices, routines, schedules, community, medical, analytics, settings
+│   ├── shared/
+│   │   └── components/    # Navbar, stat-card, alert-card, notification-bell, safety-alert-bell, toast, weather-prayer-card, confirm-dialog, etc.
+│   ├── app.component.*
+│   └── app.routes.ts
+├── assets/
+├── environments/
+└── styles.css
 ```
 
-## 🚀 Getting Started
+---
+
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
-- npm or yarn
-- Angular CLI
+- Node.js 18+ and npm
+- Angular CLI (`npm install -g @angular/cli`)
+- Backend stack running (see [backend repository](https://github.com/arijjuili/ESPRIT-BACKEND-4SAE1-4EME-ALZCARE))
 
-### Installation
+### Frontend Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/alzheimer-care-app.git
-cd alzheimer-care-app
+git clone https://github.com/arijjuili/ESPRIT-FRONTEND-4SAE1-4EME-ALZCARE.git
+cd ESPRIT-FRONTEND-4SAE1-4EME-ALZCARE
 
 # Install dependencies
 npm install
 
 # Start development server
 ng serve
-
-# Navigate to http://localhost:4200
 ```
+
+Navigate to **http://localhost:4200**. The Angular proxy forwards all `/api` requests to `http://localhost:8080` (API Gateway).
 
 ### Build for Production
 
@@ -120,122 +209,71 @@ ng serve
 ng build --configuration production
 ```
 
-## 🔐 Authentication
+### Running Tests
 
-The app supports role-based access control with **automatic token refresh** (no more 5-minute logout interruptions):
-- **Patient**: View own health data and activities
-- **Caregiver**: Manage assigned patients, track behaviors
-- **Doctor**: Access dashboard *(full medical records - Not Implemented)*
-- **Admin**: System administration and user management
+```bash
+# One-shot CI run
+npx ng test --no-watch
 
-Authentication is handled via Keycloak OAuth2 with silent token refresh for seamless user experience.
+# Watch mode (re-runs on file changes)
+npx ng test
+```
 
-## 📝 Latest Updates
+See [TESTING.md](TESTING.md) for the full testing guide covering Karma + Jasmine setup, writing service and component tests, and troubleshooting.
 
-### Session 27: 2026-03-02 (Community/Forum Integration)
-- ✅ **Complete Community/Forum System** - Full social platform for patient engagement
-  - Discussion threads with categories (Advice, Support, Resources, Success Stories, Questions)
-  - Post creation with rich text content
-  - Comment system with threaded replies
-  - Like/unlike functionality with real-time counts
-  - Post detail view with full comment thread
-  - Author badges ("You" indicator for own posts/comments)
-  - Category filtering and navigation
-  - Community guidelines and related categories sidebar
-  - Integration with community-social backend service (port 8009)
-  - Responsive design with loading states and error handling
-  - Form validation for posts and comments
-  - Pagination support for post lists
+### Access Points
 
-### Session 23: 2026-02-22
-- ✅ **Cloudinary Image Upload** - Direct image uploads for behavior logging
-  - Drag & drop file upload
-  - Gallery selection (up to 5 images)
-  - Camera capture on mobile devices
-  - Full-screen lightbox viewer with slideshow navigation
-  - Image thumbnails in behavior lists
-  - Quick access behavior log fix (caregiver dashboard)
-
-### Session 22: 2026-02-22
-- ✅ Behavior log form fixes (reportedBy field, severity slider)
-
-### Session 21: 2026-02-21
-- ✅ Pre-push code quality fixes (validation, memory leaks, console logs)
-
-### Session 20: 2026-02-21
-- ✅ Notification Schedule Management - Admin UI for creating/managing scheduled notification campaigns
-
-### Session 19: 2026-02-20
-- ✅ Notification Bell Positioning & Real Service Integration
-
-### Session 18: 2026-02-19
-- ✅ Complete Frontend Notification System with toast, bell, list
-
-### Session 17: 2026-02-18
-- ✅ Automatic Token Refresh Implementation (no more 5-min logout)
-
-### Session 16: 2026-02-17
-- ✅ Behavior Severity Display & Filter Fix
-
-### Session 15: 2026-02-17
-- ✅ Caregiver Behaviors Page with filtering/sorting
-
-### Session 2: 2026-02-07
-- ✅ Fixed NG5002 & TS2769 parser errors
-- ✅ Refactored navbar with collapsible sidebar
-- ✅ Made dashboards fully mobile-responsive
-- ✅ Unified sidebar for all user roles
-- ✅ Fixed desktop layout issues (sidebar overlay)
-
-### Recent Additions
-- ✅ Community/Forum system with full CRUD for posts and comments
-- ✅ Notification system with real-time polling
-- ✅ Safety alert management
-- ✅ Schedule management (Admin)
-- ✅ Behavior tracking for caregivers
-- ✅ Landing page
-
-See `progress.md` for detailed changelog.
-
-## 📋 Feature Implementation Status
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Patient Dashboard | ✅ Complete | All features implemented |
-| Patient Activities | ✅ Complete | |
-| Patient Medications | ✅ Complete | |
-| Patient Games | ✅ Complete | |
-| Patient Community | ✅ Complete | |
-| Patient Profile | ✅ Complete | |
-| Caregiver Dashboard | ✅ Complete | |
-| Caregiver Behavior Tracking | ✅ Complete | Log, list, patient-specific views |
-| Caregiver Task Management | ⏳ Planned | Not implemented |
-| Caregiver Care Schedule | ⏳ Planned | Not implemented |
-| Doctor Dashboard | ✅ Complete | |
-| Doctor Patient Records | ⏳ Planned | Not implemented |
-| Doctor Schedule Management | ⏳ Planned | Not implemented |
-| Admin Dashboard | ✅ Complete | |
-| Admin Medical Records | ✅ Complete | |
-| Admin User Management | ✅ Complete | |
-| Admin Schedule Management | ✅ Complete | Create/edit notification schedules |
-| Admin Analytics | ✅ Complete | |
-| Admin Settings | ✅ Complete | |
-| Notification System | ✅ Complete | Polling, bell, list, toasts |
-| Safety Alert System | ✅ Complete | |
-| Landing Page | ✅ Complete | |
-
-## 🤝 Contributing
-
-This is an educational project. Contributions and suggestions are welcome!
-
-## 📄 License
-
-MIT License - feel free to use this project for learning and development.
-
-## 👨‍💻 Author
-
-**Iheb** - Software Engineering Student
+| Service | URL |
+|---------|-----|
+| Web Application | http://localhost:4200 |
+| API Gateway | http://localhost:8080 |
+| Keycloak Admin | http://localhost:8090 |
+| Eureka Dashboard | http://localhost:8761 |
+| RabbitMQ Management | http://localhost:15672 |
 
 ---
 
-Built with ❤️ for caring for those who need it most.
+## Contributors
+
+| Name |
+|------|
+| **Iheb Jlassi** |
+| **Yosser Khaldi** |
+| **Salma Louhichi** |
+| **Arij Juili** |
+| **Roudaina Saoudi** |
+| **Mouhib Lafi** |
+
+---
+
+## Academic Context
+
+This project was developed at **Esprit School of Engineering – Tunisia** as part of the **PIDEV – 4SAE (4th Year Engineering)** program for the academic year **2025–2026**.
+
+**Supervisor**: Mr. Alaa RAMI
+
+**Project Type**: Full-Stack Web Application with Microservices Architecture + IoT Integration
+
+**Evaluation Criteria**:
+- Technical Architecture and Design Patterns
+- Implementation Quality and Code Organization
+- Feature Completeness and User Experience
+- Documentation and Project Management
+
+---
+
+## Acknowledgments
+
+- **Esprit School of Engineering** for providing the academic framework and resources for this project
+- Our professors and supervisors for their guidance throughout the development process
+- The open-source community for the amazing tools and libraries that made this project possible:
+  - Angular and the RxJS team
+  - Tailwind CSS for rapid UI development
+  - Keycloak for robust identity management
+  - Cloudinary for image upload infrastructure
+  - OpenFDA for the public drug catalog API
+  - jsPDF for client-side PDF generation
+
+---
+
+*AlzCare Platform – Built with care for those who need it most.*

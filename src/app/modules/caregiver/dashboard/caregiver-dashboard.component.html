@@ -107,31 +107,10 @@
               class="text-[10px] text-gray-400">escalates {{ alertCountdown(alert.escalationMinutesRemaining) }}</span>
           </div>
           <div class="flex gap-2">
-            <button (click)="openAcknowledge(alert.id)"
-              class="px-3 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
-              ✔ Ack
-            </button>
             <button (click)="openResolve(alert.id)"
               class="px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition">
               🔒 Resolve
             </button>
-          </div>
-        </div>
-
-        <!-- Acknowledge inline form -->
-        <div *ngIf="acknowledgeAlertId === alert.id" class="px-4 pb-3 pt-0">
-          <div class="p-3 bg-blue-50 rounded-xl border border-blue-100">
-            <textarea [(ngModel)]="acknowledgeNotes" rows="2" placeholder="Optional notes…"
-              class="w-full text-xs border border-blue-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none mb-2">
-            </textarea>
-            <div class="flex gap-2">
-              <button (click)="submitAcknowledge()" [disabled]="acknowledgeSubmitting"
-                class="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold disabled:opacity-50">
-                {{ acknowledgeSubmitting ? 'Saving…' : 'Confirm' }}
-              </button>
-              <button (click)="acknowledgeAlertId = null"
-                class="px-3 py-1 rounded-lg bg-white text-gray-600 text-xs border border-gray-200">Cancel</button>
-            </div>
           </div>
         </div>
 

@@ -23,6 +23,53 @@
       </div>
     </div>
 
+    <!-- Ngrok Public URL Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <span>🌐</span>
+          <span>Camera Server URL (Ngrok)</span>
+        </h2>
+        <button
+          (click)="loadNgrokUrl()"
+          [disabled]="loadingNgrokUrl"
+          class="px-3 py-1.5 text-sm font-medium bg-violet-50 text-violet-700 rounded-lg hover:bg-violet-100 transition-colors disabled:opacity-50">
+          <span *ngIf="loadingNgrokUrl" class="animate-spin">⟳</span>
+          <span *ngIf="!loadingNgrokUrl">🔄 Refresh</span>
+        </button>
+      </div>
+
+      <div *ngIf="loadingNgrokUrl" class="flex items-center gap-3 text-gray-500">
+        <div class="w-5 h-5 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+        <span>Loading public URL...</span>
+      </div>
+
+      <div *ngIf="!loadingNgrokUrl && ngrokUrl" class="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+        <label class="block text-xs font-medium text-emerald-700 uppercase tracking-wide mb-1">Current Public URL</label>
+        <div class="flex items-center gap-3">
+          <code class="flex-1 text-base font-mono text-gray-900 break-all">{{ ngrokUrl }}</code>
+          <button
+            (click)="copyNgrokUrl()"
+            class="px-3 py-1.5 text-sm font-medium bg-white text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap">
+            {{ copiedNgrokUrl ? 'Copied!' : '📋 Copy' }}
+          </button>
+        </div>
+        <p class="text-sm text-emerald-700 mt-2">
+          ESP32 cameras should use this URL to reach the event-ingestion service.
+        </p>
+      </div>
+
+      <div *ngIf="!loadingNgrokUrl && !ngrokUrl" class="p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-800">
+        <div class="flex items-center gap-2">
+          <span>⚠️</span>
+          <span class="font-medium">No ngrok URL available</span>
+        </div>
+        <p class="text-sm text-amber-700 mt-1">
+          Make sure ngrok is running and configured with a valid authtoken.
+        </p>
+      </div>
+    </div>
+
     <!-- Token Generation Card -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
       <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">

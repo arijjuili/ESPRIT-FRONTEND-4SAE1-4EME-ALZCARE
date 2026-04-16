@@ -91,9 +91,6 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
   resolveNotes = '';
   resolutionType = 'CHECKED_OK';
   resolveSubmitting = false;
-  acknowledgeAlertId: string | null = null;
-  acknowledgeNotes = '';
-  acknowledgeSubmitting = false;
   dashboardOverview: DashboardOverview | null = null;
   loadingOverview = false;
 
@@ -604,35 +601,11 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 
-  openAcknowledge(alertId: string): void {
-    this.acknowledgeAlertId = alertId;
-    this.acknowledgeNotes = '';
-    this.acknowledgeSubmitting = false;
-  }
-
   openResolve(alertId: string): void {
     this.resolvingAlertId = alertId;
     this.resolveNotes = '';
     this.resolutionType = 'CHECKED_OK';
     this.resolveSubmitting = false;
-  }
-
-  submitAcknowledge(): void {
-    if (!this.acknowledgeAlertId || !this.doctorId) return;
-    this.acknowledgeSubmitting = true;
-    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId: this.doctorId, notes: this.acknowledgeNotes })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.acknowledgeAlertId = null;
-          this.acknowledgeSubmitting = false;
-          this.toastService.success('Alert acknowledged');
-          this.loadEscalatedAlerts();
-        },
-        error: () => {
-          this.acknowledgeSubmitting = false;
-        }
-      });
   }
 
   submitResolve(): void {

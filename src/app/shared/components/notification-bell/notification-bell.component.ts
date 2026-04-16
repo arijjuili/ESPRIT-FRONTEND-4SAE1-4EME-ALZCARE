@@ -38,7 +38,6 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   criticalCount = 0;
   isLoading = false;
   markingAsReadId: string | null = null; // Track which notification is being marked as read
-  private markAsReadTimeout: any; // Timeout for auto-marking as read
 
   // Default theme fallback
   private defaultTheme: RoleTheme = {
@@ -90,7 +89,6 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
     }
-    this.clearMarkAsReadTimeout();
   }
 
   /**
@@ -113,81 +111,31 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    * Toggle dropdown visibility
    */
   toggleDropdown(): void {
+    const wasOpen = this.isDropdownOpen;
     this.isDropdownOpen = !this.isDropdownOpen;
     if (this.isDropdownOpen) {
-      // Load notifications but don't mark as read immediately
+      // Load notifications but don't mark as read yet
       this.loadNotifications(false);
-      // Schedule auto-mark as read after 5 seconds so user can read first
-      this.scheduleMarkAsRead();
-    } else {
-      // Clear timeout if user closes dropdown before 5 seconds
-      this.clearMarkAsReadTimeout();
+    } else if (wasOpen) {
+      // Mark all visible as read when closing the bell
+      this.markAllVisibleAsRead();
     }
     this.cdr.markForCheck();
   }
 
   /**
-   * Schedule auto-mark as read after 5 seconds
-   */
-  private scheduleMarkAsRead(): void {
-    this.clearMarkAsReadTimeout();
-    this.markAsReadTimeout = setTimeout(() => {
-      console.log('[NotificationBell] Auto-marking notifications as read after 5 seconds');
-      this.markAllVisibleAsRead();
-    }, 5000);
-  }
-
-  /**
-   * Clear the mark-as-read timeout
-   */
-  private clearMarkAsReadTimeout(): void {
-    if (this.markAsReadTimeout) {
-      clearTimeout(this.markAsReadTimeout);
-      this.markAsReadTimeout = null;
-    }
-  }
-
-  /**
-   * Mark all visible unread notifications as read when dropdown is opened
+   * Mark all visible unread notifications as read when dropdown is closed
    */
   private markAllVisibleAsRead(): void {
-    console.log('[NotificationBell] markAllVisibleAsRead() called');
-    console.log('[NotificationBell] Current notifications:', this.notifications);
-    console.log('[NotificationBell] unreadCount:', this.unreadCount);
-
-    // DEBUG: Log all statuses to see what we're getting
-    console.log('[NotificationBell] All notification statuses:', this.notifications.map(n => ({ id: n.id, status: n.status, title: n.title })));
-
-    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
-    // Unread = anything that's not READ
     const unreadNotifications = this.notifications.filter(n => n.status !== 'READ');
-    console.log('[NotificationBell] Filtered with status !== "READ":', unreadNotifications.length);
-
-    // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
-    // Unread = anything that's not READ
-    const notReadNotifications = this.notifications.filter(n => n.status !== 'READ');
-    console.log('[NotificationBell] Filtered with status !== "READ":', notReadNotifications.length);
-    console.log('[NotificationBell] Not-read notifications:', notReadNotifications);
-
-    console.log('[NotificationBell] Unread notifications:', unreadNotifications);
-
     if (unreadNotifications.length === 0) {
-      console.log('[NotificationBell] No unread notifications to mark');
-      // Try marking not-read as read instead
-      if (notReadNotifications.length > 0) {
-        console.log('[NotificationBell] Will try marking not-read instead:', notReadNotifications);
-      }
       return;
     }
 
     // Mark each notification as read with a small stagger to avoid overwhelming the API
-    // Also update the filter for applying unread class in template
-    notReadNotifications.forEach((notification, index) => {
-      console.log(`[NotificationBell] Marking notification ${index + 1}/${notReadNotifications.length} as read:`, notification.id, notification.status);
+    unreadNotifications.forEach((notification, index) => {
       setTimeout(() => {
-        console.log(`[NotificationBell] Calling markAsRead API for:`, notification.id);
         this.notificationService.markAsRead(notification.id).subscribe({
-          next: () => console.log(`[NotificationBell] Successfully marked as read:`, notification.id),
           error: (err) => console.error(`[NotificationBell] Failed to mark as read:`, notification.id, err)
         });
       }, index * 100);
@@ -198,6 +146,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    * Close dropdown
    */
   closeDropdown(): void {
+    if (this.isDropdownOpen) {
+      this.markAllVisibleAsRead();
+    }
     this.isDropdownOpen = false;
     this.cdr.markForCheck();
   }

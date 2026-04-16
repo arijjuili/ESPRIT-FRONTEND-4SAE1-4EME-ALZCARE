@@ -165,4 +165,17 @@ export class CameraDeviceService {
       })
     );
   }
+
+  /**
+   * Get the current ngrok public URL for camera provisioning
+   * GET /api/cameras/ngrok-url
+   */
+  getNgrokUrl(): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.apiUrl}/ngrok-url`).pipe(
+      catchError(error => {
+        console.error('[CameraDeviceService] Failed to get ngrok URL:', error);
+        throw error;
+      })
+    );
+  }
 }

@@ -10,7 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import {
   AlertResponse, AlertHistoryResponse,
-  AcknowledgeAlertRequest, ResolveAlertRequest, ResolutionActionType
+  ResolveAlertRequest, ResolutionActionType
 } from '../../../core/models/safety-alert.model';
 
 type SeverityFilter = 'ALL' | 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
@@ -41,12 +41,11 @@ export class AlertListComponent implements OnInit, OnDestroy {
   };
   resolveSubmitting = false;
 
-  // Acknowledge state
-  acknowledgingId: string | null = null;
-  acknowledgeNotes = '';
-  acknowledgeSubmitting = false;
 
-  // History panel
+
+  // Track alerts that have been implicitly acknowledged this session
+  // so we don't spam the backend when toggling history
+  private implicitlyAcknowledgedIds = new Set<string>();
   historyAlertId: string | null = null;
   historyItems: AlertHistoryResponse[] = [];
   historyLoading = false;
@@ -120,34 +119,6 @@ export class AlertListComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Acknowledge ───────────────────────────────────────────────
-  openAcknowledge(alertId: string): void {
-    this.acknowledgingId = alertId;
-    this.acknowledgeNotes = '';
-  }
-
-  cancelAcknowledge(): void {
-    this.acknowledgingId = null;
-  }
-
-  submitAcknowledge(): void {
-    if (!this.acknowledgingId) return;
-    const userId = this.authService.getCurrentUser()?.id ?? '';
-    const req: AcknowledgeAlertRequest = { userId, notes: this.acknowledgeNotes };
-    this.acknowledgeSubmitting = true;
-    this.safetyService.acknowledgeAlert(this.acknowledgingId, req).pipe(
-      catchError(err => {
-        this.toastService.error('Failed to acknowledge alert');
-        return of(undefined);
-      })
-    ).subscribe(() => {
-      this.acknowledgeSubmitting = false;
-      this.acknowledgingId = null;
-      this.toastService.success('Alert acknowledged');
-      this.polling.refresh();
-    });
-  }
-
   // ─── Resolve ───────────────────────────────────────────────────
   openResolve(alertId: string): void {
     this.resolvingAlertId = alertId;
@@ -189,6 +160,17 @@ export class AlertListComponent implements OnInit, OnDestroy {
     }
     this.historyAlertId = alertId;
     this.historyLoading = true;
+
+    // Implicitly acknowledge the first time the user opens history for an active alert
+    const alert = this.alerts.find(a => a.id === alertId);
+    if (alert?.status === 'ACTIVE' && !this.implicitlyAcknowledgedIds.has(alertId)) {
+      this.implicitlyAcknowledgedIds.add(alertId);
+      const userId = this.authService.getCurrentUser()?.id ?? '';
+      this.safetyService.acknowledgeAlert(alertId, { userId, notes: '' }).pipe(
+        catchError(() => of(undefined))
+      ).subscribe();
+    }
+
     this.safetyService.getAlertHistory(alertId).pipe(
       catchError(() => of([] as AlertHistoryResponse[]))
     ).subscribe(items => {

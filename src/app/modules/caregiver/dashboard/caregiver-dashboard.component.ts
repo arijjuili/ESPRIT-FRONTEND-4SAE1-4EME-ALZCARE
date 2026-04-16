@@ -26,7 +26,7 @@ import { AlertPollingService } from '../../../core/services/alert-polling.servic
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { CareTask } from '../../../core/models/user.model';
 import { Appointment } from '../../../core/models/medical-followup.model';
-import { AlertResponse, BehaviorLogResponse, BehaviorSeverity, ResolveAlertRequest, AcknowledgeAlertRequest } from '../../../core/models/safety-alert.model';
+import { AlertResponse, BehaviorLogResponse, BehaviorSeverity, ResolveAlertRequest } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
 import { AutonomySuggestion } from '../../../core/models/daily-care.model';
 
@@ -139,12 +139,9 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   alertCount = 0;
   criticalAlertCount = 0;
   resolvingAlertId: string | null = null;
-  acknowledgeAlertId: string | null = null;
-  acknowledgeNotes = '';
   resolveNotes = '';
   resolutionType: string = 'CHECKED_OK';
   resolveSubmitting = false;
-  acknowledgeSubmitting = false;
 
   constructor(
     private authService: AuthService,
@@ -196,25 +193,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   }
 
   // ─── Alert helpers ─────────────────────────────────────────────
-  openAcknowledge(alertId: string): void {
-    this.acknowledgeAlertId = alertId;
-    this.acknowledgeNotes = '';
-  }
-
-  submitAcknowledge(): void {
-    if (!this.acknowledgeAlertId) return;
-    const userId = this.authService.getCurrentUser()?.id ?? '';
-    this.acknowledgeSubmitting = true;
-    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId, notes: this.acknowledgeNotes })
-      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.acknowledgeSubmitting = false;
-        this.acknowledgeAlertId = null;
-        this.toastService.success('Alert acknowledged');
-        this.alertPolling.refresh();
-      });
-  }
-
   openResolve(alertId: string): void {
     this.resolvingAlertId = alertId;
     this.resolveNotes = '';
@@ -828,8 +806,12 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Daily check-in endpoints currently expect Keycloak userId (like memory items)
+    // rather than the internal patient profile id.
     const requests = this.caregiverAssignments.map(assignment =>
-      this.apiService.getDailyCheckInStatus(this.getPatientApiId(assignment.patientId)).pipe(
+      this.apiService.getDailyCheckInStatus(
+        this.findPatientByAnyId(assignment.patientId)?.userId || assignment.patientId
+      ).pipe(
         map(status => ({ patientId: assignment.patientId, status })),
         catchError(() => of({ patientId: assignment.patientId, status: null as DailyCheckInStatus | null }))
       )
