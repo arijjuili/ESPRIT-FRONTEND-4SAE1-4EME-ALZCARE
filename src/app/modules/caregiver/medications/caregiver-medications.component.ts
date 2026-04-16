@@ -104,6 +104,19 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
   
   private destroy$ = new Subject<void>();
   private pendingPatientIdFromRoute: string | null = null;
+  private readonly now = () => new Date();
+
+  private startOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  private isFutureDay(dateString: string): boolean {
+    const day = this.startOfDay(new Date(dateString));
+    const today = this.startOfDay(this.now());
+    return day.getTime() > today.getTime();
+  }
 
   constructor(
     private router: Router,
@@ -401,6 +414,7 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
   canValidateIntake(intake: MedicationIntake): boolean {
     if (!this.selectedPatient) return false;
     if (intake.status !== IntakeStatus.PENDING && intake.status !== IntakeStatus.DELAYED) return false;
+    if (this.isFutureDay(intake.scheduledAt)) return false;
     
     // Can validate for ASSISTED or DEPENDENT patients
     return this.selectedPatient.autonomyLevel === MedicationAutonomyLevel.ASSISTED ||
@@ -413,7 +427,8 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
   canMarkAsMissed(intake: MedicationIntake): boolean {
     if (!this.selectedPatient) return false;
     if (intake.status !== IntakeStatus.PENDING && intake.status !== IntakeStatus.DELAYED) return false;
-    return true;
+    // Missed only makes sense when the scheduled time is in the past
+    return new Date(intake.scheduledAt).getTime() <= this.now().getTime();
   }
 
   /**
@@ -430,6 +445,10 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
    */
   confirmValidation(): void {
     if (!this.intakeToValidate?.id) return;
+    if (this.isFutureDay(this.intakeToValidate.scheduledAt)) {
+      alert('You can only validate an intake on its scheduled day or after it is due.');
+      return;
+    }
 
     this.medicalService.confirmMedicationIntakeByCaregiver(
       this.intakeToValidate.id,
@@ -479,6 +498,10 @@ export class CaregiverMedicationsComponent implements OnInit, OnDestroy {
    */
   confirmMarkAsMissed(): void {
     if (!this.intakeToMarkMissed?.id) return;
+    if (new Date(this.intakeToMarkMissed.scheduledAt).getTime() > this.now().getTime()) {
+      alert('You cannot mark an intake as missed before its scheduled time.');
+      return;
+    }
 
     this.medicalService.markMedicationIntakeAsMissed(
       this.intakeToMarkMissed.id,

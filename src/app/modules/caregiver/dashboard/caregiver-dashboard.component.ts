@@ -1,6 +1,6 @@
 import { CommonModule, SlicePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { Subject, of, forkJoin } from 'rxjs';
 import { takeUntil, catchError, map } from 'rxjs/operators';
 import { Component, OnDestroy, OnInit } from '@angular/core';
@@ -9,7 +9,8 @@ import { ApiService } from '../../../core/services/api.service';
 import { DataService } from '../../../core/services/data.service';
 import { MedicalFollowupService } from '../../../core/services/medical-followup.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
-import { PatientProfileResponse } from '../../../core/services/patient.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
+import { PatientProfileResponse, PatientService } from '../../../core/services/patient.service';
 import { DailyCheckInStatus, GameActivity, HealthRecord, RecordType } from '../../../core/models/api.model';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { CaregiverPatientContextService } from '../../../core/services/caregiver-patient-context.service';
@@ -27,6 +28,12 @@ import { CareTask } from '../../../core/models/user.model';
 import { Appointment } from '../../../core/models/medical-followup.model';
 import { AlertResponse, BehaviorLogResponse, BehaviorSeverity, ResolveAlertRequest, AcknowledgeAlertRequest } from '../../../core/models/safety-alert.model';
 import { CaregiverAssignment, CaregiverRole, AssignmentStatus } from '../../../core/models/care-team.model';
+import { AutonomySuggestion } from '../../../core/models/daily-care.model';
+
+type AutonomyPatientOption = {
+  id: string;
+  label: string;
+};
 
 @Component({
   selector: 'app-caregiver-dashboard',
@@ -39,7 +46,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private readonly missedCheckInAlertStorageKey = 'caregiver-missed-checkin-alerts';
   caregiverName = '';
-  
+
   // Role theme for notification bell (emerald for caregiver)
   currentTheme: RoleTheme = {
     name: 'Caregiver',
@@ -55,16 +62,17 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
   };
   caregiverId = '';
   patients: PatientProfileResponse[] = [];
+  allPatientsDirectory: PatientProfileResponse[] = [];
   allTasks: CareTask[] = [];
   patientAppointments: Map<string, Appointment[]> = new Map();
   loadingAppointments = false;
-  
+
   // Care Team - My Patients
   caregiverAssignments: CaregiverAssignment[] = [];
   pendingInvites: CaregiverAssignment[] = [];
   loadingAssignments = false;
   acceptingInviteId: string | null = null;
-  
+
   // Behavior tracking
   showBehaviorLogModal = false;
   recentBehaviors: BehaviorLogResponse[] = [];
@@ -104,13 +112,20 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     memory: number | null;
     notes: string;
   } = {
-    confusion: null,
-    memory: null,
-    notes: ''
-  };
+      confusion: null,
+      memory: null,
+      notes: ''
+    };
 
   // Enums for template
   CaregiverRole = CaregiverRole;
+
+  // Autonomy AI
+  selectedAutonomyPatientId = '';
+  autonomyPatientOptions: AutonomyPatientOption[] = [];
+  autonomyNotes = '';
+  autonomyLoading = false;
+  latestAutonomySuggestion: AutonomySuggestion | null = null;
 
   // Role badge colors
   roleColors: Record<CaregiverRole, string> = {
@@ -135,14 +150,17 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private apiService: ApiService,
     private dataService: DataService,
+    private patientService: PatientService,
+
     private medicalService: MedicalFollowupService,
     private safetyAlertService: SafetyAlertService,
+    private dailyCareService: DailyCareService,
     private alertPolling: AlertPollingService,
     private careTeamService: CareTeamService,
     private caregiverPatientContext: CaregiverPatientContextService,
     private toastService: ToastService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
@@ -281,15 +299,35 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
           this.loadGameAnalytics();
         }
       });
+
+
   }
-  
+
   // ==================== My Patients Section ====================
+
+  loadCaregiverAssignments(): void {
+    this.loadingAssignments = true;
+    this.careTeamService.getCaregiverAssignments(this.caregiverId)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError(error => {
+          console.error('Failed to load caregiver assignments:', error);
+          this.toastService.error('Failed to load your patient assignments');
+          return of([]);
+        })
+      )
+      .subscribe(assignments => {
+        // Separate pending invites (assignments already loaded in loadRealPatients)
+        this.pendingInvites = assignments.filter(a => a.status === AssignmentStatus.PENDING);
+        this.loadingAssignments = false;
+      });
+  }
 
   acceptInvite(invite: CaregiverAssignment): void {
     if (!invite.inviteToken) return;
-    
+
     this.acceptingInviteId = invite.id;
-    
+
     this.careTeamService.acceptInvite(invite.inviteToken, this.caregiverId)
       .pipe(
         takeUntil(this.destroy$),
@@ -315,16 +353,16 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     this.pendingInvites = this.pendingInvites.filter(i => i.id !== invite.id);
     this.toastService.info('Invitation declined');
   }
-  
+
   getAssignmentForPatient(patientId: string): CaregiverAssignment | undefined {
     return this.caregiverAssignments.find(a => a.patientId.toString() === patientId);
   }
-  
+
   getRoleBadgeClass(role: CaregiverRole | undefined): string {
     if (!role) return 'bg-gray-100 text-gray-800';
     return this.roleColors[role];
   }
-  
+
   getRoleLabel(role: CaregiverRole | undefined): string {
     if (!role) return 'Unknown';
     const labels: Record<CaregiverRole, string> = {
@@ -334,7 +372,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     };
     return labels[role];
   }
-  
+
   viewPatientTasks(patientId: string): void {
     this.router.navigate(['/caregiver/tasks'], { queryParams: { patientId } });
   }
@@ -917,7 +955,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         next: (behaviors) => {
           allBehaviors.push(...behaviors);
           completedRequests++;
-          
+
           if (completedRequests === this.patients.length) {
             // Sort by timestamp (newest first) and take last 5
             this.recentBehaviors = allBehaviors

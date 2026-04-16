@@ -247,6 +247,42 @@
     <app-pending-validations></app-pending-validations>
   </div>
 
+  <!-- AI Autonomy Assessment -->
+  <div class="bg-white rounded-xl sm:rounded-2xl shadow-md p-4 sm:p-6 mb-6 sm:mb-8 border border-emerald-100">
+    <h2 class="text-lg sm:text-xl font-bold text-gray-900 mb-1">AI Autonomy Assessment (Gemini)</h2>
+    <p class="text-sm text-gray-600 mb-4">Generate a draft autonomy suggestion and submit it to doctor review.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+      <select [(ngModel)]="selectedAutonomyPatientId" class="border rounded-lg px-3 py-2 text-sm">
+        <option value="" disabled>Select patient</option>
+        <option *ngFor="let option of autonomyPatientOptions" [value]="option.id">
+          {{ option.label }}
+        </option>
+      </select>
+      <input [(ngModel)]="autonomyNotes" class="md:col-span-2 border rounded-lg px-3 py-2 text-sm" placeholder="Optional note for AI (sleep change, confusion, medication issues...)" />
+    </div>
+    <p *ngIf="autonomyPatientOptions.length === 0" class="text-xs text-amber-700 mb-3">
+      No real assigned patients found for this caregiver yet.
+    </p>
+    <div class="flex flex-wrap gap-2">
+      <button (click)="generateAutonomySuggestion()" [disabled]="!selectedAutonomyPatientId || autonomyLoading"
+              class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60">
+        {{ autonomyLoading ? 'Generating...' : 'Generate Suggestion' }}
+      </button>
+      <button *ngIf="latestAutonomySuggestion" (click)="submitAutonomySuggestion()"
+              [disabled]="autonomyLoading || latestAutonomySuggestion.status !== 'DRAFT'"
+              class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-semibold disabled:opacity-60">
+        Submit to Doctor
+      </button>
+    </div>
+    <div *ngIf="latestAutonomySuggestion" class="mt-4 rounded-lg border border-slate-200 p-3 text-sm">
+      <p class="font-semibold text-gray-800">Status: {{ latestAutonomySuggestion.status }}</p>
+      <p class="text-gray-700 mt-1">Mobility: <strong>{{ latestAutonomySuggestion.mobilityLevel }}</strong> • Hygiene: <strong>{{ latestAutonomySuggestion.hygieneLevel }}</strong></p>
+      <p class="text-gray-700">Medication: <strong>{{ latestAutonomySuggestion.medicationLevel }}</strong> • Decision: <strong>{{ latestAutonomySuggestion.decisionMakingLevel }}</strong></p>
+      <p class="text-xs text-gray-500 mt-2">Confidence: {{ latestAutonomySuggestion.confidenceScore ?? '--' }}%</p>
+      <p class="text-xs text-gray-500 mt-1">{{ latestAutonomySuggestion.aiSummary || 'No summary available' }}</p>
+    </div>
+  </div>
+
   <!-- Main Content Grid -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
     <!-- Left Column (2/3 width on large screens) -->

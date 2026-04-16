@@ -63,7 +63,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService,
     private authService: AuthService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     // Subscribe to auth changes to load notifications when user is available
@@ -74,7 +74,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.loadNotifications(false);
       }
     });
-    
+
     // Subscribe to shared notifications state
     this.notificationService.notifications$.subscribe(notifications => {
       this.notifications = notifications;
@@ -154,23 +154,23 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     console.log('[NotificationBell] markAllVisibleAsRead() called');
     console.log('[NotificationBell] Current notifications:', this.notifications);
     console.log('[NotificationBell] unreadCount:', this.unreadCount);
-    
+
     // DEBUG: Log all statuses to see what we're getting
     console.log('[NotificationBell] All notification statuses:', this.notifications.map(n => ({ id: n.id, status: n.status, title: n.title })));
-    
+
     // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
     // Unread = anything that's not READ
     const unreadNotifications = this.notifications.filter(n => n.status !== 'READ');
     console.log('[NotificationBell] Filtered with status !== "READ":', unreadNotifications.length);
-    
+
     // Backend uses: PENDING, SENT, DELIVERED, FAILED, READ
     // Unread = anything that's not READ
     const notReadNotifications = this.notifications.filter(n => n.status !== 'READ');
     console.log('[NotificationBell] Filtered with status !== "READ":', notReadNotifications.length);
     console.log('[NotificationBell] Not-read notifications:', notReadNotifications);
-    
+
     console.log('[NotificationBell] Unread notifications:', unreadNotifications);
-    
+
     if (unreadNotifications.length === 0) {
       console.log('[NotificationBell] No unread notifications to mark');
       // Try marking not-read as read instead
@@ -179,7 +179,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       }
       return;
     }
-    
+
     // Mark each notification as read with a small stagger to avoid overwhelming the API
     // Also update the filter for applying unread class in template
     notReadNotifications.forEach((notification, index) => {
@@ -217,7 +217,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    */
   markAsRead(id: string, event?: Event): void {
     event?.stopPropagation();
-    
+
     const notification = this.notifications.find(n => n.id === id);
     if (!notification || notification.status === 'READ' || this.markingAsReadId) {
       return;
@@ -303,10 +303,10 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     });
   }
 
@@ -315,7 +315,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
    */
   onNotificationClick(notification: Notification): void {
     this.markAsRead(notification.id);
-    
+
     if (notification.actionUrl) {
       this.closeDropdown();
       this.router.navigate([notification.actionUrl]);
@@ -337,8 +337,8 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.notificationService.getUserNotifications(userId, { 
-      page: 0, 
+    this.notificationService.getUserNotifications(userId, {
+      page: 0,
       size: 10,
       hours: 24
     }).subscribe({
@@ -346,7 +346,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
         this.notifications = response.content;
         this.isLoading = false;
         this.cdr.markForCheck();
-        
+
         // Only mark as read when user explicitly opens the bell, not on page load
         if (shouldMarkAsRead) {
           this.markAllVisibleAsRead();

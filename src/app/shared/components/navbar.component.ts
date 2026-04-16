@@ -109,17 +109,23 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['patient']
     },
     {
+      label: 'Routines',
+      path: '/patient/routines',
+      icon: 'R',
+      roles: ['patient']
+    },
+    {
       label: 'Medications',
       path: '/patient/medications',
       icon: '💊',
       roles: ['patient']
     },
-        {
+    {
       label: 'Appointments',
       path: '/patient/appointments',
       icon: '📅',
       roles: ['patient']
-    },{
+    }, {
       label: 'Brain Games',
       path: '/patient/games',
       icon: '🎮',
@@ -143,6 +149,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '👤',
       roles: ['patient']
     },
+    {
+      label: 'My Routines',
+      path: '/patient/routines',
+      icon: '🧩',
+      roles: ['patient']
+    },
     // Caregiver routes
     {
       label: 'Dashboard',
@@ -151,17 +163,23 @@ export class NavbarComponent implements OnInit, OnDestroy {
       roles: ['caregiver']
     },
     {
+      label: 'Appointments',
+      path: '/caregiver/appointments',
+      icon: '📅',
+      roles: ['caregiver']
+    },
+    {
       label: 'Patients',
       path: '/caregiver/patients',
       icon: '👥',
       roles: ['caregiver']
     },
-        {
+    {
       label: 'Medications',
       path: '/caregiver/medications',
       icon: '💊',
       roles: ['caregiver']
-    },{
+    }, {
       label: 'Behaviors',
       path: '/caregiver/behaviors',
       icon: '📊',
@@ -216,7 +234,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '📊',
       roles: ['doctor']
     },
-        {
+    {
       label: 'Patients',
       path: '/doctor/patients',
       icon: '👥',
@@ -239,7 +257,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       path: '/doctor/records',
       icon: '📄',
       roles: ['doctor']
-    },{
+    }, {
       label: 'Checklist',
       path: '/doctor/checklist',
       icon: '📋',
@@ -274,6 +292,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Caregivers',
       path: '/admin/caregivers',
       icon: '🤝',
+      roles: ['admin']
+    },
+    {
+      label: 'Routines',
+      path: '/admin/routines',
+      icon: 'R',
       roles: ['admin']
     },
     {

@@ -1,11 +1,12 @@
+<!-- patient-activities.component.html -->
 <div class="min-h-screen bg-gray-50 p-4 md:p-6">
 
   <!-- Header -->
   <div class="mb-6">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Community Activities</h1>
-        <p class="text-gray-500 text-sm mt-0.5">Browse events, track registrations and manage preferences</p>
+        <h1 class="text-2xl font-bold text-gray-900">Community & Daily Activities</h1>
+        <p class="text-gray-500 text-sm mt-0.5">Browse events, track tasks, and manage your wellness</p>
       </div>
       <a routerLink="/patient/activities/registrations"
          class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
@@ -20,6 +21,7 @@
       {id:'upcoming', label:'Upcoming', icon:'📅'},
       {id:'recommended', label:'For You', icon:'⭐'},
       {id:'reminders', label:'Reminders', icon:'🔔'},
+      {id:'daily', label:'My Activities', icon:'📋'},
       {id:'interests', label:'Preferences', icon:'⚙️'}
     ]"
       (click)="setTab(tab.id)"
@@ -189,6 +191,120 @@
         <div class="text-right flex-shrink-0">
           <span class="text-sm font-semibold text-amber-600">{{ formatReminderDate(r.reminderDate) }}</span>
           <p class="text-xs text-gray-400 mt-0.5">{{ r.sent ? 'Sent' : 'Pending' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ DAILY / MY ACTIVITIES TAB ═══════════════════ -->
+  <div *ngIf="activeTab === 'daily'">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Main Activities List -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Today's Tasks -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">Today's Activities</h2>
+
+          <div *ngIf="loading" class="py-10 text-center text-gray-500">
+            Loading daily care tasks...
+          </div>
+
+          <div *ngIf="!loading && todayTasks.length > 0" class="space-y-3">
+            <div *ngFor="let task of todayTasks"
+                 class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-teal-50 transition border-l-4"
+                 [ngClass]="task.completed ? 'border-success' : 'border-primary-500'">
+              <input
+                type="checkbox"
+                [checked]="task.completed"
+                (change)="toggleTask(task.id)"
+                class="mt-1.5 w-5 h-5 cursor-pointer rounded border-2 border-primary-500 text-primary-600">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-900 text-base" [ngClass]="{'line-through text-gray-400': task.completed}">
+                  {{ task.title }}
+                </p>
+                <p class="text-gray-600 text-sm mt-0.5">{{ task.description }}</p>
+                <p class="text-gray-500 text-xs mt-1">⏰ Due: {{ task.dueDate | date: 'h:mm a' }}</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap"
+                [ngClass]="{
+                  'bg-danger bg-opacity-20 text-danger': task.priority === 'high',
+                  'bg-warning bg-opacity-20 text-warning': task.priority === 'medium',
+                  'bg-success bg-opacity-20 text-success': task.priority === 'low'
+                }">
+                {{ task.priority | titlecase }}
+              </span>
+            </div>
+          </div>
+
+          <div *ngIf="!loading && todayTasks.length === 0" class="py-10 text-center text-gray-500">
+            No tasks scheduled for today.
+          </div>
+        </div>
+
+        <!-- Upcoming Activities -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4">Upcoming Activities</h2>
+
+          <div class="space-y-3">
+            <div class="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border-l-4 border-info">
+              <div class="text-2xl">🏥</div>
+              <div class="flex-1">
+                <p class="font-bold text-gray-900">Cognitive Assessment</p>
+                <p class="text-gray-600 text-sm mt-0.5">Appointment with Dr. Michael</p>
+                <p class="text-gray-500 text-sm mt-0.5">📅 Feb 10, 2026 at 10:00 AM</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-4 p-4 bg-green-50 rounded-xl border-l-4 border-success">
+              <div class="text-2xl">🚶</div>
+              <div class="flex-1">
+                <p class="font-bold text-gray-900">Walk in the Park</p>
+                <p class="text-gray-600 text-sm mt-0.5">30-minute outdoor activity</p>
+                <p class="text-gray-500 text-sm mt-0.5">📅 Tomorrow at 4:00 PM</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar: Stats & Tips -->
+      <div class="space-y-6">
+        <!-- Activity Stats -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <h3 class="text-lg font-bold text-gray-900 mb-4">📊 This Week</h3>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600 text-sm">Tasks Completed</span>
+              <span class="text-2xl font-bold text-success">12</span>
+            </div>
+            <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div class="h-full bg-success w-3/4"></div>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+              <span class="text-gray-600 text-sm">Completion Rate</span>
+              <span class="text-2xl font-bold text-primary-600">75%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wellness Tips -->
+        <div class="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl shadow-sm p-6 border border-primary-200">
+          <h3 class="text-lg font-bold text-primary-900 mb-4">💡 Wellness Tips</h3>
+          <div class="space-y-3 text-sm text-primary-800">
+            <p>✓ Stay hydrated - drink 8 glasses daily</p>
+            <p>✓ Get 7-8 hours of sleep</p>
+            <p>✓ Take medications on time</p>
+            <p>✓ Exercise for 30 minutes daily</p>
+          </div>
+        </div>
+
+        <!-- Streak Counter -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
+          <p class="text-gray-600 text-sm mb-2">🔥 Current Streak</p>
+          <p class="text-5xl font-bold text-warning">7</p>
+          <p class="text-gray-600 text-sm mt-2">Days of tasks completed</p>
+          <button class="w-full mt-4 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition font-semibold">
+            Keep it up! 💪
+          </button>
         </div>
       </div>
     </div>

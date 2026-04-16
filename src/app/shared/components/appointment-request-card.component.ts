@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
@@ -9,6 +9,7 @@ import {
   SchedulingConflict,
   SuggestedSlot
 } from '../../core/services/appointment-scheduling.service';
+import { CareTeamService } from '../../core/services/care-team.service';
 import { MedicalFollowupService } from '../../core/services/medical-followup.service';
 import { ApiService } from '../../core/services/api.service';
 import {
@@ -26,7 +27,7 @@ import {
   imports: [CommonModule, FormsModule],
   templateUrl: './appointment-request-card.component.html'
 })
-export class AppointmentRequestCardComponent {
+export class AppointmentRequestCardComponent implements OnChanges {
   @Input({ required: true }) patientId = '';
   @Input() patientName = 'Patient';
   @Input() caregiverId: string | null = null;
@@ -50,6 +51,10 @@ export class AppointmentRequestCardComponent {
   successMessage: string | null = null;
   appointmentDuration = 30;
 
+  careTeamDoctorId = '';
+  careTeamDoctorLoading = false;
+  careTeamDoctorError: string | null = null;
+
   // Doctor availability (patient/caregiver request)
   availabilityChecked = false;
   availabilityLoading = false;
@@ -63,12 +68,23 @@ export class AppointmentRequestCardComponent {
   constructor(
     private medicalService: MedicalFollowupService,
     private schedulingService: AppointmentSchedulingService,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private careTeamService: CareTeamService
   ) {}
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['patientId'] && !changes['patientId'].firstChange) {
+      this.careTeamDoctorId = '';
+      this.careTeamDoctorError = null;
+      this.careTeamDoctorLoading = false;
+      this.loadDoctorFromCareTeamIfNeeded();
+    }
+  }
 
   openModal(): void {
     this.showModal = true;
     this.error = null;
+    this.loadDoctorFromCareTeamIfNeeded();
     this.initializeRequest();
   }
 
@@ -98,9 +114,15 @@ export class AppointmentRequestCardComponent {
 
   submitRequest(): void {
     this.error = null;
+    this.loadDoctorFromCareTeamIfNeeded();
 
     if (!this.patientId) {
       this.error = 'Patient information is missing.';
+      return;
+    }
+
+    if (!this.hasDoctorTarget && this.careTeamDoctorLoading) {
+      this.error = 'Resolving linked doctor assignment... Please wait a moment and try again.';
       return;
     }
 
@@ -113,6 +135,10 @@ export class AppointmentRequestCardComponent {
 
     if (!this.appointmentRequest.endAt) {
       this.error = 'Unable to calculate the appointment end time.';
+      return;
+    }
+
+    if (!this.validateAppointmentDateTimes()) {
       return;
     }
 
@@ -126,8 +152,14 @@ export class AppointmentRequestCardComponent {
   }
 
   checkDoctorAvailability(): void {
+    this.error = null;
+    this.loadDoctorFromCareTeamIfNeeded();
     if (!this.patientId) {
       this.error = 'Patient information is missing.';
+      return;
+    }
+    if (!this.hasDoctorTarget && this.careTeamDoctorLoading) {
+      this.error = 'Resolving linked doctor assignment... Please wait a moment and try again.';
       return;
     }
     if (!this.appointmentRequest.startAt) {
@@ -137,6 +169,9 @@ export class AppointmentRequestCardComponent {
     this.calculateEndDate();
     if (!this.appointmentRequest.endAt) {
       this.error = 'Unable to calculate the appointment end time.';
+      return;
+    }
+    if (!this.validateAppointmentDateTimes()) {
       return;
     }
     this.runDoctorAvailabilityCheck();
@@ -222,8 +257,20 @@ export class AppointmentRequestCardComponent {
   }
 
   get targetDoctorDescription(): string {
-    if (this.hasKnownDoctorRelationship()) {
-      return 'This request will follow the same doctor already linked to this patient history.';
+    if (this.careTeamDoctorLoading) {
+      return 'Resolving linked doctor assignment via care-team...';
+    }
+
+    if (this.careTeamDoctorError && !this.careTeamDoctorId && !this.hasAppointmentHistoryDoctor() && !this.fallbackDoctorId) {
+      return this.careTeamDoctorError;
+    }
+
+    if (this.careTeamDoctorId) {
+      return 'This request will be routed to the doctor assigned to this patient via care-team.';
+    }
+
+    if (this.hasAppointmentHistoryDoctor()) {
+      return 'This request will follow the doctor used in the patient appointment history.';
     }
 
     if (this.fallbackDoctorId) {
@@ -234,8 +281,16 @@ export class AppointmentRequestCardComponent {
   }
 
   get targetDoctorLabel(): string {
-    if (this.hasKnownDoctorRelationship()) {
-      return this.doctorEmail || 'Linked doctor from patient history';
+    if (this.careTeamDoctorLoading) {
+      return 'Resolving doctor...';
+    }
+
+    if (this.careTeamDoctorId) {
+      return this.doctorEmail || 'Care-team doctor assigned';
+    }
+
+    if (this.hasAppointmentHistoryDoctor()) {
+      return this.doctorEmail || 'Doctor from appointment history';
     }
 
     if (this.fallbackDoctorId) {
@@ -252,6 +307,10 @@ export class AppointmentRequestCardComponent {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  get minStartAt(): string {
+    return this.formatDateTimeLocal(this.getNowRoundedToMinute());
   }
 
   private resetAvailability(): void {
@@ -271,6 +330,7 @@ export class AppointmentRequestCardComponent {
     this.blockingConflicts = [];
     this.suggestedSlots = [];
 
+    this.loadDoctorFromCareTeamIfNeeded();
     const targetDoctorId = this.resolveDoctorId();
     if (!targetDoctorId) {
       this.availabilityChecked = true;
@@ -406,12 +466,59 @@ export class AppointmentRequestCardComponent {
       return;
     }
 
-    const startDate = new Date(this.appointmentRequest.startAt);
+    const startDate = this.schedulingService.parseLocalDateTime(
+      this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.startAt)
+    );
+    if (!startDate) {
+      this.appointmentRequest.endAt = '';
+      return;
+    }
     const endDate = new Date(startDate.getTime() + this.appointmentDuration * 60_000);
     this.appointmentRequest.endAt = this.formatDateTimeLocal(endDate);
   }
 
+  private validateAppointmentDateTimes(): boolean {
+    const startAt = this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.startAt);
+    const endAt = this.schedulingService.normalizeLocalDateTime(this.appointmentRequest.endAt);
+
+    const startDate = this.schedulingService.parseLocalDateTime(startAt);
+    const endDate = this.schedulingService.parseLocalDateTime(endAt);
+
+    if (!startDate) {
+      this.error = 'Invalid start date/time.';
+      return false;
+    }
+
+    const now = this.getNowRoundedToMinute();
+    if (startDate.getTime() < now.getTime()) {
+      this.error = 'Start date/time must be now or later.';
+      return false;
+    }
+
+    if (!endDate) {
+      this.error = 'Invalid end date/time.';
+      return false;
+    }
+
+    if (endDate.getTime() <= startDate.getTime()) {
+      this.error = 'End date/time must be after the start date/time.';
+      return false;
+    }
+
+    return true;
+  }
+
+  private getNowRoundedToMinute(): Date {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    return now;
+  }
+
   private resolveDoctorId(): string {
+    if (this.careTeamDoctorId) {
+      return this.careTeamDoctorId;
+    }
+
     const linkedAppointment = this.existingAppointments.find(appointment => appointment.doctorId !== undefined && appointment.doctorId !== null);
     if (linkedAppointment) {
       return String(linkedAppointment.doctorId);
@@ -420,7 +527,30 @@ export class AppointmentRequestCardComponent {
     return this.fallbackDoctorId || '';
   }
 
-  private hasKnownDoctorRelationship(): boolean {
-    return this.existingAppointments.some(appointment => appointment.doctorId !== undefined && appointment.doctorId !== null);
+  private hasAppointmentHistoryDoctor(): boolean {
+    return this.existingAppointments.some(
+      appointment => appointment.doctorId !== undefined && appointment.doctorId !== null && String(appointment.doctorId).trim() !== ''
+    );
+  }
+
+  private loadDoctorFromCareTeamIfNeeded(): void {
+    if (!this.patientId) return;
+    if (this.careTeamDoctorId) return;
+    if (this.careTeamDoctorLoading) return;
+
+    this.careTeamDoctorLoading = true;
+    this.careTeamDoctorError = null;
+
+    this.careTeamService.getPatientDoctor(this.patientId).subscribe({
+      next: (assignment) => {
+        this.careTeamDoctorId = assignment?.doctorId ? String(assignment.doctorId) : '';
+        this.careTeamDoctorLoading = false;
+      },
+      error: (err) => {
+        console.error('[AppointmentRequestCard] Failed to resolve patient doctor via care-team:', err);
+        this.careTeamDoctorLoading = false;
+        this.careTeamDoctorError = 'Unable to resolve linked doctor right now.';
+      }
+    });
   }
 }

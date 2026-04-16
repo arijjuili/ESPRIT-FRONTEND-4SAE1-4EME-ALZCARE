@@ -1,0 +1,208 @@
+<div class="pt-16 lg:pt-0 p-4 sm:p-6 lg:p-8 caregiver-appointments">
+  <div class="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div>
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">My Appointments</h1>
+      <p class="text-sm sm:text-base text-gray-500 mt-2">Appointments where you are linked as caregiver</p>
+    </div>
+
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Search patient / type / status..."
+          class="w-full sm:w-[320px] rounded-xl border border-gray-200 bg-white px-10 py-2.5 text-sm shadow-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+        <button
+          *ngIf="searchTerm"
+          type="button"
+          (click)="searchTerm=''"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          ✕
+        </button>
+      </div>
+
+      <button
+        type="button"
+        (click)="refresh()"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100">
+        <span>↻</span>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+    <p class="font-bold">Error</p>
+    <p>{{ error }}</p>
+  </div>
+
+  <div *ngIf="loading" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+    <p class="text-gray-600 mt-4">Loading appointments...</p>
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-emerald-500">
+        <p class="text-3xl font-bold text-emerald-600">{{ appointments.length }}</p>
+        <p class="text-sm text-gray-600">Total</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-green-500">
+        <p class="text-3xl font-bold text-green-600">{{ upcomingAppointments.length }}</p>
+        <p class="text-sm text-gray-600">Upcoming</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-gray-400">
+        <p class="text-3xl font-bold text-gray-500">{{ pastAppointments.length }}</p>
+        <p class="text-sm text-gray-600">Past</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-4 text-center border-t-4 border-teal-500">
+        <p class="text-3xl font-bold text-teal-600">{{ filteredAppointments.length }}</p>
+        <p class="text-sm text-gray-600">Filtered</p>
+      </div>
+    </div>
+
+    <div class="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex gap-2 bg-gray-100 p-1 rounded-lg w-fit flex-wrap">
+        <button
+          (click)="setFilter('ALL')"
+          class="px-4 py-2 rounded-md text-sm font-medium transition"
+          [ngClass]="filterStatus === 'ALL' ? 'bg-white shadow text-emerald-700' : 'text-gray-600 hover:text-gray-900'">
+          ALL
+        </button>
+        <button
+          *ngFor="let status of appointmentStatuses"
+          (click)="setFilter(status)"
+          class="px-4 py-2 rounded-md text-sm font-medium transition"
+          [ngClass]="filterStatus === status ? 'bg-white shadow text-emerald-700' : 'text-gray-600 hover:text-gray-900'">
+          {{ status }}
+        </button>
+      </div>
+
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+        <input type="checkbox" [(ngModel)]="hideClosed" class="h-4 w-4 accent-emerald-600">
+        Hide closed (CANCELLED / COMPLETED)
+      </label>
+    </div>
+
+    <div *ngIf="filteredAppointments.length === 0" class="text-center py-12 bg-white rounded-2xl border border-gray-200">
+      <span class="text-5xl mb-3 block">📅</span>
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">No appointments found</h3>
+      <p class="text-gray-600 text-sm">Once you are linked to an appointment, it will appear here.</p>
+    </div>
+
+    <div *ngIf="filteredAppointments.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-gray-900">Upcoming</h2>
+          <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
+            {{ upcomingAppointments.length }}
+          </span>
+        </div>
+
+        <div *ngIf="upcomingAppointments.length === 0" class="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+          No upcoming appointments for the selected filter.
+        </div>
+
+        <div *ngFor="let appt of upcomingAppointments" class="appointment-card">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex items-start gap-3">
+              <div class="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center font-bold text-emerald-700">
+                {{ (getPatientLabel(appt.patientId) || 'P').charAt(0) }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Patient</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900 truncate">{{ getPatientLabel(appt.patientId) }}</p>
+                <p class="text-sm text-gray-600 mt-0.5">{{ appt.type }} • {{ appt.mode }}</p>
+              </div>
+            </div>
+
+            <span class="status-pill"
+              [ngClass]="{
+                'pill-confirmed': appt.status === AppointmentStatus.CONFIRMED,
+                'pill-requested': appt.status === AppointmentStatus.REQUESTED,
+                'pill-accepted': appt.status === AppointmentStatus.ACCEPTED,
+                'pill-completed': appt.status === AppointmentStatus.COMPLETED,
+                'pill-cancelled': appt.status === AppointmentStatus.CANCELLED,
+                'pill-rejected': appt.status === AppointmentStatus.REJECTED
+              }">
+              {{ appt.status }}
+            </span>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+            <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Start</p>
+              <p class="font-semibold">{{ appt.startAt | date:'medium' }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">End</p>
+              <p class="font-semibold">{{ appt.endAt | date:'medium' }}</p>
+            </div>
+          </div>
+
+          <div *ngIf="appt.mode === 'ONLINE' && appt.meetingUrl" class="mt-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+            <p class="font-semibold">Teleconsultation link</p>
+            <a [href]="appt.meetingUrl" target="_blank" rel="noopener" class="underline break-all">{{ appt.meetingUrl }}</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-gray-900">Past</h2>
+          <span class="text-xs font-semibold text-gray-700 bg-gray-50 border border-gray-200 rounded-full px-3 py-1">
+            {{ pastAppointments.length }}
+          </span>
+        </div>
+
+        <div *ngIf="pastAppointments.length === 0" class="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+          No past appointments for the selected filter.
+        </div>
+
+        <div *ngFor="let appt of pastAppointments" class="appointment-card">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex items-start gap-3">
+              <div class="h-10 w-10 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-center font-bold text-gray-700">
+                {{ (getPatientLabel(appt.patientId) || 'P').charAt(0) }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Patient</p>
+                <p class="text-base sm:text-lg font-bold text-gray-900 truncate">{{ getPatientLabel(appt.patientId) }}</p>
+                <p class="text-sm text-gray-600 mt-0.5">{{ appt.type }} • {{ appt.mode }}</p>
+              </div>
+            </div>
+
+            <span class="status-pill"
+              [ngClass]="{
+                'pill-confirmed': appt.status === AppointmentStatus.CONFIRMED,
+                'pill-requested': appt.status === AppointmentStatus.REQUESTED,
+                'pill-accepted': appt.status === AppointmentStatus.ACCEPTED,
+                'pill-completed': appt.status === AppointmentStatus.COMPLETED,
+                'pill-cancelled': appt.status === AppointmentStatus.CANCELLED,
+                'pill-rejected': appt.status === AppointmentStatus.REJECTED
+              }">
+              {{ appt.status }}
+            </span>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-gray-700">
+            <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Start</p>
+              <p class="font-semibold">{{ appt.startAt | date:'medium' }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">End</p>
+              <p class="font-semibold">{{ appt.endAt | date:'medium' }}</p>
+            </div>
+          </div>
+
+          <div *ngIf="appt.mode === 'ONLINE' && appt.meetingUrl" class="mt-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+            <p class="font-semibold">Teleconsultation link</p>
+            <a [href]="appt.meetingUrl" target="_blank" rel="noopener" class="underline break-all">{{ appt.meetingUrl }}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,11 +1,16 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, of } from 'rxjs';
-import { takeUntil, catchError, finalize } from 'rxjs/operators';
+import { takeUntil } from 'rxjs/operators';
+import { forkJoin } from 'rxjs';
+import { catchError, finalize, map, switchMap } from 'rxjs/operators';
 import { AuthService } from '../../../core/services/auth.service';
-import { PatientService, PatientProfileResponse } from '../../../core/services/patient.service';
+import { ApiService } from '../../../core/services/api.service';
+import { PatientService } from '../../../core/services/patient.service';
+import { DashboardService } from '../../../core/services/dashboard.service';
+import { DailyCareService } from '../../../core/services/daily-care.service';
 import { CareTeamService } from '../../../core/services/care-team.service';
 import { DoctorPatientContextService } from '../../../core/services/doctor-patient-context.service';
 import { DoctorWorkflowService } from '../../../core/services/doctor-workflow.service';
@@ -17,21 +22,27 @@ import { SafetyAlertBellComponent } from '../../../shared/components/safety-aler
 import { AlertPollingService } from '../../../core/services/alert-polling.service';
 import { SafetyAlertService } from '../../../core/services/safety-alert.service';
 import { AlertResponse, ResolveAlertRequest } from '../../../core/models/safety-alert.model';
+import { WeatherPrayerCardComponent } from '../../../shared/components/weather-prayer-card.component';
 import { RoleTheme } from '../../../shared/components/navbar.component';
 import { DoctorAssignment, DoctorAssignmentStatus } from '../../../core/models/care-team.model';
+import { AutonomySuggestion, AutonomySuggestionDecisionRequest } from '../../../core/models/daily-care.model';
+import { jsPDF } from 'jspdf';
+import { PatientProfileResponse, DashboardOverview, DataService } from 'src/app/core/services';
 
 @Component({
   selector: 'app-doctor-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent, SafetyAlertBellComponent],
+  imports: [CommonModule, RouterLink, FormsModule, ReactiveFormsModule, StatCardComponent, AlertCardComponent, NotificationBellComponent, SafetyAlertBellComponent, WeatherPrayerCardComponent],
   templateUrl: './doctor-dashboard.component.html',
   styleUrls: ['./doctor-dashboard.component.scss']
 })
 export class DoctorDashboardComponent implements OnInit, OnDestroy {
+  @ViewChild('signatureCanvas') signatureCanvas?: ElementRef<HTMLCanvasElement>;
+
   doctorName = '';
   doctorId: string | null = null;
   private destroy$ = new Subject<void>();
-  
+
   currentTheme: RoleTheme = {
     name: 'Doctor',
     primary: '#3b82f6',
@@ -44,12 +55,14 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     activeBg: '#3b82f6',
     activeText: '#ffffff'
   };
-  
+
   // Doctor's assigned patients (from care-team)
   doctorAssignments: DoctorAssignment[] = [];
   assignedPatients: PatientProfileResponse[] = [];
   loadingPatients = false;
-  
+  patients: any[] = []; appointments: any[] = [];
+
+
   /** Live text from care-team NewsAPI integration (when configured) */
   researchNewsPreview: string | null = null;
   /** Curated bullets when live news is unavailable (reads like content, not an error page) */
@@ -81,9 +94,32 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
   acknowledgeAlertId: string | null = null;
   acknowledgeNotes = '';
   acknowledgeSubmitting = false;
+  dashboardOverview: DashboardOverview | null = null;
+  loadingOverview = false;
+
+
+
+  // Autonomy AI review
+  selectedAutonomyPatientId = '';
+  autonomySuggestions: AutonomySuggestion[] = [];
+  loadingAutonomy = false;
+  autonomyReviewNote = '';
+  showSignatureModal = false;
+  pendingReportSuggestion: AutonomySuggestion | null = null;
+  private isDrawingSignature = false;
+  private signatureLastX = 0;
+  private signatureLastY = 0;
+
+
+
+
 
   constructor(
     private authService: AuthService,
+    private apiService: ApiService,
+    private dataService: DataService,
+    private dashboardService: DashboardService,
+    private dailyCareService: DailyCareService,
     private patientService: PatientService,
     private careTeamService: CareTeamService,
     private doctorPatientContext: DoctorPatientContextService,
@@ -112,95 +148,39 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const currentUser = this.authService.getCurrentUser();
+    const userId = this.authService.getCurrentUserId();
+    console.log('currentUser =', currentUser);
+    console.log('userId =', userId);
 
-    if (currentUser) {
-      this.doctorName = currentUser.name;
-      this.doctorId = currentUser.id || null;
-
-      // Load doctor's assigned patients from context service
-      this.loadDoctorPatients();
-      this.loadResearchNews();
+    if (!currentUser || !userId) {
+      this.toastService.error('User session invalid. Please login again.', 'Authentication Error');
+      return;
     }
 
-    this.authService.currentUser$.pipe(takeUntil(this.destroy$)).subscribe(user => {
-      if (user) {
-        this.doctorName = user.name;
+    this.doctorName = currentUser.name;
+    this.patients = this.dataService.getPatients();
+    this.appointments = this.dataService.getAppointments();
+    this.loadResearchNews();
+
+    // Resolve the backend doctor profile UUID from the Keycloak userId before
+    // calling care-team endpoints.
+    this.apiService.getDoctorByUserId(userId).subscribe({
+      next: (doctorProfile) => {
+        this.doctorId = doctorProfile.id;
+        this.loadDoctorPatients();
+      },
+      error: (error) => {
+        console.error('Error resolving doctor profile UUID:', error);
+        if (error.status === 400) {
+          this.toastService.error('Invalid user ID format. Please contact support.', 'Error');
+        } else if (error.status === 404) {
+          this.toastService.error('Doctor profile not found. Please contact administrator.', 'Error');
+        } else {
+          this.toastService.error('Failed to load doctor profile. Please try again.', 'Error');
+        }
+        this.doctorAssignments = [];
       }
     });
-
-    // Subscribe to alerts — show only those at DOCTOR or EMERGENCY_CONTACT level
-    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe(alerts => {
-      this.escalatedAlerts = alerts.filter(
-        a => a.currentLevel === 'DOCTOR' || a.currentLevel === 'EMERGENCY_CONTACT'
-      ).slice(0, 5);
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  // ─── Alert helpers ─────────────────────────────────────────────
-  openAcknowledge(alertId: string): void {
-    this.acknowledgeAlertId = alertId;
-    this.acknowledgeNotes = '';
-  }
-
-  submitAcknowledge(): void {
-    if (!this.acknowledgeAlertId) return;
-    const userId = this.authService.getCurrentUser()?.id ?? '';
-    this.acknowledgeSubmitting = true;
-    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId, notes: this.acknowledgeNotes })
-      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.acknowledgeSubmitting = false;
-        this.acknowledgeAlertId = null;
-        this.toastService.success('Alert acknowledged');
-        this.alertPolling.refresh();
-      });
-  }
-
-  openResolve(alertId: string): void {
-    this.resolvingAlertId = alertId;
-    this.resolveNotes = '';
-    this.resolutionType = 'CHECKED_OK';
-  }
-
-  submitResolve(): void {
-    if (!this.resolvingAlertId) return;
-    const userId = this.authService.getCurrentUser()?.id ?? '';
-    this.resolveSubmitting = true;
-    const req: ResolveAlertRequest = {
-      resolutionType: this.resolutionType as any,
-      resolutionNotes: this.resolveNotes,
-      isFalsePositive: false,
-      resolvedBy: userId
-    };
-    this.safetyAlertService.resolveAlert(this.resolvingAlertId, req)
-      .pipe(catchError(() => of(undefined)), takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.resolveSubmitting = false;
-        this.resolvingAlertId = null;
-        this.toastService.success('Alert resolved');
-        this.alertPolling.refresh();
-      });
-  }
-
-  alertSeverityClass(sev: string): string {
-    const m: Record<string, string> = {
-      CRITICAL: 'bg-red-100 text-red-800 border-red-200',
-      HIGH: 'bg-orange-100 text-orange-800 border-orange-200',
-      MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      LOW: 'bg-green-100 text-green-800 border-green-200'
-    };
-    return m[sev] ?? 'bg-gray-100 text-gray-700 border-gray-200';
-  }
-
-  alertCountdown(mins: number): string {
-    if (mins <= 0) return 'Overdue';
-    if (mins < 60) return `${mins}m`;
-    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
 
   private loadResearchNews(): void {
@@ -223,7 +203,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
         };
 
         if (text === '__NETWORK_ERROR__') {
-          useCurated('We couldn\'t load the latest headlines. The reminders below are still available.');
+          useCurated('We couldn’t load the latest headlines. The reminders below are still available.');
           return;
         }
         const t = (text || '').trim();
@@ -246,6 +226,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
       });
   }
 
+
   loadDoctorPatients(): void {
     if (!this.doctorId) {
       this.toastService.error('Doctor ID not found', 'Error');
@@ -253,7 +234,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.loadingPatients = true;
-    
+
     // Load assignments and patients from context service
     this.doctorPatientContext.getActiveAssignments().pipe(
       takeUntil(this.destroy$)
@@ -284,6 +265,195 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  requestDownloadAutonomyReport(suggestion: AutonomySuggestion): void {
+    this.pendingReportSuggestion = suggestion;
+    this.showSignatureModal = true;
+    setTimeout(() => this.initializeSignatureCanvas(), 0);
+  }
+
+  cancelSignatureModal(): void {
+    this.showSignatureModal = false;
+    this.pendingReportSuggestion = null;
+  }
+
+  clearSignatureCanvas(): void {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  startSignature(event: MouseEvent | TouchEvent): void {
+    const point = this.getCanvasPoint(event);
+    if (!point) {
+      return;
+    }
+    this.isDrawingSignature = true;
+    this.signatureLastX = point.x;
+    this.signatureLastY = point.y;
+  }
+
+  moveSignature(event: MouseEvent | TouchEvent): void {
+    if (!this.isDrawingSignature) {
+      return;
+    }
+    const canvas = this.signatureCanvas?.nativeElement;
+    const point = this.getCanvasPoint(event);
+    if (!canvas || !point) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.strokeStyle = '#111827';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.signatureLastX, this.signatureLastY);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    this.signatureLastX = point.x;
+    this.signatureLastY = point.y;
+  }
+
+  endSignature(): void {
+    this.isDrawingSignature = false;
+  }
+
+  confirmSignatureAndDownload(): void {
+    if (!this.pendingReportSuggestion) {
+      return;
+    }
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const signatureImage = canvas.toDataURL('image/png');
+    this.downloadAutonomyReport(this.pendingReportSuggestion, signatureImage, this.doctorName || '');
+    this.showSignatureModal = false;
+    this.pendingReportSuggestion = null;
+  }
+
+  downloadAutonomyReport(suggestion: AutonomySuggestion, signatureImage?: string, doctorName?: string): void {
+    const patientName = this.resolveSelectedPatientName(suggestion.patientId);
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const marginX = 50;
+    let y = 60;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text('Autonomy Assessment Report', marginX, y);
+    y += 24;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Patient: ${patientName}`, marginX, y);
+    y += 16;
+    doc.text(`Patient ID: ${suggestion.patientId}`, marginX, y);
+    y += 16;
+    doc.text(`Generated At: ${new Date(suggestion.createdAt).toLocaleString()}`, marginX, y);
+    y += 16;
+    doc.text(`Status: ${suggestion.status}`, marginX, y);
+    y += 24;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('Recommended Levels', marginX, y);
+    y += 18;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(`Mobility: ${suggestion.mobilityLevel}`, marginX, y); y += 14;
+    doc.text(`Hygiene: ${suggestion.hygieneLevel}`, marginX, y); y += 14;
+    doc.text(`Medication: ${suggestion.medicationLevel}`, marginX, y); y += 14;
+    doc.text(`Decision Making: ${suggestion.decisionMakingLevel}`, marginX, y); y += 22;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Clinical Notes', marginX, y);
+    y += 16;
+    doc.setFont('helvetica', 'normal');
+    const summary = suggestion.aiSummary || 'No AI summary available.';
+    const summaryLines = doc.splitTextToSize(summary, 500);
+    doc.text(summaryLines, marginX, y);
+    y += summaryLines.length * 14 + 10;
+
+    const reasonText =
+      `Mobility reason: ${suggestion.mobilityReason || '-'}\n` +
+      `Hygiene reason: ${suggestion.hygieneReason || '-'}\n` +
+      `Medication reason: ${suggestion.medicationReason || '-'}\n` +
+      `Decision reason: ${suggestion.decisionMakingReason || '-'}`;
+    const reasonLines = doc.splitTextToSize(reasonText, 500);
+    doc.text(reasonLines, marginX, y);
+    y += reasonLines.length * 14 + 12;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Doctor Review', marginX, y);
+    y += 16;
+    doc.setFont('helvetica', 'normal');
+    const reviewer = doctorName?.trim() || suggestion.reviewedBy || 'Pending';
+    doc.text(`Reviewed By: ${reviewer}`, marginX, y); y += 14;
+    doc.text(`Reviewed At: ${suggestion.reviewedAt ? new Date(suggestion.reviewedAt).toLocaleString() : 'Pending'}`, marginX, y); y += 14;
+    const reviewNote = suggestion.reviewNotes || 'No review note.';
+    const reviewLines = doc.splitTextToSize(`Review note: ${reviewNote}`, 500);
+    doc.text(reviewLines, marginX, y);
+    y += reviewLines.length * 14 + 16;
+
+    if (signatureImage) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Doctor Signature', marginX, y);
+      y += 8;
+      doc.addImage(signatureImage, 'PNG', marginX, y, 180, 70);
+    }
+
+    const fileSafeName = patientName.replace(/[^a-zA-Z0-9-_]/g, '_');
+    doc.save(`autonomy-report-${fileSafeName}-${suggestion.id}.pdf`);
+  }
+
+  private resolveSelectedPatientName(patientId: string): string {
+    const assignment = this.doctorAssignments.find(a => a.patientId === patientId);
+    if (!assignment) {
+      return `Patient_${patientId}`;
+    }
+    return this.getPatientFullName(assignment);
+  }
+
+  private initializeSignatureCanvas(): void {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return;
+    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+  }
+
+  private getCanvasPoint(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
+    const canvas = this.signatureCanvas?.nativeElement;
+    if (!canvas) {
+      return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    if (event instanceof MouseEvent) {
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+    if (event.touches.length > 0) {
+      return { x: event.touches[0].clientX - rect.left, y: event.touches[0].clientY - rect.top };
+    }
+    return null;
+  }
+
   get patientCount(): number {
     return this.doctorAssignments.length;
   }
@@ -295,7 +465,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
       const full = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
       if (full.length > 0) return full;
     }
-    
+
     // Fallback to assignment data
     if (assignment.patientFirstName && assignment.patientLastName) {
       return `${assignment.patientFirstName} ${assignment.patientLastName}`;
@@ -303,7 +473,7 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     if (assignment.patientFirstName) {
       return assignment.patientFirstName;
     }
-    
+
     const id = assignment.patientId;
     const short = id.length > 10 ? `${id.slice(0, 8)}…` : id;
     return `Patient (${short})`;
@@ -336,12 +506,16 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    
+
     return age;
+  }
+  getPatientName(patientId: string): string {
+    const patient = this.assignedPatients.find(p => p.id === patientId);
+    return patient ? patient.firstName : 'Unknown';
   }
 
   openCreatePatientModal(): void {
@@ -404,3 +578,5 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
       });
   }
 }
+
+

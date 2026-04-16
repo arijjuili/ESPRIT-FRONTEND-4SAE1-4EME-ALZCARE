@@ -22,7 +22,8 @@
     "@angular/router": "^18.2.0",
     "@cloudinary/angular": "^1.0.0-beta.14",
     "chart.js": "^4.5.1",
-    "ng2-charts": "^6.0.1",
+    "jspdf": "^4.2.1",
+    "ng2-charts": "^10.0.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "zone.js": "^0.14.0"
@@ -31,8 +32,10 @@
     "@angular-devkit/build-angular": "^18.2.0",
     "@angular/cli": "^18.2.0",
     "@angular/compiler-cli": "^18.2.0",
+    "angular-eslint": "21.0.1",
     "@types/jasmine": "~5.1.0",
     "autoprefixer": "^10.4.0",
+    "eslint": "^9.39.1",
     "jasmine-core": "~5.1.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
@@ -41,6 +44,7 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.3.0",
-    "typescript": "~5.4.0"
+    "typescript": "~5.4.0",
+    "typescript-eslint": "8.46.4"
   }
 }

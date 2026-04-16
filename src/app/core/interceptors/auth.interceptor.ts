@@ -2,6 +2,7 @@ import { HttpInterceptorFn, HttpErrorResponse, HttpRequest, HttpHandlerFn } from
 import { inject } from '@angular/core';
 import { catchError, switchMap, throwError, of, BehaviorSubject, filter, take, tap } from 'rxjs';
 import { TokenRefreshService } from '../services/token-refresh.service';
+import { environment } from '../../../environments/environment';
 
 // Shared state for refresh (at module level)
 let isRefreshing = false;
@@ -44,10 +45,33 @@ function isTokenExpiringSoon(token: string): boolean {
 }
 
 /**
+ * Check if token is a mock token (for development)
+ */
+function isMockToken(token: string | null): boolean {
+  return !!token && token.startsWith('mock-');
+}
+
+/**
  * Check if request is to the token endpoint
  */
 function isTokenRequest(url: string): boolean {
   return url.includes(TOKEN_ENDPOINT_PATTERN);
+}
+
+function shouldAttachAuthHeader(url: string): boolean {
+  // Attach headers only for our backend/gateway calls (same-origin proxy or configured apiUrl).
+  // External APIs (e.g., https://api.fda.gov) often block custom headers via CORS preflight.
+  const normalized = String(url || '').trim();
+  if (!normalized) return false;
+
+  // Same-origin proxy paths
+  if (normalized.startsWith('/api') || normalized.startsWith('api/')) return true;
+  if (normalized.startsWith('/realms') || normalized.startsWith('realms/')) return true;
+
+  // Absolute gateway URL (e.g., http://localhost:8080/api)
+  if (environment?.apiUrl && normalized.startsWith(environment.apiUrl)) return true;
+
+  return false;
 }
 
 /**
@@ -90,6 +114,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   // Skip auth header for token requests
   if (isTokenRequest(req.url)) {
+    return next(req);
+  }
+
+  // Skip auth header for external APIs (CORS-safe)
+  if (!shouldAttachAuthHeader(req.url)) {
     return next(req);
   }
 
@@ -143,7 +172,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
       // Handle 401 errors - try refresh once before logging out
-      if (error.status === 401 && !isTokenRequest(req.url)) {
+      // But don't logout if the refresh succeeds but original request still fails (backend service down)
+      const token = localStorage.getItem('access_token');
+      if (error.status === 401 && !isTokenRequest(req.url) && token && !isMockToken(token)) {
         if (isRefreshing) {
           // Wait for ongoing refresh and retry
           return refreshSubject.pipe(
@@ -154,7 +185,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
               return next(retryReq);
             }),
             catchError((refreshError) => {
-              logout();
+              // Don't logout - just pass the error through
               return throwError(() => refreshError);
             })
           );
@@ -163,9 +194,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         // Start refresh process
         isRefreshing = true;
         refreshSubject.next(null);
+        let refreshSucceeded = false;
 
         return tokenRefreshService.refreshToken().pipe(
           tap((response) => {
+            refreshSucceeded = true;
             isRefreshing = false;
             refreshSubject.next(response.access_token);
           }),
@@ -178,7 +211,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             isRefreshing = false;
             refreshSubject.next(null);
 
-            // Only redirect if refresh also fails (401 or 400)
+            // Only redirect if refresh itself fails with auth error (401/400)
+            // Don't logout if refresh succeeds but original request fails (backend service down)
+            if (refreshSucceeded) {
+              // Token refresh worked, but the API still failed - service is down, don't logout
+              return throwError(() => refreshError);
+            }
+
+            // Token refresh failed - might be auth issue
             if (refreshError.status === 401 || refreshError.status === 400) {
               logout();
             }
@@ -188,6 +228,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
 
+      // For all other errors (including 500, service unavailable, etc.), just pass through
       return throwError(() => error);
     })
   );
