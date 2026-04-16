@@ -89,7 +89,7 @@ export class DoctorPatientContextService {
         }
 
         const requests = assignments.map(assignment =>
-          this.patientService.getPatientById(assignment.patientId).pipe(
+          this.patientService.getPatientByUserId(assignment.patientId).pipe(
             map(patient => this.normalizePatient(patient, assignment)),
             catchError(error => {
               console.error(`Failed to load patient ${assignment.patientId}:`, error);

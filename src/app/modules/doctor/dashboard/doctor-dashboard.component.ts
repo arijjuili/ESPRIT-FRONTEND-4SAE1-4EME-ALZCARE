@@ -417,11 +417,16 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
   }
 
   private resolveSelectedPatientName(patientId: string): string {
-    const assignment = this.doctorAssignments.find(a => a.patientId === patientId);
-    if (!assignment) {
-      return `Patient_${patientId}`;
+    const patient = this.assignedPatients.find(p => p.id === patientId || p.userId === patientId);
+    if (patient) {
+      const full = `${patient.firstName || ''} ${patient.lastName || ''}`.trim();
+      if (full) return full;
     }
-    return this.getPatientFullName(assignment);
+    const assignment = this.doctorAssignments.find(a => a.patientId === patientId);
+    if (assignment) {
+      return this.getPatientFullName(assignment);
+    }
+    return `Patient_${patientId}`;
   }
 
   private initializeSignatureCanvas(): void {
@@ -574,6 +579,143 @@ export class DoctorDashboardComponent implements OnInit, OnDestroy {
             'Could not create patient';
           this.toastService.error(msg);
           this.creatingPatient = false;
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  alertSeverityClass(severity: string): string {
+    const map: Record<string, string> = {
+      LOW: 'bg-gray-100 text-gray-700 border-gray-200',
+      MEDIUM: 'bg-amber-100 text-amber-700 border-amber-200',
+      HIGH: 'bg-rose-100 text-rose-700 border-rose-200'
+    };
+    return map[severity] ?? 'bg-gray-100 text-gray-700 border-gray-200';
+  }
+
+  alertCountdown(minutes?: number): string {
+    if (minutes === undefined || minutes === null) return 'soon';
+    if (minutes <= 0) return 'now';
+    if (minutes < 60) return `${minutes}m`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  }
+
+  openAcknowledge(alertId: string): void {
+    this.acknowledgeAlertId = alertId;
+    this.acknowledgeNotes = '';
+    this.acknowledgeSubmitting = false;
+  }
+
+  openResolve(alertId: string): void {
+    this.resolvingAlertId = alertId;
+    this.resolveNotes = '';
+    this.resolutionType = 'CHECKED_OK';
+    this.resolveSubmitting = false;
+  }
+
+  submitAcknowledge(): void {
+    if (!this.acknowledgeAlertId || !this.doctorId) return;
+    this.acknowledgeSubmitting = true;
+    this.safetyAlertService.acknowledgeAlert(this.acknowledgeAlertId, { userId: this.doctorId, notes: this.acknowledgeNotes })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.acknowledgeAlertId = null;
+          this.acknowledgeSubmitting = false;
+          this.toastService.success('Alert acknowledged');
+          this.loadEscalatedAlerts();
+        },
+        error: () => {
+          this.acknowledgeSubmitting = false;
+        }
+      });
+  }
+
+  submitResolve(): void {
+    if (!this.resolvingAlertId || !this.doctorId) return;
+    this.resolveSubmitting = true;
+    const payload: ResolveAlertRequest = {
+      resolutionNotes: this.resolveNotes,
+      resolutionType: this.resolutionType as any,
+      isFalsePositive: false,
+      resolvedBy: this.doctorId
+    };
+    this.safetyAlertService.resolveAlert(this.resolvingAlertId, payload)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.resolvingAlertId = null;
+          this.resolveSubmitting = false;
+          this.toastService.success('Alert resolved');
+          this.loadEscalatedAlerts();
+        },
+        error: () => {
+          this.resolveSubmitting = false;
+        }
+      });
+  }
+
+  private loadEscalatedAlerts(): void {
+    this.safetyAlertService.getActiveAlerts()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(alerts => {
+        this.escalatedAlerts = alerts.filter(a => a.status !== 'RESOLVED' && (a.isEscalationOverdue || a.severity === 'HIGH'));
+      });
+  }
+
+  loadAutonomySuggestions(): void {
+    if (!this.selectedAutonomyPatientId) return;
+    this.loadingAutonomy = true;
+    this.dailyCareService.getAutonomySuggestions(this.selectedAutonomyPatientId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: suggestions => {
+          this.autonomySuggestions = suggestions;
+          this.loadingAutonomy = false;
+        },
+        error: (err) => {
+          console.error('[DoctorDashboard] Failed to load autonomy suggestions:', err);
+          this.toastService.error('Failed to load autonomy suggestions for this patient');
+          this.autonomySuggestions = [];
+          this.loadingAutonomy = false;
+        }
+      });
+  }
+
+  approveAutonomySuggestion(suggestion: AutonomySuggestion): void {
+    const payload: AutonomySuggestionDecisionRequest = {
+      reviewNotes: this.autonomyReviewNote || undefined
+    };
+    this.dailyCareService.approveAutonomySuggestion(suggestion.id, payload)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.toastService.success('Suggestion approved');
+          this.loadAutonomySuggestions();
+        },
+        error: () => {
+          this.toastService.error('Failed to approve suggestion');
+        }
+      });
+  }
+
+  rejectAutonomySuggestion(suggestion: AutonomySuggestion): void {
+    const payload: AutonomySuggestionDecisionRequest = {
+      reviewNotes: this.autonomyReviewNote || undefined
+    };
+    this.dailyCareService.rejectAutonomySuggestion(suggestion.id, payload)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.toastService.success('Suggestion rejected');
+          this.loadAutonomySuggestions();
+        },
+        error: () => {
+          this.toastService.error('Failed to reject suggestion');
         }
       });
   }

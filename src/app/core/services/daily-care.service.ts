@@ -13,7 +13,9 @@ import {
   AutonomyProfile,
   AutonomySuggestion,
   AutonomySuggestionDecisionRequest,
-  AutonomyHistoryItem
+  AutonomyHistoryItem,
+  DailyRoutine,
+  DailyCareTask
 } from '../models/daily-care.model';
 
 @Injectable({
@@ -290,6 +292,71 @@ export class DailyCareService {
     payload: AutonomySuggestionDecisionRequest
   ): Observable<AutonomySuggestion> {
     return this.http.post<AutonomySuggestion>(`${this.autonomyBaseUrl}/suggestions/${suggestionId}/reject`, payload || {});
+  }
+
+  // ═══════════════════ Stubs for unmerged dailycare branch ═══════════════════
+
+  private routinesStorageKey = 'mockDailyRoutines';
+
+  private getRoutinesFromStorage(): DailyRoutine[] {
+    const saved = localStorage.getItem(this.routinesStorageKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  getRoutines(): Observable<DailyRoutine[]> {
+    return of(this.getRoutinesFromStorage());
+  }
+
+  toggleRoutineStatus(routineId: string): Observable<DailyRoutine> {
+    const routines = this.getRoutinesFromStorage();
+    const index = routines.findIndex(r => r.id === routineId);
+    if (index >= 0) {
+      routines[index] = { ...routines[index], active: !routines[index].active };
+      localStorage.setItem(this.routinesStorageKey, JSON.stringify(routines));
+      return of(routines[index]);
+    }
+    return of({ id: routineId, name: '', description: '', patientCount: 0, taskCount: 0, active: false });
+  }
+
+  private tasksStorageKey = 'mockDailyCareTasks';
+
+  private getTasksFromStorage(): DailyCareTask[] {
+    const saved = localStorage.getItem(this.tasksStorageKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
+  getPatientDailyTasks(patientId: string, _date?: string): Observable<DailyCareTask[]> {
+    const tasks = this.getTasksFromStorage().filter(t => t.patientId === patientId);
+    return of(tasks.length > 0 ? tasks : []);
+  }
+
+  updateTaskStatus(taskId: string, payload: { completed: boolean }): Observable<DailyCareTask> {
+    const tasks = this.getTasksFromStorage();
+    const index = tasks.findIndex(t => t.id === taskId);
+    if (index >= 0) {
+      tasks[index] = {
+        ...tasks[index],
+        completed: payload.completed,
+        status: payload.completed ? 'COMPLETED' : 'PENDING'
+      };
+      localStorage.setItem(this.tasksStorageKey, JSON.stringify(tasks));
+      return of(tasks[index]);
+    }
+    return of({ id: taskId, title: '', description: '', completed: payload.completed, priority: 'medium', status: payload.completed ? 'COMPLETED' : 'PENDING', dueDate: new Date().toISOString(), patientId: '' });
   }
 }
 
