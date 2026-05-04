@@ -210,18 +210,25 @@ export class NotificationService {
     this.currentUserId = userId;
 
     // Initial fetch
-    this.getUnreadCount(userId).subscribe();
+    this.getUnreadCount(userId).subscribe({
+      error: () => { /* silently ignore initial fetch errors */ }
+    });
 
     // Set up polling interval - refresh both count and notifications list
-    this.pollingSubscription = interval(intervalMs).subscribe(() => {
-      this.getUnreadCount(userId).subscribe({
-        error: () => { /* silently ignore polling errors */ }
-      });
+    this.pollingSubscription = interval(intervalMs).subscribe({
+      next: () => {
+        this.getUnreadCount(userId).subscribe({
+          error: () => { /* silently ignore polling errors */ }
+        });
 
-      // Also refresh the notifications list if we have cached notifications
-      if (this.notificationsSubject.value.length > 0) {
-        this.refreshNotifications(userId).subscribe();
-      }
+        // Also refresh the notifications list if we have cached notifications
+        if (this.notificationsSubject.value.length > 0) {
+          this.refreshNotifications(userId).subscribe({
+            error: () => { /* silently ignore refresh errors */ }
+          });
+        }
+      },
+      error: () => { /* silently ignore interval errors */ }
     });
   }
 
@@ -299,7 +306,9 @@ export class NotificationService {
    */
   private refreshUnreadCount(): void {
     if (this.currentUserId) {
-      this.getUnreadCount(this.currentUserId).subscribe();
+      this.getUnreadCount(this.currentUserId).subscribe({
+        error: () => { /* silently ignore refresh errors */ }
+      });
     }
   }
 

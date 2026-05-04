@@ -250,12 +250,14 @@ export class PatientAppointmentsComponent implements OnInit {
       return;
     }
     
-    // Validate URL format
+    // Validate and sanitize URL before opening
     try {
-      new URL(url);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      console.error('Invalid meeting URL:', url);
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error('Invalid protocol');
+      }
+      window.open(parsed.href, '_blank', 'noopener,noreferrer');
+    } catch {
       alert('Invalid meeting URL. Please contact support.');
     }
   }

@@ -157,7 +157,6 @@ export class AdjustPlanService {
       return of(0);
     }
     
-    console.log(`[AdjustPlanService] Cancelling ${intakes.length} future intakes`);
     
     // Delete each intake individually
     const deleteRequests = intakes
@@ -165,7 +164,6 @@ export class AdjustPlanService {
       .map(intake => 
         this.medicalService.deleteMedicationIntake(intake.id!).pipe(
           catchError(err => {
-            console.warn(`Failed to delete intake ${intake.id}:`, err);
             return of(void 0); // Continue even if one fails
           })
         )
@@ -194,7 +192,6 @@ export class AdjustPlanService {
       return of([]);
     }
     
-    console.log(`[AdjustPlanService] Creating ${newIntakes.length} new future intakes for item ${item.id}`);
     
     // Create each intake via backend
     const createRequests = newIntakes.map(intake => 
@@ -203,7 +200,6 @@ export class AdjustPlanService {
         status: IntakeStatus.PENDING
       }).pipe(
         catchError(err => {
-          console.warn(`Failed to create intake for ${intake.scheduledAt}:`, err);
           return of(null); // Continue even if one fails
         })
       )
@@ -301,7 +297,6 @@ export class AdjustPlanService {
         const planUpdate$ = Object.keys(planUpdate).length > 0
           ? this.medicalService.updateMedicationPlan(plan.id, planUpdate).pipe(
               catchError(err => {
-                console.warn(`Failed to update plan ${plan.id}:`, err);
                 return of(null);
               })
             )
@@ -311,7 +306,6 @@ export class AdjustPlanService {
         const itemUpdates$ = updateItemRequests.length > 0
           ? forkJoin(updateItemRequests.map(req => 
               req.pipe(catchError(err => {
-                console.warn('Item update failed:', err);
                 return of(null);
               }))
             ))
@@ -326,7 +320,6 @@ export class AdjustPlanService {
             const intakeRequests = items.map(item => 
               this.generateAndCreateFutureIntakes(item, formData).pipe(
                 catchError(err => {
-                  console.warn(`Failed to create intakes for item ${item.id}:`, err);
                   return of([]);
                 })
               )
@@ -392,7 +385,6 @@ export class AdjustPlanService {
           lowThreshold: item.lowThreshold
         };
         
-        console.log(`[AdjustPlanService] Updating item ${item.id}:`, update);
         
         requests.push(
           this.medicalService.updateMedicationItem(item.id, update)

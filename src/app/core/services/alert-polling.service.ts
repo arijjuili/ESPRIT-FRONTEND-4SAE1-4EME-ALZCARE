@@ -34,7 +34,10 @@ export class AlertPollingService implements OnDestroy {
   private startPolling(): void {
     // Immediate first fetch, then every POLL_INTERVAL_MS
     this.fetchAlerts();
-    this.pollSub = interval(POLL_INTERVAL_MS).subscribe(() => this.fetchAlerts());
+    this.pollSub = interval(POLL_INTERVAL_MS).subscribe({
+      next: () => this.fetchAlerts(),
+      error: () => { /* silently ignore polling errors */ }
+    });
   }
 
   private fetchAlerts(): void {

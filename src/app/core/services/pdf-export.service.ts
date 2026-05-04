@@ -7,19 +7,12 @@ export class PdfExportService {
   exportElementAsPdf(elementId: string, title: string): void {
     const sourceElement = document.getElementById(elementId);
     if (!sourceElement) {
-      console.error(`[PdfExportService] Element not found: ${elementId}`);
       return;
     }
 
     const clonedElement = sourceElement.cloneNode(true) as HTMLElement;
     this.copyCanvasContent(sourceElement, clonedElement);
     this.preparePdfClone(clonedElement);
-
-    const printWindow = window.open('', '_blank', 'width=1200,height=900');
-    if (!printWindow) {
-      console.error('[PdfExportService] Unable to open print window');
-      return;
-    }
 
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map(node => node.outerHTML)
@@ -28,8 +21,7 @@ export class PdfExportService {
     const now = new Date();
     const dateText = now.toLocaleString();
 
-    printWindow.document.open();
-    printWindow.document.write(`
+    const fullHtml = `
       <!doctype html>
       <html>
       <head>
@@ -66,15 +58,23 @@ export class PdfExportService {
         </div>
       </body>
       </html>
-    `);
-    printWindow.document.close();
+    `;
 
-    const triggerPrint = () => {
+    // Use a Blob URL instead of document.write to avoid security hotspots
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+    const printWindow = window.open(blobUrl, '_blank', 'width=1200,height=900');
+    if (!printWindow) {
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
+
+    setTimeout(() => {
       printWindow.focus();
       printWindow.print();
       printWindow.close();
-    };
-    setTimeout(triggerPrint, 500);
+      URL.revokeObjectURL(blobUrl);
+    }, 500);
   }
 
   private copyCanvasContent(sourceRoot: HTMLElement, cloneRoot: HTMLElement): void {
