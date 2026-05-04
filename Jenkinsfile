@@ -104,6 +104,9 @@ node {
             
             # Build production bundle
             npm run build -- --configuration=production
+
+            # Run unit tests with coverage (headless for CI)
+            npx ng test --watch=false --browsers=ChromeHeadless --code-coverage
           '''.stripIndent().trim()
         }
       }
@@ -131,11 +134,7 @@ node {
 
               "$SCANNER_HOME/bin/sonar-scanner" \
                 -Dsonar.organization=$SONAR_ORG \
-                -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-                -Dsonar.sources=src \
-                -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                -Dsonar.exclusions=**/.git/**,**/node_modules/**,**/dist/**,**/*.spec.ts,**/karma.conf.js \
-                -Dsonar.sourceEncoding=UTF-8
+                -Dsonar.projectKey=$SONAR_PROJECT_KEY
             '''.stripIndent().trim()
           }
         }

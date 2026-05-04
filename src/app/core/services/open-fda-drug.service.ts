@@ -43,9 +43,8 @@ export class OpenFdaDrugService {
       .get<OpenFdaResponse>(this.API_BASE_URL, { params })
       .pipe(
         map(response => this.mapResponseToDTOs(response)),
-        catchError(error => {
+        catchError(() => {
           // Handle CORS, 403, network errors gracefully
-          console.error('OpenFDA API error:', error);
           return of([]);
         })
       );
@@ -57,11 +56,8 @@ export class OpenFdaDrugService {
    */
   private mapResponseToDTOs(response: OpenFdaResponse): DrugSuggestionDTO[] {
     if (!response?.results || !Array.isArray(response.results) || response.results.length === 0) {
-      console.log('[OpenFDA] No results in response:', response);
       return [];
     }
-
-    console.log('[OpenFDA] Mapping', response.results.length, 'results');
     const suggestions: DrugSuggestionDTO[] = [];
     const seenKeys = new Set<string>();
 
@@ -120,7 +116,6 @@ export class OpenFdaDrugService {
       });
     }
 
-    console.log('[OpenFDA] Mapped', suggestions.length, 'suggestions');
     return suggestions;
   }
 

@@ -64,14 +64,10 @@ export class MedicalFollowupService {
   getAppointment(id: number): Observable<Appointment> {
     return this.http.get<any>(`${this.baseUrl}/appointments/${id}`).pipe(
       map(appt => {
-        console.log('[MedicalFollowupService] Get appointment response:', appt);
-        console.log('[MedicalFollowupService] Raw fields - meetingUrl:', appt.meetingUrl, 'meetingLink:', appt.meetingLink);
-        const mapped = {
+        return {
           ...appt,
           meetingUrl: appt.meetingUrl || appt.meetingLink || null
         };
-        console.log('[MedicalFollowupService] Mapped meetingUrl:', mapped.meetingUrl);
-        return mapped;
       })
     );
   }
@@ -97,7 +93,6 @@ export class MedicalFollowupService {
 
     return this.http.get<any[]>(`${this.baseUrl}/appointments`, { params: httpParams }).pipe(
       map(appointments => {
-        console.log('[MedicalFollowupService] Raw appointments from backend:', appointments);
         return appointments.map(appt => {
           // Map backend fields to frontend model
           // Handle both meetingUrl and meetingLink (backend might use different naming)
@@ -105,9 +100,6 @@ export class MedicalFollowupService {
             ...appt,
             meetingUrl: appt.meetingUrl || appt.meetingLink || null
           };
-          if (appt.meetingLink && !appt.meetingUrl) {
-            console.log(`[MedicalFollowupService] Mapped meetingLink to meetingUrl for appointment ${appt.id}:`, mapped.meetingUrl);
-          }
           return mapped;
         });
       })
@@ -153,7 +145,6 @@ export class MedicalFollowupService {
       { params: new HttpParams().set('status', status) }
     ).pipe(
       map(appt => {
-        console.log('[MedicalFollowupService] Status change response:', appt);
         // Handle both meetingUrl and meetingLink
         return {
           ...appt,
@@ -226,34 +217,20 @@ export class MedicalFollowupService {
     const url = `${this.baseUrl}/appointments/${id}/teleconsultation/link`;
     const params = new HttpParams().set('userId', userId);
     
-    console.log('[MedicalFollowupService] ==========================================');
-    console.log('[MedicalFollowupService] Calling teleconsultation endpoint:');
-    console.log('[MedicalFollowupService] URL:', url);
-    console.log('[MedicalFollowupService] Params:', { userId });
-    console.log('[MedicalFollowupService] ==========================================');
-    
     return this.http.get<any>(url, { params }).pipe(
-      map(response => {
-        console.log('[MedicalFollowupService] SUCCESS - Response:', response);
-        // Backend returns 'meetingLink', we map it to 'meetingUrl' for consistency
-        return {
-          meetingUrl: response.meetingLink || response.meetingUrl || null
-        };
-      }),
+      map(response => ({
+        meetingUrl: response.meetingLink || response.meetingUrl || null
+      })),
       catchError((error: HttpErrorResponse) => {
-        console.error('[MedicalFollowupService] ERROR:', error.status, error.message);
-        
         // Si 404, c'est probablement un problème de routage gateway
         // Retourner une erreur pour que le composant gère le fallback
         if (error.status === 404) {
-          console.warn('[MedicalFollowupService] Gateway returned 404 - endpoint may not be routed correctly');
           return throwError(() => ({
             status: 404,
             message: 'Teleconsultation endpoint not available. Please refresh the page to get the latest appointment data.',
             url: error.url
           }));
         }
-        
         return throwError(() => error);
       })
     );
@@ -263,14 +240,11 @@ export class MedicalFollowupService {
     const url = `${this.baseUrl}/appointments/${id}/teleconsultation/regenerate`;
     const params = new HttpParams().set('doctorId', doctorId);
 
-    console.log('[MedicalFollowupService] Regenerating teleconsultation link:', { id, doctorId });
-
     return this.http.post<any>(url, null, { params }).pipe(
       map(response => ({
         meetingUrl: response.meetingUrl || response.meetingLink || null
       })),
       catchError((error: HttpErrorResponse) => {
-        console.error('[MedicalFollowupService] Regenerate link ERROR:', error.status, error.message);
         return throwError(() => error);
       })
     );
@@ -296,7 +270,6 @@ export class MedicalFollowupService {
    */
   replaceMedicationPlan(patientId: string, newPlan: MedicationPlanCreateRequest): Observable<MedicationPlan> {
     const url = `${this.baseUrl}/medications/patients/${patientId}/plans/replace`;
-    console.log("HTTP POST replaceMedicationPlan URL:", url);
     return this.http.post<MedicationPlan>(url, newPlan);
   }
 

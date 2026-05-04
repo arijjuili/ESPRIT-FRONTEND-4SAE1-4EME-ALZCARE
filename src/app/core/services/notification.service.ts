@@ -65,7 +65,6 @@ export class NotificationService {
       params
     }).pipe(
       catchError(error => {
-        console.error('[NotificationService] Failed to get user notifications:', error);
         throw error;
       })
     );
@@ -81,7 +80,6 @@ export class NotificationService {
       map(response => response.unreadCount),
       tap(count => this.unreadCountSubject.next(count)),
       catchError(error => {
-        console.error('[NotificationService] Failed to get unread count:', error);
         throw error;
       })
     );
@@ -108,7 +106,6 @@ export class NotificationService {
         this.markingAsRead.delete(notificationId);
       }),
       catchError(error => {
-        console.error('[NotificationService] Failed to mark notification as read:', error);
         // Rollback optimistic update on failure
         // Rollback to original status - need to track original or refetch
         // For now, just refetch from server
@@ -135,7 +132,6 @@ export class NotificationService {
       headers: this.getAuthHeaders()
     }).pipe(
       catchError(error => {
-        console.error('[NotificationService] Failed to mark all notifications as read:', error);
         // Rollback - restore previous state
         this.notificationsSubject.next(currentNotifications);
         this.refreshUnreadCount();
@@ -168,7 +164,6 @@ export class NotificationService {
         this.deleting.delete(id);
       }),
       catchError(error => {
-        console.error('[NotificationService] Failed to delete notification:', error);
         // Rollback - restore notification to list
         this.notificationsSubject.next(currentNotifications);
         this.deleting.delete(id);
@@ -185,7 +180,6 @@ export class NotificationService {
       headers: this.getAuthHeaders()
     }).pipe(
       catchError(error => {
-        console.error('[NotificationService] Failed to get notification:', error);
         throw error;
       })
     );
@@ -199,7 +193,6 @@ export class NotificationService {
       headers: this.getAuthHeaders()
     }).pipe(
       catchError(error => {
-        console.error('[NotificationService] Failed to get notifications by status:', error);
         throw error;
       })
     );
@@ -222,18 +215,14 @@ export class NotificationService {
     // Set up polling interval - refresh both count and notifications list
     this.pollingSubscription = interval(intervalMs).subscribe(() => {
       this.getUnreadCount(userId).subscribe({
-        error: (error) => {
-          console.error('[NotificationService] Polling error:', error);
-        }
+        error: () => { /* silently ignore polling errors */ }
       });
-      
+
       // Also refresh the notifications list if we have cached notifications
       if (this.notificationsSubject.value.length > 0) {
         this.refreshNotifications(userId).subscribe();
       }
     });
-
-    console.log(`[NotificationService] Started polling for user ${userId} every ${intervalMs}ms`);
   }
 
   /**
@@ -245,8 +234,7 @@ export class NotificationService {
       tap(notifications => {
         this.notificationsSubject.next(notifications);
       }),
-      catchError(error => {
-        console.error('[NotificationService] Failed to refresh notifications:', error);
+      catchError(() => {
         return of(this.notificationsSubject.value);
       })
     );
@@ -259,7 +247,6 @@ export class NotificationService {
     if (this.pollingSubscription) {
       this.pollingSubscription.unsubscribe();
       this.pollingSubscription = undefined;
-      console.log('[NotificationService] Stopped polling');
     }
   }
 

@@ -113,7 +113,7 @@ describe('AuthService', () => {
   describe('Logout', () => {
     it('should clear user and localStorage on logout', (done) => {
       service.setUseKeycloak(false);
-      service.login('admin@example.com', 'Password123!').subscribe(() => {
+      service.login('admin@example.com', 'Admin123!').subscribe(() => {
         expect(service.isAuthenticated()).toBeTrue();
 
         service.logout();
