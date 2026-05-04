@@ -108,7 +108,7 @@ node {
         }
       }
 
-      stash name: artifactStashName, includes: "${serviceDir}/dist/**/*", allowEmpty: false
+      stash name: artifactStashName, includes: "dist/alzheimer-care-app/**/*", allowEmpty: false
     }
 
     stage('Sonar Scan') {
