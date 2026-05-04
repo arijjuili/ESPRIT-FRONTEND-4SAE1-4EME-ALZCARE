@@ -145,6 +145,8 @@ describe('NotificationService', () => {
       service.startPolling('user-1', 1000);
       expect(service.isPolling()).toBeTrue();
 
+      // startPolling triggers an immediate request + interval request
+      httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 2 });
       tick(1000);
       httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 3 });
 
@@ -156,10 +158,16 @@ describe('NotificationService', () => {
       service.startPolling('user-1', 1000);
       const firstSub = service['pollingSubscription'];
 
+      // Consume the immediate request from first startPolling
+      httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 1 });
+
       service.startPolling('user-1', 1000);
       const secondSub = service['pollingSubscription'];
 
       expect(firstSub).not.toBe(secondSub);
+      // Consume the immediate request from second startPolling
+      httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 1 });
+
       service.stopPolling();
     }));
   });

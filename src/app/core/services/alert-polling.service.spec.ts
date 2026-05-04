@@ -55,10 +55,10 @@ describe('AlertPollingService', () => {
   });
 
   it('should start polling on construction', fakeAsync(() => {
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.flush([]);
     tick(30000);
-    httpMock.expectOne('/api/v1/safety-alerts/active').flush([]);
+    httpMock.expectOne('/api/alerts/active').flush([]);
   }));
 
   it('should emit alerts on the alerts$ observable', fakeAsync(() => {
@@ -69,7 +69,7 @@ describe('AlertPollingService', () => {
       emittedAlerts = alerts;
     });
 
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.flush(mockAlerts);
 
     expect(emittedAlerts.length).toBe(1);
@@ -88,7 +88,7 @@ describe('AlertPollingService', () => {
     service.alertCount$.subscribe(c => alertCount = c);
     service.criticalCount$.subscribe(c => criticalCount = c);
 
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.flush(mockAlerts);
 
     expect(alertCount).toBe(2);
@@ -96,7 +96,7 @@ describe('AlertPollingService', () => {
   }));
 
   it('should stop polling on destroy', fakeAsync(() => {
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.flush([]);
 
     service.ngOnDestroy();
@@ -111,7 +111,7 @@ describe('AlertPollingService', () => {
       emittedAlerts = alerts;
     });
 
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.error(new ErrorEvent('Network error'), { status: 500 });
 
     expect(emittedAlerts.length).toBe(0);
@@ -119,11 +119,11 @@ describe('AlertPollingService', () => {
 
   it('should trigger refresh manually', fakeAsync(() => {
     // Consume initial request
-    httpMock.expectOne('/api/v1/safety-alerts/active').flush([]);
+    httpMock.expectOne('/api/alerts/active').flush([]);
 
     service.refresh();
 
-    const req = httpMock.expectOne('/api/v1/safety-alerts/active');
+    const req = httpMock.expectOne('/api/alerts/active');
     req.flush([createMockAlert()]);
   }));
 });
