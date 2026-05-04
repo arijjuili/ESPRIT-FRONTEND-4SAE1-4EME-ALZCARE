@@ -125,7 +125,6 @@ export class DailyCareService {
     patientId: string,
     request: AssignHabitRequest
   ): Observable<void> {
-    this.debugStorageSnapshot('ASSIGN_BEFORE');
     const assignments = this.getAssignmentsFromStorage();
     if (!assignments[patientId]) {
       assignments[patientId] = [];
@@ -135,7 +134,6 @@ export class DailyCareService {
       this.saveAssignmentsToStorage(assignments);
     } else {
     }
-    this.debugStorageSnapshot('ASSIGN_AFTER');
     return of(undefined as any);
   }
 
@@ -144,19 +142,16 @@ export class DailyCareService {
     patientId: string,
     habitId: number
   ): Observable<void> {
-    this.debugStorageSnapshot('UNASSIGN_BEFORE');
     const assignments = this.getAssignmentsFromStorage();
     if (assignments[patientId]) {
       assignments[patientId] = assignments[patientId].filter((id) => id !== habitId);
       this.saveAssignmentsToStorage(assignments);
     } else {
     }
-    this.debugStorageSnapshot('UNASSIGN_AFTER');
     return of(undefined as any);
   }
 
   getAssignedHabitsForPatient(patientId: string | string[], allowFallback: boolean = false): Observable<Habit[]> {
-    this.debugStorageSnapshot('PATIENT_LOOKUP_START');
     return this.getAllHabits().pipe(
       map(allHabits => {
         
