@@ -43,25 +43,22 @@ describe('AlertPollingService', () => {
     service = TestBed.inject(AlertPollingService);
     httpMock = TestBed.inject(HttpTestingController);
     spyOn(localStorage, 'getItem').and.returnValue('test-token');
+
+    // The constructor calls startPolling() which fires an immediate request.
+    // We must consume it here before any test runs.
+    httpMock.expectOne('/api/alerts/active').flush([]);
   });
 
   afterEach(() => {
-    httpMock.verify();
     service.ngOnDestroy();
+    httpMock.verify();
   });
 
   it('should be created', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should start polling on construction', fakeAsync(() => {
-    const req = httpMock.expectOne('/api/alerts/active');
-    req.flush([]);
-    tick(30000);
-    httpMock.expectOne('/api/alerts/active').flush([]);
-  }));
-
-  it('should emit alerts on the alerts$ observable', fakeAsync(() => {
+  it('should emit alerts on refresh', () => {
     const mockAlerts: AlertResponse[] = [createMockAlert()];
 
     let emittedAlerts: AlertResponse[] = [];
@@ -69,14 +66,16 @@ describe('AlertPollingService', () => {
       emittedAlerts = alerts;
     });
 
+    service.refresh();
+
     const req = httpMock.expectOne('/api/alerts/active');
     req.flush(mockAlerts);
 
     expect(emittedAlerts.length).toBe(1);
     expect(emittedAlerts[0].id).toBe('alert-1');
-  }));
+  });
 
-  it('should count alerts correctly', fakeAsync(() => {
+  it('should count alerts correctly', () => {
     const mockAlerts: AlertResponse[] = [
       createMockAlert({ severity: 'CRITICAL' }),
       createMockAlert({ id: 'alert-2', severity: 'HIGH', ruleCode: 'NO_MOVEMENT' })
@@ -88,42 +87,41 @@ describe('AlertPollingService', () => {
     service.alertCount$.subscribe(c => alertCount = c);
     service.criticalCount$.subscribe(c => criticalCount = c);
 
+    service.refresh();
+
     const req = httpMock.expectOne('/api/alerts/active');
     req.flush(mockAlerts);
 
     expect(alertCount).toBe(2);
     expect(criticalCount).toBe(1);
-  }));
+  });
 
-  it('should stop polling on destroy', fakeAsync(() => {
-    const req = httpMock.expectOne('/api/alerts/active');
-    req.flush([]);
-
-    service.ngOnDestroy();
-
-    tick(30000);
-    // No additional HTTP requests should be made after destroy
-  }));
-
-  it('should handle HTTP errors gracefully', fakeAsync(() => {
+  it('should handle HTTP errors gracefully', () => {
     let emittedAlerts: AlertResponse[] = [];
     service.alerts$.subscribe(alerts => {
       emittedAlerts = alerts;
     });
 
+    service.refresh();
+
     const req = httpMock.expectOne('/api/alerts/active');
     req.error(new ErrorEvent('Network error'), { status: 500 });
 
     expect(emittedAlerts.length).toBe(0);
+  });
+
+  it('should poll on interval', fakeAsync(() => {
+    tick(30000);
+    httpMock.expectOne('/api/alerts/active').flush([]);
   }));
 
-  it('should trigger refresh manually', fakeAsync(() => {
-    // Consume initial request
+  it('should stop polling on destroy', fakeAsync(() => {
+    tick(30000);
     httpMock.expectOne('/api/alerts/active').flush([]);
 
-    service.refresh();
+    service.ngOnDestroy();
 
-    const req = httpMock.expectOne('/api/alerts/active');
-    req.flush([createMockAlert()]);
+    tick(30000);
+    // No additional HTTP requests should be made after destroy
   }));
 });
