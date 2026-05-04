@@ -5,6 +5,24 @@ import { SafetyAlertService } from './safety-alert.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { AlertResponse } from '../models/safety-alert.model';
 
+function createMockAlert(overrides: Partial<AlertResponse> = {}): AlertResponse {
+  return {
+    id: 'alert-1',
+    patientId: 'patient-1',
+    ruleCode: 'FALL_DETECTED',
+    severity: 'HIGH',
+    status: 'ACTIVE',
+    triggeredAt: '2024-01-01T00:00:00Z',
+    escalationDeadlineAt: '2024-01-01T00:30:00Z',
+    isFalsePositive: false,
+    currentLevel: 'LEVEL_1',
+    createdAt: '2024-01-01T00:00:00Z',
+    isEscalationOverdue: false,
+    escalationMinutesRemaining: 30,
+    ...overrides
+  };
+}
+
 describe('AlertPollingService', () => {
   let service: AlertPollingService;
   let httpMock: HttpTestingController;
@@ -44,9 +62,7 @@ describe('AlertPollingService', () => {
   }));
 
   it('should emit alerts on the alerts$ observable', fakeAsync(() => {
-    const mockAlerts: AlertResponse[] = [
-      { id: 'alert-1', patientId: 'patient-1', ruleCode: 'FALL_DETECTED', severity: 'HIGH', status: 'ACTIVE', triggeredAt: '2024-01-01T00:00:00Z' }
-    ];
+    const mockAlerts: AlertResponse[] = [createMockAlert()];
 
     let emittedAlerts: AlertResponse[] = [];
     service.alerts$.subscribe(alerts => {
@@ -62,8 +78,8 @@ describe('AlertPollingService', () => {
 
   it('should count alerts correctly', fakeAsync(() => {
     const mockAlerts: AlertResponse[] = [
-      { id: 'alert-1', patientId: 'patient-1', ruleCode: 'FALL_DETECTED', severity: 'CRITICAL', status: 'ACTIVE', triggeredAt: '2024-01-01T00:00:00Z' },
-      { id: 'alert-2', patientId: 'patient-2', ruleCode: 'NO_MOVEMENT', severity: 'HIGH', status: 'ACTIVE', triggeredAt: '2024-01-01T00:00:00Z' }
+      createMockAlert({ severity: 'CRITICAL' }),
+      createMockAlert({ id: 'alert-2', severity: 'HIGH', ruleCode: 'NO_MOVEMENT' })
     ];
 
     let alertCount = 0;
@@ -102,16 +118,12 @@ describe('AlertPollingService', () => {
   }));
 
   it('should trigger refresh manually', fakeAsync(() => {
-    const mockAlerts: AlertResponse[] = [
-      { id: 'alert-1', patientId: 'patient-1', ruleCode: 'FALL_DETECTED', severity: 'HIGH', status: 'ACTIVE', triggeredAt: '2024-01-01T00:00:00Z' }
-    ];
-
     // Consume initial request
     httpMock.expectOne('/api/v1/safety-alerts/active').flush([]);
 
     service.refresh();
 
     const req = httpMock.expectOne('/api/v1/safety-alerts/active');
-    req.flush(mockAlerts);
+    req.flush([createMockAlert()]);
   }));
 });

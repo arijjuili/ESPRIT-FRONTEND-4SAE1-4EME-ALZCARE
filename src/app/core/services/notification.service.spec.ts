@@ -3,6 +3,20 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { NotificationService } from './notification.service';
 import { Notification, PagedNotificationResponse, UnreadCountResponse } from '../models/notification.model';
 
+function createMockNotification(overrides: Partial<Notification> = {}): Notification {
+  return {
+    id: 'notif-1',
+    userId: 'user-1',
+    type: 'ALERT',
+    priority: 'HIGH',
+    status: 'PENDING',
+    title: 'Test Notification',
+    message: 'This is a test',
+    createdAt: '2024-01-01T00:00:00Z',
+    ...overrides
+  };
+}
+
 describe('NotificationService', () => {
   let service: NotificationService;
   let httpMock: HttpTestingController;
@@ -106,16 +120,18 @@ describe('NotificationService', () => {
         totalElements: 0,
         totalPages: 0,
         size: 10,
-        number: 0
+        number: 0,
+        first: true,
+        last: true
       };
 
-      service.getUserNotifications('user-1', { status: 'UNREAD', page: 0, size: 10 }).subscribe(response => {
+      service.getUserNotifications('user-1', { status: 'PENDING', page: 0, size: 10 }).subscribe(response => {
         expect(response).toEqual(mockResponse);
       });
 
       const req = httpMock.expectOne(req =>
         req.url === '/api/v1/notifications/user/user-1' &&
-        req.params.get('status') === 'UNREAD' &&
+        req.params.get('status') === 'PENDING' &&
         req.params.get('page') === '0' &&
         req.params.get('size') === '10'
       );
@@ -159,9 +175,9 @@ describe('NotificationService', () => {
 
     it('should return critical unread count', () => {
       const notifications: Notification[] = [
-        { id: '1', status: 'UNREAD', priority: 'CRITICAL' } as Notification,
-        { id: '2', status: 'UNREAD', priority: 'LOW' } as Notification,
-        { id: '3', status: 'READ', priority: 'CRITICAL' } as Notification
+        createMockNotification({ id: '1', status: 'PENDING', priority: 'CRITICAL' }),
+        createMockNotification({ id: '2', status: 'PENDING', priority: 'LOW' }),
+        createMockNotification({ id: '3', status: 'READ', priority: 'CRITICAL' })
       ];
       service['notificationsSubject'].next(notifications);
 
