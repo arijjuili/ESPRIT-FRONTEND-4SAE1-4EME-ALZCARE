@@ -2,6 +2,8 @@ def serviceDir = '.'
 def defaultImageRepo = 'ghcr.io/salma-louhichi/alzcare-frontend'
 def artifactStashName = 'frontend-dist'
 def builtImageForDeploy = ''
+def sonarOrganization = 'salma-louhichi'
+def sonarProjectKey = 'salma-louhichi_alzcare-frontend'
 
 properties([
   parameters([
@@ -44,6 +46,16 @@ properties([
       name: 'PUSH_LATEST_TAG',
       defaultValue: false,
       description: 'Also push the latest tag in addition to the commit tag'
+    ),
+    booleanParam(
+      name: 'SKIP_SONAR',
+      defaultValue: false,
+      description: 'Skip Sonar analysis'
+    ),
+    string(
+      name: 'SONAR_SERVER',
+      defaultValue: 'SonarCloud',
+      description: 'Configured Jenkins Sonar server name'
     )
   ])
 ])
@@ -73,22 +85,61 @@ node {
 
     stage('Build') {
       dir(serviceDir) {
-        sh '''
-          set -e
-          
-          # Check Node.js version
-          node --version
-          npm --version
-          
-          # Install dependencies
-          npm ci --legacy-peer-deps
-          
-          # Build production bundle
-          npm run build -- --configuration=production
-        '''.stripIndent().trim()
+        withEnv([
+          "PATH=${env.PATH}:/opt/homebrew/bin:/usr/local/bin"
+        ]) {
+          sh '''
+            set -e
+            
+            export PATH="/Users/wafalouhichi/.nvm/versions/node/v20.19.6/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+            
+            command -v node >/dev/null 2>&1 || { echo "ERROR: node not found"; exit 2; }
+            command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found"; exit 2; }
+            
+            node --version
+            npm --version
+            
+            # Install dependencies
+            npm ci --legacy-peer-deps
+            
+            # Build production bundle
+            npm run build -- --configuration=production
+          '''.stripIndent().trim()
+        }
       }
 
       stash name: artifactStashName, includes: "${serviceDir}/dist/**/*", allowEmpty: false
+    }
+
+    stage('Sonar Scan') {
+      if (params.SKIP_SONAR) {
+        echo 'Skipping Sonar scan (SKIP_SONAR=true)'
+        return
+      }
+
+      def scannerHome = tool 'SonarScanner'
+
+      withSonarQubeEnv(params.SONAR_SERVER) {
+        withEnv([
+          "SCANNER_HOME=${scannerHome}",
+          "SONAR_ORG=${sonarOrganization}",
+          "SONAR_PROJECT_KEY=${sonarProjectKey}"
+        ]) {
+          dir(serviceDir) {
+            sh '''
+              set -e
+
+              "$SCANNER_HOME/bin/sonar-scanner" \
+                -Dsonar.organization=$SONAR_ORG \
+                -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+                -Dsonar.sources=src \
+                -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                -Dsonar.exclusions=**/.git/**,**/node_modules/**,**/dist/**,**/*.spec.ts,**/karma.conf.js \
+                -Dsonar.sourceEncoding=UTF-8
+            '''.stripIndent().trim()
+          }
+        }
+      }
     }
   }
 }
