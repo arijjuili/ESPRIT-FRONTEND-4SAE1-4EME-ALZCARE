@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alzcare-frontend
+  namespace: monitoring
+  labels:
+    app: alzcare-frontend
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - alzcare
+  selector:
+    matchLabels:
+      app: alzcare-frontend
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: alzcare-frontend-alerts
+  namespace: monitoring
+  labels:
+    app: alzcare-frontend
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: frontend
+      rules:
+        - alert: FrontendHighErrorRate
+          expr: |
+            sum(rate(nginx_http_requests_total{status=~"5..",namespace="alzcare"}[5m]))
+            /
+            sum(rate(nginx_http_requests_total{namespace="alzcare"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Frontend high error rate"
+            description: "Frontend error rate is above 5% for more than 5 minutes."
+
+        - alert: FrontendDown
+          expr: up{job="alzcare-frontend",namespace="alzcare"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Frontend is down"
+            description: "Frontend nginx exporter is not responding."
+
+        - alert: FrontendHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(nginx_http_request_duration_seconds_bucket{namespace="alzcare"}[5m])) by (le)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Frontend high latency"
+            description: "Frontend 95th percentile latency is above 2 seconds."
