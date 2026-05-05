@@ -23,13 +23,6 @@ spec:
         ports:
         - containerPort: 80
           name: http
-      - name: nginx-exporter
-        image: nginx/nginx-prometheus-exporter:1.1.0
-        args:
-          - -nginx.scrape-uri=http://localhost:80/nginx_status
-        ports:
-        - containerPort: 9113
-          name: metrics
         resources:
           limits:
             cpu: "500m"
@@ -53,6 +46,20 @@ spec:
             path: /health
             port: 80
           periodSeconds: 20
+      - name: nginx-exporter
+        image: nginx/nginx-prometheus-exporter:1.1.0
+        args:
+          - -nginx.scrape-uri=http://localhost:80/nginx_status
+        ports:
+        - containerPort: 9113
+          name: metrics
+        resources:
+          limits:
+            cpu: "100m"
+            memory: "64M"
+          requests:
+            cpu: "50m"
+            memory: "32M"
 ---
 apiVersion: v1
 kind: Service
