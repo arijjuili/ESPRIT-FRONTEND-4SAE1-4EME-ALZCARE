@@ -244,7 +244,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('Failed to load assigned patients:', error);
           this.toastService.error('Failed to load your assigned patients');
           return of({
             assignments: [] as CaregiverAssignment[],
@@ -270,7 +269,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
           this.loadGameAnalytics();
         },
         error: (err) => {
-          console.error('Failed to load patients:', err);
           this.patients = [];
           this.caregiverAssignments = [];
           this.pendingInvites = [];
@@ -282,7 +280,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
         }
       });
 
-
   }
 
   // ==================== My Patients Section ====================
@@ -293,7 +290,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('Failed to load caregiver assignments:', error);
           this.toastService.error('Failed to load your patient assignments');
           return of([]);
         })
@@ -314,7 +310,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('Failed to accept invite:', error);
           this.toastService.error('Failed to accept invitation');
           this.acceptingInviteId = null;
           return of(null);
@@ -722,7 +717,6 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     }).pipe(
       takeUntil(this.destroy$),
       catchError(error => {
-        console.error('Failed to save caregiver daily check-in:', error);
         this.caregiverCheckInSubmitting = false;
         this.caregiverCheckInError = 'Failed to save caregiver check-in.';
         return of(null);

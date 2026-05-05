@@ -250,8 +250,10 @@ export class ImageUploadComponent {
   /**
    * Generate unique ID for tracking uploads
    */
+  private uploadIdCounter = 0;
   private generateId(): string {
-    return `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.uploadIdCounter++;
+    return `upload-${Date.now()}-${this.uploadIdCounter}`;
   }
 
   /**

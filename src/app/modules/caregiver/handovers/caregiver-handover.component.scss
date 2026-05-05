@@ -58,7 +58,7 @@ select:focus,
 textarea:focus,
 button:focus {
   outline: none;
-  ring: 2px;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
 // Smooth transitions for interactive elements

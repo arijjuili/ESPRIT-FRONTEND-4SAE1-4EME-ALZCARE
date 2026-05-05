@@ -20,8 +20,10 @@ export class ToastService {
   // Track active timers to prevent duplicates
   private activeTimers = new Map<string, any>();
 
+  private idCounter = 0;
   private generateId(): string {
-    return `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    this.idCounter++;
+    return `toast-${Date.now()}-${this.idCounter}`;
   }
 
   show(

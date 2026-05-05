@@ -138,7 +138,6 @@ export class PatientMedicationsComponent implements OnInit {
         });
       },
       error: (err) => {
-        console.error('Error loading medication plans:', err);
         this.error = 'Unable to load medications from server';
         this.toastService.show('Unable to load medications from server.', 'error');
         this.loading = false;
@@ -345,7 +344,6 @@ export class PatientMedicationsComponent implements OnInit {
         this.confirmingIntakeIds.delete(intakeId);
       },
       error: (err: unknown) => {
-        console.error('Error confirming intake:', err);
         this.toastService.show('Failed to confirm medication intake. Please try again.', 'error');
         this.confirmingIntakeIds.delete(intakeId);
       }
@@ -427,7 +425,6 @@ export class PatientMedicationsComponent implements OnInit {
           });
         },
         error: (err) => {
-          console.error('Error loading medication intakes by date range:', err);
           this.calendarError = 'Unable to load intakes for this month.';
           this.calendarLoading = false;
         }

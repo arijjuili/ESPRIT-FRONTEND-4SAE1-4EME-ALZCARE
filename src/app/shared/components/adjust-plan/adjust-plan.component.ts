@@ -176,7 +176,6 @@ export class AdjustPlanComponent implements OnInit, OnChanges {
         this.initializeForm();
       },
       error: (err) => {
-        console.error('Error loading plan items for adjustment:', err);
         this.planItemsError = 'Failed to load medications for this plan.';
         this.loadingPlanItems = false;
         // Still initialize so user can adjust end date / notes if needed

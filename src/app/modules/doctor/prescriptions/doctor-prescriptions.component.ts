@@ -152,7 +152,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     this.route.params.subscribe(params => {
       this.routePatientId = params['id'] || null;
       if (this.routePatientId) {
-        console.log('Patient ID from route:', this.routePatientId);
         // Check query params for action
         this.handleRouteQueryParams();
       }
@@ -161,7 +160,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     // Fallback: Check for replace=true query param directly
     this.route.queryParams.subscribe(queryParams => {
       if (queryParams['replace'] === 'true') {
-        console.log('URL has replace=true, enabling replace mode');
         this.isReplaceMode = true;
       }
     });
@@ -182,8 +180,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         this.preselectPatientFromRoute();
         return;
       }
-
-      console.log('Action from query params:', action, 'planId:', planId);
 
       // Wait for patients and plans to be loaded
       setTimeout(() => {
@@ -215,7 +211,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
    * Action: Edit the current plan
    */
   private handleEditAction(planId: string): void {
-    console.log('Handling EDIT action for plan:', planId);
     // Find the plan in the list
     const plan = this.allPrescriptions.find(p => p.id === Number(planId));
     if (plan) {
@@ -223,7 +218,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       this.openEditPrescriptionModal();
     } else {
       // If plan is not yet loaded, just open creation
-      console.warn('Plan not found, opening new prescription modal');
       this.preselectPatientFromRoute();
     }
   }
@@ -249,10 +243,8 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
    * Action: Replace the treatment (new plan)
    */
   private handleReplaceAction(): void {
-    console.log('Handling REPLACE action');
     // Enable replace mode - when creating, this will stop the old plan
     this.isReplaceMode = true;
-    console.log('Replace mode enabled: isReplaceMode=', this.isReplaceMode);
     // Open the creation modal with replacement indication
     this.preselectPatientFromRoute();
   }
@@ -267,13 +259,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     
     const patient = this.assignedPatients.find(p => p.id === this.routePatientId || p.userId === this.routePatientId);
     if (patient) {
-      console.log('Found patient:', patient);
-      console.log('Patient properties:', {
-        id: patient.id,
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        userId: patient.userId
-      });
 
       // Open "New Prescription" only if we are not in add-medication
       if (this.currentAction !== 'add-medication') {
@@ -288,18 +273,11 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         const keycloakId = patient.userId || patient.id;
         this.newPlan.patientId = keycloakId;
         this.patientSearchQuery = this.getPatientDisplayName(patient);
-        console.log('Display name set to:', this.patientSearchQuery);
         
         // Force change detection to update the view
         this.cdr.detectChanges();
       }, 0);
     } else {
-      console.warn('Patient not found for ID:', this.routePatientId);
-      console.log('Available patients:', this.assignedPatients.map(p => ({ 
-        id: p.id, 
-        userId: p.userId,
-        name: `${p.firstName} ${p.lastName}` 
-      })));
     }
   }
 
@@ -309,7 +287,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
   private openNewPrescriptionModalInternal(): void {
     this.resetPlanFormInternal();
     this.showNewPrescriptionModal = true;
-    console.log('Modal opened, isReplaceMode=', this.isReplaceMode);
   }
 
   /**
@@ -358,7 +335,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         }
       },
       error: (err) => {
-        console.error('Error loading assigned patients:', err);
         this.assignedPatients = [];
         this.filteredPatients = [];
       }
@@ -393,7 +369,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         this.loading = false;
       },
       error: (err) => {
-        console.error('Error loading prescriptions:', err);
         this.allPrescriptions = [];
         this.filteredPrescriptions = [];
         this.loading = false;
@@ -534,15 +509,11 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
    * Select a patient from the dropdown
    */
   selectPatient(patient: PatientProfileResponse): void {
-    console.log('[Doctor] selected patient object =', patient);
-    console.log('[Doctor] patient.id =', patient.id);
-    console.log('[Doctor] patient.userId =', patient.userId);
 
     this.selectedPatient = patient;
 
     const keycloakId = patient.userId || patient.id;
     this.newPlan.patientId = keycloakId;
-    console.log('[Doctor] NEW PLAN patientId sent =', this.newPlan.patientId);
 
     this.patientSearchQuery = this.getPatientDisplayName(patient);
     this.showPatientDropdown = false;
@@ -582,12 +553,8 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
   }
 
   createPrescription(): void {
-    console.log('✅ [Doctor] selectedPatient =', this.selectedPatient);
-    console.log('✅ [Doctor] newPlan.patientId BEFORE SEND =', this.newPlan.patientId);
-    console.log('SUBMIT clicked, isReplaceMode=', this.isReplaceMode);
     
     if (!this.validatePlan()) {
-      console.log('Validation failed, aborting');
       return;
     }
 
@@ -596,10 +563,8 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     // Use replace endpoint if in replace mode, otherwise use normal create
     let request$: Observable<MedicationPlan>;
     if (this.isReplaceMode) {
-      console.log('CALLING REPLACE API patientId:', this.newPlan.patientId, 'payload:', this.newPlan);
       request$ = this.medicalService.replaceMedicationPlan(this.newPlan.patientId, this.newPlan);
     } else {
-      console.log('CALLING CREATE API (normal mode)');
       request$ = this.medicalService.createMedicationPlan(this.newPlan);
     }
     
@@ -649,7 +614,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
           ? 'Error replacing prescription' 
           : 'Error creating prescription';
         this.loading = false;
-        console.error('Error creating/replacing plan:', err);
       }
     });
   }
@@ -659,7 +623,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
    * Called after replace treatment to ensure old plan shows as STOPPED.
    */
   reloadPlans(): void {
-    console.log('reloadPlans() called, fetching fresh data...');
     this.loading = true;
     
     // Get all plans but filter to assigned patients
@@ -667,7 +630,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     
     this.medicalService.getAllMedicationPlans().subscribe({
       next: (plans) => {
-        console.log('reloadPlans() received', plans.length, 'plans');
         this.allPrescriptions = this.sortByLastUpdated(plans.filter(plan => 
           assignedPatientIds.has(plan.patientId)
         ));
@@ -675,23 +637,19 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         
         // Recompute active plan from refreshed data
         const patientId = this.newPlan?.patientId || this.selectedPlan?.patientId;
-        console.log('reloadPlans() looking for ACTIVE plan for patient:', patientId);
         if (patientId) {
           const newActivePlan = this.allPrescriptions.find(p => 
             p.patientId === patientId && p.status === 'ACTIVE'
           );
           if (newActivePlan) {
-            console.log('reloadPlans() found new ACTIVE plan:', newActivePlan.id, newActivePlan.title);
             this.selectedPlan = newActivePlan;
           } else {
-            console.log('reloadPlans() no ACTIVE plan found for patient');
           }
         }
         
         this.loading = false;
       },
       error: (err) => {
-        console.error('Error reloading plans:', err);
         this.loading = false;
       }
     });
@@ -737,7 +695,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = 'Error updating prescription';
         this.loading = false;
-        console.error('Error updating plan:', err);
       }
     });
   }
@@ -760,7 +717,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = 'Error deleting prescription';
         this.loading = false;
-        console.error('Error deleting plan:', err);
       }
     });
   }
@@ -799,7 +755,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = 'Error adding medication';
         this.loading = false;
-        console.error('Error adding medication:', err);
       }
     });
   }
@@ -842,7 +797,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = 'Error updating medication';
         this.loading = false;
-        console.error('Error updating item:', err);
       }
     });
   }
@@ -863,7 +817,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.error = 'Error deleting medication';
         this.loading = false;
-        console.error('Error deleting item:', err);
       }
     });
   }

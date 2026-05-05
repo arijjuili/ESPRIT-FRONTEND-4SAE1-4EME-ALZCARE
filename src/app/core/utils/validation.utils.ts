@@ -28,8 +28,8 @@ export class ValidationUtils {
     return end > start;
   }
 
-  static trimObject<T extends Record<string, any>>(obj: T): T {
-    const trimmed: any = {};
+  static trimObject<T extends object>(obj: T): T {
+    const trimmed: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
         trimmed[key] = value.trim();
@@ -37,7 +37,7 @@ export class ValidationUtils {
         trimmed[key] = value;
       }
     }
-    return trimmed;
+    return trimmed as T;
   }
   
   static isValidCronExpression(cron: string): boolean {

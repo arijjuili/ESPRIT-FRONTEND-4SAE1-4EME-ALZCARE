@@ -543,7 +543,7 @@ export class AdjustPlanService {
    * Generates a temporary ID for new intakes
    */
   private generateTempId(): number {
-    return -Math.floor(Math.random() * 1000000);
+    return -Date.now();
   }
 
   /**

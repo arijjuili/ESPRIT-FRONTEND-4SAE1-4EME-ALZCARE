@@ -173,7 +173,7 @@ $gray-900: #111827;
       &:focus {
         outline: none;
         border-color: $primary;
-        ring: 2px solid $primary-light;
+        box-shadow: 0 0 0 2px $primary-light;
       }
     }
 
@@ -646,6 +646,22 @@ $gray-900: #111827;
       border-color: $primary;
       box-shadow: 0 0 0 3px $primary-light;
     }
+
+    textarea {
+      width: 100%;
+      padding: 0.625rem 0.875rem;
+      border: 1px solid $gray-300;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      resize: vertical;
+      font-family: inherit;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px $primary-light;
+      }
+    }
   }
 }
 
@@ -824,25 +840,6 @@ $gray-900: #111827;
 
 .bg-gray-400 {
   background-color: $gray-400;
-}
-
-// Form textarea
-.form-group {
-  textarea {
-    width: 100%;
-    padding: 0.625rem 0.875rem;
-    border: 1px solid $gray-300;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    resize: vertical;
-    font-family: inherit;
-
-    &:focus {
-      outline: none;
-      border-color: $primary;
-      box-shadow: 0 0 0 3px $primary-light;
-    }
-  }
 }
 
 // Profile form spacing
