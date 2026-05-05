@@ -10,58 +10,51 @@ metadata:
 data:
   alzcare-frontend-dashboard.json: |-
     {
-      "annotations": {
-        "list": []
-      },
+      "annotations": {"list": []},
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": null,
       "links": [],
       "liveNow": false,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "fieldConfig": {
             "defaults": {
-              "mappings": [],
+              "mappings": [
+                {"options": {"0": {"text": "DOWN"}}, "type": "value"},
+                {"options": {"1": {"text": "UP"}}, "type": "value"}
+              ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 1}
+                  {"color": "red", "value": null},
+                  {"color": "green", "value": 1}
                 ]
               },
               "unit": "none"
             },
             "overrides": []
           },
-          "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
           "id": 1,
           "options": {
             "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
+            "graphMode": "none",
+            "justifyMode": "center",
             "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+            "textMode": "value"
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "up{job=\"alzcare-frontend\"}",
+              "expr": "nginx_up{job=\"alzcare-frontend\"}",
+              "legendFormat": "Status",
               "refId": "A"
             }
           ],
-          "title": "Frontend Up",
+          "title": "Frontend Status",
           "type": "stat"
         },
         {
@@ -71,7 +64,6 @@ data:
               "custom": {
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -79,7 +71,7 @@ data:
                 "gradientMode": "none",
                 "hideFrom": {"legend": false, "tooltip": false, "viz": false},
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
+                "lineWidth": 2,
                 "pointSize": 5,
                 "scaleDistribution": {"type": "linear"},
                 "showPoints": "never",
@@ -88,33 +80,26 @@ data:
                 "thresholdsStyle": {"mode": "off"}
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 80}
-                ]
-              },
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
               "unit": "reqps"
             },
             "overrides": []
           },
-          "gridPos": {"h": 8, "w": 12, "x": 4, "y": 0},
+          "gridPos": {"h": 8, "w": 12, "x": 6, "y": 0},
           "id": 2,
           "options": {
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
             "tooltip": {"mode": "multi", "sort": "none"}
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "sum(rate(nginx_http_requests_total{job=\"alzcare-frontend\"}[5m])) by (status)",
-              "legendFormat": "{{status}}",
+              "expr": "rate(nginx_http_requests_total{job=\"alzcare-frontend\"}[5m])",
+              "legendFormat": "Requests/sec",
               "refId": "A"
             }
           ],
-          "title": "Request Rate by Status",
+          "title": "Request Rate",
           "type": "timeseries"
         },
         {
@@ -124,7 +109,6 @@ data:
               "custom": {
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -132,7 +116,7 @@ data:
                 "gradientMode": "none",
                 "hideFrom": {"legend": false, "tooltip": false, "viz": false},
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
+                "lineWidth": 2,
                 "pointSize": 5,
                 "scaleDistribution": {"type": "linear"},
                 "showPoints": "never",
@@ -141,14 +125,8 @@ data:
                 "thresholdsStyle": {"mode": "off"}
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 2}
-                ]
-              },
-              "unit": "s"
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "none"
             },
             "overrides": []
           },
@@ -158,28 +136,33 @@ data:
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
             "tooltip": {"mode": "multi", "sort": "none"}
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "histogram_quantile(0.50, sum(rate(nginx_http_request_duration_seconds_bucket{job=\"alzcare-frontend\"}[5m])) by (le))",
-              "legendFormat": "p50",
+              "expr": "nginx_connections_active{job=\"alzcare-frontend\"}",
+              "legendFormat": "Active",
               "refId": "A"
             },
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "histogram_quantile(0.95, sum(rate(nginx_http_request_duration_seconds_bucket{job=\"alzcare-frontend\"}[5m])) by (le))",
-              "legendFormat": "p95",
+              "expr": "nginx_connections_reading{job=\"alzcare-frontend\"}",
+              "legendFormat": "Reading",
               "refId": "B"
             },
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "histogram_quantile(0.99, sum(rate(nginx_http_request_duration_seconds_bucket{job=\"alzcare-frontend\"}[5m])) by (le))",
-              "legendFormat": "p99",
+              "expr": "nginx_connections_writing{job=\"alzcare-frontend\"}",
+              "legendFormat": "Writing",
               "refId": "C"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "nginx_connections_waiting{job=\"alzcare-frontend\"}",
+              "legendFormat": "Waiting",
+              "refId": "D"
             }
           ],
-          "title": "Response Latency",
+          "title": "Active Connections",
           "type": "timeseries"
         },
         {
@@ -189,7 +172,6 @@ data:
               "custom": {
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -197,7 +179,7 @@ data:
                 "gradientMode": "none",
                 "hideFrom": {"legend": false, "tooltip": false, "viz": false},
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
+                "lineWidth": 2,
                 "pointSize": 5,
                 "scaleDistribution": {"type": "linear"},
                 "showPoints": "never",
@@ -206,14 +188,8 @@ data:
                 "thresholdsStyle": {"mode": "off"}
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 0.05}
-                ]
-              },
-              "unit": "percentunit"
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "connps"
             },
             "overrides": []
           },
@@ -223,16 +199,21 @@ data:
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
             "tooltip": {"mode": "multi", "sort": "none"}
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "sum(rate(nginx_http_requests_total{job=\"alzcare-frontend\",status=~\"5..\"}[5m])) / sum(rate(nginx_http_requests_total{job=\"alzcare-frontend\"}[5m]))",
-              "legendFormat": "Error Rate",
+              "expr": "rate(nginx_connections_accepted{job=\"alzcare-frontend\"}[5m])",
+              "legendFormat": "Accepted/sec",
               "refId": "A"
+            },
+            {
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "rate(nginx_connections_handled{job=\"alzcare-frontend\"}[5m])",
+              "legendFormat": "Handled/sec",
+              "refId": "B"
             }
           ],
-          "title": "Error Rate (5xx)",
+          "title": "Connection Rate",
           "type": "timeseries"
         },
         {
@@ -242,15 +223,14 @@ data:
               "custom": {
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
-                "fillOpacity": 10,
+                "fillOpacity": 0,
                 "gradientMode": "none",
                 "hideFrom": {"legend": false, "tooltip": false, "viz": false},
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
+                "lineWidth": 2,
                 "pointSize": 5,
                 "scaleDistribution": {"type": "linear"},
                 "showPoints": "never",
@@ -277,16 +257,15 @@ data:
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
             "tooltip": {"mode": "multi", "sort": "none"}
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "1 - (nginx_http_requests_total{job=\"alzcare-frontend\",status=\"200\"} / nginx_http_requests_total{job=\"alzcare-frontend\"})",
-              "legendFormat": "Non-200 Rate",
+              "expr": "(nginx_connections_active{job=\"alzcare-frontend\"} / nginx_connections_handled{job=\"alzcare-frontend\"})",
+              "legendFormat": "Active/Handled Ratio",
               "refId": "A"
             }
           ],
-          "title": "Non-200 Rate",
+          "title": "Connection Saturation",
           "type": "timeseries"
         },
         {
@@ -296,7 +275,6 @@ data:
               "custom": {
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "drawStyle": "line",
@@ -304,7 +282,7 @@ data:
                 "gradientMode": "none",
                 "hideFrom": {"legend": false, "tooltip": false, "viz": false},
                 "lineInterpolation": "linear",
-                "lineWidth": 1,
+                "lineWidth": 2,
                 "pointSize": 5,
                 "scaleDistribution": {"type": "linear"},
                 "showPoints": "never",
@@ -313,14 +291,8 @@ data:
                 "thresholdsStyle": {"mode": "off"}
               },
               "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {"color": "green", "value": null},
-                  {"color": "red", "value": 0.8}
-                ]
-              },
-              "unit": "bytes"
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+              "unit": "none"
             },
             "overrides": []
           },
@@ -330,16 +302,15 @@ data:
             "legend": {"calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true},
             "tooltip": {"mode": "multi", "sort": "none"}
           },
-          "pluginVersion": "10.0.0",
           "targets": [
             {
               "datasource": {"type": "prometheus", "uid": "prometheus"},
-              "expr": "nginx_http_request_size_bytes{job=\"alzcare-frontend\"}",
-              "legendFormat": "Request Size",
+              "expr": "nginx_http_requests_total{job=\"alzcare-frontend\"}",
+              "legendFormat": "Total Requests",
               "refId": "A"
             }
           ],
-          "title": "Request Size",
+          "title": "Total HTTP Requests (Cumulative)",
           "type": "timeseries"
         }
       ],
@@ -347,14 +318,12 @@ data:
       "schemaVersion": 38,
       "style": "dark",
       "tags": ["alzcare", "frontend"],
-      "templating": {
-        "list": []
-      },
+      "templating": {"list": []},
       "time": {"from": "now-1h", "to": "now"},
       "timepicker": {},
       "timezone": "browser",
       "title": "AlzCare - Frontend",
       "uid": "alzcare-frontend",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }
