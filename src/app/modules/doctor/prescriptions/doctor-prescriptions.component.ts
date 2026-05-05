@@ -1,4 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -147,21 +148,27 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     this.initializeDates();
     this.loadAssignedPatients();
     this.loadRecentPrescriptions();
-    
+
     // Check for patient ID and query params in route
-    this.route.params.subscribe(params => {
-      this.routePatientId = params['id'] || null;
-      if (this.routePatientId) {
-        // Check query params for action
-        this.handleRouteQueryParams();
-      }
+    this.route.params.pipe(takeUntil(this.destroy$)).subscribe({
+      next: params => {
+        this.routePatientId = params['id'] || null;
+        if (this.routePatientId) {
+          // Check query params for action
+          this.handleRouteQueryParams(this.route.snapshot.queryParams);
+        }
+      },
+      error: () => { /* route params never error */ }
     });
-    
+
     // Fallback: Check for replace=true query param directly
-    this.route.queryParams.subscribe(queryParams => {
-      if (queryParams['replace'] === 'true') {
-        this.isReplaceMode = true;
-      }
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe({
+      next: queryParams => {
+        if (queryParams['replace'] === 'true') {
+          this.isReplaceMode = true;
+        }
+      },
+      error: () => { /* route queryParams never error */ }
     });
   }
 
@@ -169,42 +176,40 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
    * Handles query params for prescription actions
    * (edit, add-medication, replace)
    */
-  private handleRouteQueryParams(): void {
-    this.route.queryParams.subscribe(queryParams => {
-      const action = queryParams['action'];
-      this.currentAction = (action as any) || 'none';
-      const planId = queryParams['planId'];
-      
-      if (!action || !this.routePatientId) {
-        // No specific action, default behavior
-        this.preselectPatientFromRoute();
-        return;
+  private handleRouteQueryParams(queryParams: Record<string, unknown>): void {
+    const action = queryParams['action'];
+    this.currentAction = (typeof action === 'string' ? action : 'none') as any;
+    const planId = typeof queryParams['planId'] === 'string' ? queryParams['planId'] : undefined;
+
+    if (!action || !this.routePatientId) {
+      // No specific action, default behavior
+      this.preselectPatientFromRoute();
+      return;
+    }
+
+    // Wait for patients and plans to be loaded
+    setTimeout(() => {
+      switch (action) {
+        case 'edit':
+          this.handleEditAction(planId || '');
+          break;
+        case 'add-medication':
+          this.handleAddMedicationAction(planId || '');
+          break;
+        case 'replace':
+          this.handleReplaceAction();
+          break;
+        default:
+          this.preselectPatientFromRoute();
       }
 
-      // Wait for patients and plans to be loaded
-      setTimeout(() => {
-        switch (action) {
-          case 'edit':
-            this.handleEditAction(planId);
-            break;
-          case 'add-medication':
-            this.handleAddMedicationAction(planId);
-            break;
-          case 'replace':
-            this.handleReplaceAction();
-            break;
-          default:
-            this.preselectPatientFromRoute();
-        }
-        
-        // Clean query params after processing
-        this.router.navigate([], {
-          relativeTo: this.route,
-          queryParams: {},
-          replaceUrl: true
-        });
-      }, 500); // Small delay to ensure data is loaded
-    });
+      // Clean query params after processing
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {},
+        replaceUrl: true
+      });
+    }, 500); // Small delay to ensure data is loaded
   }
 
   /**
@@ -1155,22 +1160,28 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     this.drugSearchControl.valueChanges.pipe(
       takeUntil(this.destroy$),
       filter((q): q is string => q !== null && q.length < 3 && q.length > 0)
-    ).subscribe(() => {
-      this.drugSuggestions = [];
-      this.showDrugDropdown = false;
-      this.cdr.detectChanges();
+    ).subscribe({
+      next: () => {
+        this.drugSuggestions = [];
+        this.showDrugDropdown = false;
+        this.cdr.detectChanges();
+      },
+      error: () => { /* filtered valueChanges never error */ }
     });
-    
+
     // Handle empty query - clear everything
     this.drugSearchControl.valueChanges.pipe(
       takeUntil(this.destroy$),
       filter(q => !q || q.length === 0)
-    ).subscribe(() => {
-      this.drugSuggestions = [];
-      this.selectedDrug = null;
-      this.showDrugDropdown = false;
-      this.newItem.name = '';
-      this.cdr.detectChanges();
+    ).subscribe({
+      next: () => {
+        this.drugSuggestions = [];
+        this.selectedDrug = null;
+        this.showDrugDropdown = false;
+        this.newItem.name = '';
+        this.cdr.detectChanges();
+      },
+      error: () => { /* filtered valueChanges never error */ }
     });
   }
 

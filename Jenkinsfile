@@ -134,7 +134,10 @@ node {
 
               "$SCANNER_HOME/bin/sonar-scanner" \
                 -Dsonar.organization=$SONAR_ORG \
-                -Dsonar.projectKey=$SONAR_PROJECT_KEY
+                -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+                -Dsonar.javascript.lcov.reportPaths=coverage/alzheimer-care-app/lcov.info \
+                -Dsonar.typescript.lcov.reportPaths=coverage/alzheimer-care-app/lcov.info \
+                -Dsonar.coverage.exclusions=**/*.spec.ts,**/karma.conf.js,**/test.ts,**/polyfills.ts,**/environments/**,**/*.module.ts
             '''.stripIndent().trim()
           }
         }

@@ -413,14 +413,19 @@ export class PatientMedicationsComponent implements OnInit {
       .subscribe({
         next: (intakes) => {
           const normalized = (intakes ?? []).map((i) => this.attachItemIfMissing(i));
-          this.autoMarkMissedOverdueIntakes(normalized).subscribe((processedIntakes) => {
-            this.indexIntakesByDay(processedIntakes);
-            this.updateTreatmentRangeFromIntakes(processedIntakes);
-            this.recomputeCalendarSummaries();
-            this.calendarLoading = false;
+          this.autoMarkMissedOverdueIntakes(normalized).subscribe({
+            next: (processedIntakes) => {
+              this.indexIntakesByDay(processedIntakes);
+              this.updateTreatmentRangeFromIntakes(processedIntakes);
+              this.recomputeCalendarSummaries();
+              this.calendarLoading = false;
 
-            if (this.selectedDayKey) {
-              this.selectedDayGroups = this.buildDayGroups(this.selectedDayKey);
+              if (this.selectedDayKey) {
+                this.selectedDayGroups = this.buildDayGroups(this.selectedDayKey);
+              }
+            },
+            error: () => {
+              this.calendarLoading = false;
             }
           });
         },

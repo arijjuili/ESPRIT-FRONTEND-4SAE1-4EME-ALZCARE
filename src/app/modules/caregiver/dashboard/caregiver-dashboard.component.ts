@@ -173,17 +173,23 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
       this.loadRealPatients();
     }
 
-    this.authService.currentUser$.subscribe(user => {
-      if (user) {
-        this.caregiverName = user.name;
-      }
+    this.authService.currentUser$.pipe(takeUntil(this.destroy$)).subscribe({
+      next: user => {
+        if (user) {
+          this.caregiverName = user.name;
+        }
+      },
+      error: () => { /* currentUser$ never errors */ }
     });
 
     // Subscribe to safety alert polling
-    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe(alerts => {
-      this.activeAlerts = alerts.slice(0, 5); // show top 5 on dashboard
-      this.alertCount = alerts.length;
-      this.criticalAlertCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+    this.alertPolling.alerts$.pipe(takeUntil(this.destroy$)).subscribe({
+      next: alerts => {
+        this.activeAlerts = alerts.slice(0, 5); // show top 5 on dashboard
+        this.alertCount = alerts.length;
+        this.criticalAlertCount = alerts.filter(a => a.severity === 'CRITICAL').length;
+      },
+      error: () => { /* alerts$ never errors */ }
     });
   }
 
@@ -783,7 +789,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     );
 
     forkJoin(requests)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), catchError(() => of([] as { patientId: string; record: HealthRecord | null }[])))
       .subscribe(results => {
         this.todaySharedCheckIns = {};
         results.forEach(({ patientId, record }) => {
@@ -812,7 +818,7 @@ export class CaregiverDashboardComponent implements OnInit, OnDestroy {
     );
 
     forkJoin(requests)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), catchError(() => of([] as { patientId: string; status: DailyCheckInStatus | null }[])))
       .subscribe(results => {
         this.dailyCheckInStatuses = {};
         results.forEach(({ patientId, status }) => {
