@@ -145,4 +145,19 @@ describe('AlertPollingService', () => {
 
     expect(toastService.show).toHaveBeenCalled();
   });
+
+  it('should not toast on new low-severity alert after initial load', () => {
+    service.refresh();
+    const req1 = httpMock.expectOne('/api/alerts/active');
+    req1.flush([createMockAlert({ severity: 'MEDIUM', id: 'alert-base' })]);
+
+    service.refresh();
+    const req2 = httpMock.expectOne('/api/alerts/active');
+    req2.flush([
+      createMockAlert({ severity: 'MEDIUM', id: 'alert-base' }),
+      createMockAlert({ severity: 'LOW', id: 'alert-low' })
+    ]);
+
+    expect(toastService.show).not.toHaveBeenCalled();
+  });
 });

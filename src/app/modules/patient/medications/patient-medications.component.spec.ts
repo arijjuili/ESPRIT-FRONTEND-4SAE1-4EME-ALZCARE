@@ -273,4 +273,40 @@ describe('PatientMedicationsComponent', () => {
     expect(component.getIntakeStatusClass(IntakeStatus.TAKEN)).toContain('green');
     expect(component.getIntakeStatusClass(IntakeStatus.MISSED)).toContain('red');
   });
+
+  it('should not confirm when autonomy is not independent', () => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    const assistedPlan = { ...mockPlan, autonomyLevel: MedicationAutonomyLevel.ASSISTED };
+    medicalServiceSpy.getPatientMedicationPlans.and.returnValue(of([assistedPlan]));
+    medicalServiceSpy.getMedicationIntakesByDateRange.and.returnValue(of([]));
+    fixture.detectChanges();
+
+    component.selectedDayKey = component['toDateKey'](new Date());
+    const todayIntake = { id: 1, itemId: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.PENDING } as MedicationIntake;
+    component.confirmIntake(todayIntake);
+    expect(toastServiceSpy.show).toHaveBeenCalledWith('Confirmation requires INDEPENDENT autonomy level.', 'warning');
+  });
+
+  it('should not confirm when intake is already taken', () => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientMedicationPlans.and.returnValue(of([mockPlan]));
+    medicalServiceSpy.getMedicationIntakesByDateRange.and.returnValue(of([]));
+    fixture.detectChanges();
+
+    component.selectedDayKey = component['toDateKey'](new Date());
+    const takenIntake = { id: 1, itemId: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.TAKEN } as MedicationIntake;
+    component.confirmIntake(takenIntake);
+    expect(medicalServiceSpy.confirmMedicationIntake).not.toHaveBeenCalled();
+  });
+
+  it('should return confirm button title for autonomy blocked', () => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    const assistedPlan = { ...mockPlan, autonomyLevel: MedicationAutonomyLevel.ASSISTED };
+    medicalServiceSpy.getPatientMedicationPlans.and.returnValue(of([assistedPlan]));
+    medicalServiceSpy.getMedicationIntakesByDateRange.and.returnValue(of([]));
+    fixture.detectChanges();
+
+    const todayIntake = { id: 1, itemId: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.PENDING } as MedicationIntake;
+    expect(component.getConfirmButtonTitle(todayIntake)).toBe('Confirmation requires INDEPENDENT autonomy level');
+  });
 });

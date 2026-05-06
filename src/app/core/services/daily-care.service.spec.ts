@@ -39,6 +39,19 @@ describe('DailyCareService', () => {
     req.flush([{ id: 1, name: 'Exercise', description: 'Daily walk', active: true }]);
   });
 
+  it('should not overwrite cache when backend returns empty but cache exists', (done) => {
+    localStorage.setItem('mockAllHabits', JSON.stringify([{ id: 2, name: 'Cached', description: '', active: true }]));
+    service.getAllHabits().subscribe(habits => {
+      expect(habits.length).toBe(0);
+      const cached = JSON.parse(localStorage.getItem('mockAllHabits') || '[]');
+      expect(cached[0].name).toBe('Cached');
+      done();
+    });
+
+    const req = httpMock.expectOne((r) => r.url.includes('/v1/habit'));
+    req.flush([]);
+  });
+
   it('should fallback to cached habits on error', (done) => {
     localStorage.setItem('mockAllHabits', JSON.stringify([{ id: 2, name: 'Cached', description: '', active: true }]));
     service.getAllHabits().subscribe(habits => {

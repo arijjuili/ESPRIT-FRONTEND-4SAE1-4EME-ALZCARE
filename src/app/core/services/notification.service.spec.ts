@@ -111,6 +111,21 @@ describe('NotificationService', () => {
       expect(req.request.method).toBe('DELETE');
       req.flush(null);
     });
+
+    it('should prevent duplicate delete requests', () => {
+      const notificationId = 'notif-1';
+
+      service.deleteNotification(notificationId).subscribe();
+      expect(service.isDeleting(notificationId)).toBeTrue();
+
+      let secondEmitted = false;
+      service.deleteNotification(notificationId).subscribe(() => {
+        secondEmitted = true;
+      });
+      expect(secondEmitted).toBeTrue();
+
+      httpMock.expectOne(`/api/v1/notifications/${notificationId}`).flush(null);
+    });
   });
 
   describe('getUserNotifications', () => {
@@ -167,6 +182,25 @@ describe('NotificationService', () => {
       expect(firstSub).not.toBe(secondSub);
       // Consume the immediate request from second startPolling
       httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 1 });
+
+      service.stopPolling();
+    }));
+
+    it('should refresh notifications list during polling when cached', fakeAsync(() => {
+      service['notificationsSubject'].next([createMockNotification()]);
+      service.startPolling('user-1', 1000);
+
+      // Immediate unread count request only (refreshNotifications is only called on interval)
+      httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 1 });
+
+      tick(1000);
+      // Interval unread count request
+      httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count').flush({ unreadCount: 2 });
+      // Interval notifications refresh because cached notifications exist
+      httpMock.expectOne('/api/v1/notifications/user/user-1').flush({
+        content: [createMockNotification(), createMockNotification({ id: 'notif-2' })],
+        totalElements: 2, totalPages: 1, size: 10, number: 0, first: true, last: true
+      });
 
       service.stopPolling();
     }));

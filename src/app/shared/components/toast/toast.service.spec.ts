@@ -9,6 +9,7 @@ describe('ToastService', () => {
       providers: [ToastService]
     });
     service = TestBed.inject(ToastService);
+    (service as any).toastsSubject.next([]);
   });
 
   it('should be created', () => {

@@ -265,4 +265,137 @@ describe('PatientAppointmentsComponent', () => {
     expect(component.isUpcoming(mockAppointment)).toBeTrue();
     expect(component.isUpcoming({ ...mockAppointment, startAt: new Date(Date.now() - 86400000).toISOString() })).toBeFalse();
   });
+
+  it('should manage presence correctly', () => {
+    component.patientId = 'patient-1';
+
+    const futureAppt = { ...mockAppointment, startAt: new Date(Date.now() + 86400000).toISOString() };
+    expect(component.canManagePresence(futureAppt)).toBeTrue();
+
+    const pastAppt = { ...mockAppointment, startAt: new Date(Date.now() - 86400000).toISOString() };
+    expect(component.canManagePresence(pastAppt)).toBeFalse();
+
+    const cancelledAppt = { ...mockAppointment, status: AppointmentStatus.CANCELLED };
+    expect(component.canManagePresence(cancelledAppt)).toBeFalse();
+
+    const noShowAppt = { ...mockAppointment, attendanceStatus: AttendanceStatus.NO_SHOW };
+    expect(component.canManagePresence(noShowAppt)).toBeFalse();
+
+    const wrongPatientAppt = { ...mockAppointment, patientId: 'other-patient' };
+    expect(component.canManagePresence(wrongPatientAppt)).toBeFalse();
+
+    component.patientId = null;
+    expect(component.canManagePresence(mockAppointment)).toBeFalse();
+  });
+
+  it('should not confirm/decline presence when already loading', () => {
+    component.patientId = 'patient-1';
+    component.actionAppointmentId = 1;
+    component.confirmPresence(mockAppointment);
+    expect(medicalServiceSpy.confirmPresence).not.toHaveBeenCalled();
+
+    component.declinePresence(mockAppointment);
+    expect(medicalServiceSpy.declinePresence).not.toHaveBeenCalled();
+  });
+
+  it('should join meeting with valid URL', () => {
+    const openSpy = spyOn(window, 'open');
+    component.joinMeeting('https://meet.jit.si/test-room');
+    expect(openSpy).toHaveBeenCalledWith('https://meet.jit.si/test-room', '_blank', 'noopener,noreferrer');
+  });
+
+  it('should not join meeting with invalid URL', () => {
+    const alertSpy = spyOn(window, 'alert');
+    component.joinMeeting('javascript:alert(1)');
+    expect(alertSpy).toHaveBeenCalledWith('Invalid meeting URL. Please contact support.');
+  });
+
+  it('should copy meeting URL to clipboard', (done) => {
+    const writeTextSpy = spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+    const alertSpy = spyOn(window, 'alert');
+    component.copyMeetingUrl('https://meet.test');
+    setTimeout(() => {
+      expect(writeTextSpy).toHaveBeenCalledWith('https://meet.test');
+      expect(alertSpy).toHaveBeenCalledWith('Meeting link copied to clipboard!');
+      done();
+    }, 10);
+  });
+
+  it('should fallback copy when clipboard fails', (done) => {
+    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject(new Error('fail')));
+    const execSpy = spyOn(document, 'execCommand').and.returnValue(true);
+    const alertSpy = spyOn(window, 'alert');
+    component.copyMeetingUrl('https://meet.test');
+    setTimeout(() => {
+      expect(execSpy).toHaveBeenCalledWith('copy');
+      expect(alertSpy).toHaveBeenCalledWith('Meeting link copied to clipboard!');
+      done();
+    }, 10);
+  });
+
+  it('should not copy when URL is null', () => {
+    const alertSpy = spyOn(window, 'alert');
+    component.copyMeetingUrl(null);
+    expect(alertSpy).toHaveBeenCalledWith('No meeting link available to copy.');
+  });
+
+  it('should fetch meeting URL for appointment', fakeAsync(() => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientAppointments.and.returnValue(of([mockAppointment]));
+    medicalServiceSpy.getAppointmentSchedulingRecommendation.and.returnValue(of({} as any));
+    medicalServiceSpy.getAppointment.and.returnValue(of({ ...mockAppointment, meetingUrl: 'https://meet.new' }));
+    fixture.detectChanges();
+    tick();
+
+    component.fetchMeetingUrl(1);
+    tick();
+
+    expect(medicalServiceSpy.getAppointment).toHaveBeenCalledWith(1);
+    const updated = component.appointments.find(a => a.id === 1);
+    expect(updated?.meetingUrl).toBe('https://meet.new');
+  }));
+
+  it('should handle fetchMeetingUrl with no patientId', () => {
+    component.patientId = null;
+    const alertSpy = spyOn(window, 'alert');
+    component.fetchMeetingUrl(1);
+    expect(alertSpy).toHaveBeenCalledWith('User not authenticated');
+  });
+
+  it('should handle fetchMeetingUrl error', fakeAsync(() => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientAppointments.and.returnValue(of([mockAppointment]));
+    medicalServiceSpy.getAppointmentSchedulingRecommendation.and.returnValue(of({} as any));
+    medicalServiceSpy.getAppointment.and.returnValue(throwError(() => new Error('fail')));
+    fixture.detectChanges();
+    tick();
+
+    component.fetchMeetingUrl(1);
+    tick();
+
+    expect(component.error).toBe('Failed to get meeting link. Please try refreshing.');
+    expect(component.loading).toBeFalse();
+  }));
+
+  it('should load scheduling recommendation', fakeAsync(() => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientAppointments.and.returnValue(of([]));
+    medicalServiceSpy.getAppointmentSchedulingRecommendation.and.returnValue(of({ preferredWindow: 'AFTERNOON', nextRecommendedDate: '2024-02-01' } as any));
+    fixture.detectChanges();
+    tick();
+
+    expect(component.schedulingRecommendation).toEqual(jasmine.objectContaining({ preferredWindow: 'AFTERNOON' }));
+    expect(component.recommendationLoading).toBeFalse();
+  }));
+
+  it('should handle scheduling recommendation error', fakeAsync(() => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientAppointments.and.returnValue(of([]));
+    medicalServiceSpy.getAppointmentSchedulingRecommendation.and.returnValue(throwError(() => new Error('fail')));
+    fixture.detectChanges();
+    tick();
+
+    expect(component.recommendationLoading).toBeFalse();
+    expect(component.schedulingRecommendation).toBeNull();
+  }));
 });
