@@ -69,10 +69,7 @@ export class DailyCareService {
     return this.http.get<Habit[]>(`${this.baseUrl}`).pipe(
       tap(habits => {
         const cachedBefore = this.getAllHabitsFromStorage();
-        if (habits.length > 0) {
-          this.saveAllHabitsToStorage(habits);
-        } else if (cachedBefore.length > 0) {
-        } else {
+        if (habits.length > 0 || cachedBefore.length === 0) {
           this.saveAllHabitsToStorage(habits);
         }
       }),
@@ -132,7 +129,6 @@ export class DailyCareService {
     if (!assignments[patientId].includes(request.habitId)) {
       assignments[patientId].push(request.habitId);
       this.saveAssignmentsToStorage(assignments);
-    } else {
     }
     return of(undefined as any);
   }
@@ -146,7 +142,6 @@ export class DailyCareService {
     if (assignments[patientId]) {
       assignments[patientId] = assignments[patientId].filter((id) => id !== habitId);
       this.saveAssignmentsToStorage(assignments);
-    } else {
     }
     return of(undefined as any);
   }

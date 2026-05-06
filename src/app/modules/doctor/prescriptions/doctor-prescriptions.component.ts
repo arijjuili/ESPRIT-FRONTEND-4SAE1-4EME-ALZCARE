@@ -263,7 +263,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
     
     const patient = this.assignedPatients.find(p => p.id === this.routePatientId || p.userId === this.routePatientId);
     if (patient) {
-
       // Open "New Prescription" only if we are not in add-medication
       if (this.currentAction !== 'add-medication') {
         this.openNewPrescriptionModalInternal();
@@ -281,7 +280,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
         // Force change detection to update the view
         this.cdr.detectChanges();
       }, 0);
-    } else {
     }
   }
 
@@ -647,7 +645,6 @@ export class DoctorPrescriptionsComponent implements OnInit, OnDestroy {
           );
           if (newActivePlan) {
             this.selectedPlan = newActivePlan;
-          } else {
           }
         }
         

@@ -165,4 +165,18 @@ describe('AdjustPlanService', () => {
       expect(result.cancelledIntakes).toBe(0);
     });
   });
+
+  it('should generate temp id as negative timestamp', () => {
+    const id = (service as any).generateTempId();
+    expect(id).toBeLessThan(0);
+    expect(Math.abs(id)).toBeGreaterThan(0);
+  });
+
+  it('should get default effective date as tomorrow', () => {
+    const date = service.getDefaultEffectiveDate();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    expect(date.getTime()).toBe(tomorrow.getTime());
+  });
 });

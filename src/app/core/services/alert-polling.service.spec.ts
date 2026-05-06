@@ -113,4 +113,36 @@ describe('AlertPollingService', () => {
   it('should stop polling on destroy without throwing', () => {
     expect(() => service.ngOnDestroy()).not.toThrow();
   });
+
+  it('should toast on new critical alert after initial load', () => {
+    // First load - establish baseline (no toast because initial load)
+    service.refresh();
+    const req1 = httpMock.expectOne('/api/alerts/active');
+    req1.flush([createMockAlert({ severity: 'MEDIUM', id: 'alert-base' })]);
+
+    // Second load with new CRITICAL alert - should toast
+    service.refresh();
+    const req2 = httpMock.expectOne('/api/alerts/active');
+    req2.flush([
+      createMockAlert({ severity: 'MEDIUM', id: 'alert-base' }),
+      createMockAlert({ severity: 'CRITICAL', id: 'alert-new' })
+    ]);
+
+    expect(toastService.show).toHaveBeenCalled();
+  });
+
+  it('should toast on new high alert after initial load', () => {
+    service.refresh();
+    const req1 = httpMock.expectOne('/api/alerts/active');
+    req1.flush([createMockAlert({ severity: 'MEDIUM', id: 'alert-base' })]);
+
+    service.refresh();
+    const req2 = httpMock.expectOne('/api/alerts/active');
+    req2.flush([
+      createMockAlert({ severity: 'MEDIUM', id: 'alert-base' }),
+      createMockAlert({ severity: 'HIGH', id: 'alert-high' })
+    ]);
+
+    expect(toastService.show).toHaveBeenCalled();
+  });
 });

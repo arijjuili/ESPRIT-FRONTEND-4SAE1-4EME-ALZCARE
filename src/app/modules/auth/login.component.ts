@@ -50,8 +50,8 @@ export class LoginComponent {
     const acc = accounts[role];
     this.email = acc.email;
     this.password = role === 'admin'
-      ? [65, 100, 109, 105, 110, 49, 50, 51, 33].map(c => String.fromCharCode(c)).join('')
-      : [80, 97, 115, 115, 119, 111, 114, 100, 49, 50, 51, 33].map(c => String.fromCharCode(c)).join('');
+      ? [65, 100, 109, 105, 110, 49, 50, 51, 33].map(c => String.fromCodePoint(c)).join('')
+      : [80, 97, 115, 115, 119, 111, 114, 100, 49, 50, 51, 33].map(c => String.fromCodePoint(c)).join('');
     this.error = '';
   }
 

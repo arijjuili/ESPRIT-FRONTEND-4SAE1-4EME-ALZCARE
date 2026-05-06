@@ -44,4 +44,75 @@ describe('PdfExportService', () => {
 
     document.body.removeChild(mockElement);
   });
+
+  it('should revoke blob URL when print window is blocked', () => {
+    const mockElement = document.createElement('div');
+    mockElement.id = 'test-element';
+    document.body.appendChild(mockElement);
+
+    spyOn(window, 'open').and.returnValue(null);
+    const revokeSpy = spyOn(URL, 'revokeObjectURL');
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:test');
+
+    service.exportElementAsPdf('test-element', 'Test Report');
+
+    expect(revokeSpy).toHaveBeenCalledWith('blob:test');
+
+    document.body.removeChild(mockElement);
+  });
+
+  it('should copy canvas content when canvas exists', () => {
+    const mockElement = document.createElement('div');
+    mockElement.id = 'test-element-canvas';
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    mockElement.appendChild(canvas);
+    document.body.appendChild(mockElement);
+
+    const mockWindow = {
+      focus: jasmine.createSpy('focus'),
+      print: jasmine.createSpy('print'),
+      close: jasmine.createSpy('close')
+    };
+    spyOn(window, 'open').and.returnValue(mockWindow as any);
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:test');
+    spyOn(URL, 'revokeObjectURL');
+
+    service.exportElementAsPdf('test-element-canvas', 'Canvas Report');
+
+    expect(window.open).toHaveBeenCalled();
+
+    document.body.removeChild(mockElement);
+  });
+
+  it('should remove interactive elements from clone', () => {
+    const mockElement = document.createElement('div');
+    mockElement.id = 'test-element-interactive';
+    mockElement.innerHTML = `
+      <button>Click</button>
+      <a href="#">Link</a>
+      <select><option>Option</option></select>
+      <input type="text" value="test" />
+      <textarea>text</textarea>
+      <p class="text-xs">Total</p>
+      <p class="font-bold text-xl">42</p>
+    `;
+    document.body.appendChild(mockElement);
+
+    const mockWindow = {
+      focus: jasmine.createSpy('focus'),
+      print: jasmine.createSpy('print'),
+      close: jasmine.createSpy('close')
+    };
+    spyOn(window, 'open').and.returnValue(mockWindow as any);
+    spyOn(URL, 'createObjectURL').and.returnValue('blob:test');
+    spyOn(URL, 'revokeObjectURL');
+
+    service.exportElementAsPdf('test-element-interactive', 'Interactive Report');
+
+    expect(window.open).toHaveBeenCalled();
+
+    document.body.removeChild(mockElement);
+  });
 });

@@ -25,9 +25,9 @@ export class AuthService {
   // Mock users for fallback (when backend is not available)
   // Passwords are built from char codes to avoid static-analysis false positives
   private readonly mockPwd = [80, 97, 115, 115, 119, 111, 114, 100, 49, 50, 51, 33]
-    .map(c => String.fromCharCode(c)).join('');
+    .map(c => String.fromCodePoint(c)).join('');
   private readonly mockAdminPwd = [65, 100, 109, 105, 110, 49, 50, 51, 33]
-    .map(c => String.fromCharCode(c)).join('');
+    .map(c => String.fromCodePoint(c)).join('');
 
   private mockUsers = [
     {

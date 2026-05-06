@@ -192,4 +192,77 @@ describe('NotificationService', () => {
       expect(service.getCriticalUnreadCount()).toBe(1);
     });
   });
+
+  describe('getNotificationById', () => {
+    it('should fetch a single notification', () => {
+      const mockNotification = createMockNotification({ id: 'notif-1' });
+      service.getNotificationById('notif-1').subscribe(notification => {
+        expect(notification.id).toBe('notif-1');
+      });
+      const req = httpMock.expectOne('/api/v1/notifications/notif-1');
+      req.flush(mockNotification);
+    });
+  });
+
+  describe('getNotificationsByStatus', () => {
+    it('should fetch notifications by status', () => {
+      service.getNotificationsByStatus('user-1', 'PENDING').subscribe();
+      const req = httpMock.expectOne('/api/v1/notifications/user/user-1/status/PENDING');
+      req.flush([]);
+    });
+  });
+
+  describe('refreshNotifications', () => {
+    it('should refresh and update notifications subject', () => {
+      const mockResponse: PagedNotificationResponse = {
+        content: [createMockNotification()],
+        totalElements: 1,
+        totalPages: 1,
+        size: 10,
+        number: 0,
+        first: true,
+        last: true
+      };
+
+      service.refreshNotifications('user-1').subscribe(notifications => {
+        expect(notifications.length).toBe(1);
+      });
+
+      const req = httpMock.expectOne('/api/v1/notifications/user/user-1');
+      req.flush(mockResponse);
+    });
+
+    it('should return cached notifications on error', () => {
+      service['notificationsSubject'].next([createMockNotification()]);
+
+      service.refreshNotifications('user-1').subscribe(notifications => {
+        expect(notifications.length).toBe(1);
+      });
+
+      const req = httpMock.expectOne('/api/v1/notifications/user/user-1');
+      req.error(new ErrorEvent('Network error'));
+    });
+  });
+
+  describe('error handling', () => {
+    it('should throw on getUserNotifications error', (done) => {
+      service.getUserNotifications('user-1').subscribe({
+        error: () => {
+          done();
+        }
+      });
+      const req = httpMock.expectOne('/api/v1/notifications/user/user-1');
+      req.error(new ErrorEvent('Network error'));
+    });
+
+    it('should throw on getUnreadCount error', (done) => {
+      service.getUnreadCount('user-1').subscribe({
+        error: () => {
+          done();
+        }
+      });
+      const req = httpMock.expectOne('/api/v1/notifications/user/user-1/unread/count');
+      req.error(new ErrorEvent('Network error'));
+    });
+  });
 });
