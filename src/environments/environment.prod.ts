@@ -1,21 +1,20 @@
 export const environment = {
   production: true,
-  
-  // API Gateway - all backend requests go through here
-  apiUrl: '/api',
-  
-  // Keycloak Configuration - for authentication only
+
+  // Kubernetes Gateway NodePort for production
+  apiUrl: 'http://192.168.89.128:30080/api',
+
+  // Kubernetes Keycloak NodePort
   keycloak: {
-    url: '/realms/alzcare/protocol/openid-connect/token',
+    url: 'http://192.168.89.128:30090/realms/alzcare/protocol/openid-connect/token',
     realm: 'alzcare',
     clientId: 'alzcare-webapp'
   },
 
-  // Cloudinary Configuration - for image uploads
   cloudinary: {
-    cloudName: 'dofap5wt0',
+    cloudName: 'dfbzqlgws',
     uploadPreset: 'lzcare_behavior_logs',
-    apiKey: '975119429958434',
+    apiKey: '838495449154258',
     apiUrl: 'https://api.cloudinary.com/v1_1',
     folder: 'alzcare/patient_profiles',
     maxFileSizeMB: 5,
