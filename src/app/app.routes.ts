@@ -247,6 +247,10 @@ export const routes: Routes = [
       {
         path: 'statistics',
         loadComponent: () => import('./modules/doctor/statistics/doctor-statistics.component').then(m => m.DoctorStatisticsComponent)
+      },
+      {
+        path: 'ml',
+        loadComponent: () => import('./modules/ml/ml-dashboard.component').then(m => m.MlDashboardComponent)
       }
     ]
   },
@@ -321,6 +325,10 @@ export const routes: Routes = [
         path: 'medical/camera-provisioning',
         loadComponent: () => import('./modules/admin/camera-provisioning/admin-camera-provisioning.component')
           .then(m => m.AdminCameraProvisioningComponent)
+      },
+      {
+        path: 'ml',
+        loadComponent: () => import('./modules/ml/ml-dashboard.component').then(m => m.MlDashboardComponent)
       }
     ]
   },

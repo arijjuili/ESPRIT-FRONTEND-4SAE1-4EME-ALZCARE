@@ -278,6 +278,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       icon: '📈',
       roles: ['doctor']
     },
+    {
+      label: 'ML Prediction',
+      path: '/doctor/ml',
+      icon: '🤖',
+      roles: ['doctor']
+    },
     // Admin routes - 12 Axes Management
     {
       label: 'Dashboard',
@@ -349,6 +355,12 @@ export class NavbarComponent implements OnInit, OnDestroy {
       label: 'Settings',
       path: '/admin/settings',
       icon: '⚙️',
+      roles: ['admin']
+    },
+    {
+      label: 'ML Analytics',
+      path: '/admin/ml',
+      icon: '🤖',
       roles: ['admin']
     }
   ];

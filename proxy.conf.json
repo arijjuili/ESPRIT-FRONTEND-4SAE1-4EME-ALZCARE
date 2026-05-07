@@ -65,6 +65,12 @@
     "changeOrigin": true,
     "logLevel": "debug"
   },
+  "/api/ml": {
+    "target": "http://localhost:8010",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
   "/api": {
     "target": "http://localhost:8080",
     "secure": false,

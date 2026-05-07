@@ -1,0 +1,169 @@
+<div class="space-y-6">
+  <!-- Formulaire -->
+  <div class="bg-white rounded-xl shadow-md p-6">
+    <h3 class="text-lg font-bold text-gray-900 mb-4">🧬 Prédiction des Risques Patient</h3>
+    <p class="text-sm text-gray-500 mb-6">Renseignez les features du patient pour obtenir les prédictions ML.</p>
+
+    <form [formGroup]="form" (ngSubmit)="onPredict()" class="space-y-6">
+      <!-- Démographie -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">Démographie</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Âge</label>
+            <input type="number" formControlName="Age" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Genre (0=F, 1=M)</label>
+            <input type="number" formControlName="Gender" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">BMI</label>
+            <input type="number" step="0.1" formControlName="BMI" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Niveau d'éducation</label>
+            <input type="number" formControlName="EducationLevel" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-primary-500 focus:border-primary-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode de vie -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">Mode de vie</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Tabagisme (0/1)</label><input type="number" formControlName="Smoking" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Alcool (/sem)</label><input type="number" step="0.1" formControlName="AlcoholConsumption" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Activité physique</label><input type="number" step="0.1" formControlName="PhysicalActivity" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Qualité alimentation</label><input type="number" step="0.1" formControlName="DietQuality" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Qualité sommeil</label><input type="number" step="0.1" formControlName="SleepQuality" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+        </div>
+      </div>
+
+      <!-- Santé cardiovasculaire -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">Santé cardiovasculaire</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">PAS (mmHg)</label><input type="number" step="0.1" formControlName="SystolicBP" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">PAD (mmHg)</label><input type="number" step="0.1" formControlName="DiastolicBP" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Chol. Total</label><input type="number" step="0.1" formControlName="CholesterolTotal" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">LDL</label><input type="number" step="0.1" formControlName="CholesterolLDL" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">HDL</label><input type="number" step="0.1" formControlName="CholesterolHDL" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Triglycérides</label><input type="number" step="0.1" formControlName="CholesterolTriglycerides" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">HTA (0/1)</label><input type="number" formControlName="Hypertension" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Diabète (0/1)</label><input type="number" formControlName="Diabetes" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Cardiovasculaire (0/1)</label><input type="number" formControlName="CardiovascularDisease" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">AVC (0/1)</label><input type="number" formControlName="Stroke" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+        </div>
+      </div>
+
+      <!-- Cognition & Comportement -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">Cognition & Comportement</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">MMSE (5-30)</label><input type="number" step="0.1" formControlName="MMSE" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Évaluation fonctionnelle</label><input type="number" step="0.1" formControlName="FunctionalAssessment" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">ADL (1-10)</label><input type="number" step="0.1" formControlName="ADL" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Plaintes mémoire (0/1)</label><input type="number" formControlName="MemoryComplaints" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Problèmes comportementaux (0/1)</label><input type="number" formControlName="BehavioralProblems" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Confusion (0/1)</label><input type="number" formControlName="Confusion" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Désorientation (0/1)</label><input type="number" formControlName="Disorientation" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Changement personnalité (0/1)</label><input type="number" formControlName="PersonalityChanges" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Difficulté tâches (0/1)</label><input type="number" formControlName="DifficultyCompletingTasks" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Oublis (0/1)</label><input type="number" formControlName="Forgetfulness" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+        </div>
+      </div>
+
+      <!-- Historique -->
+      <div>
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-3">Historique & Antécédents</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Antécédent Alzheimer (0/1)</label><input type="number" formControlName="FamilyHistoryAlzheimers" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Dépression (0/1)</label><input type="number" formControlName="Depression" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Traumatisme crânien (0/1)</label><input type="number" formControlName="HeadInjury" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+          <div><label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis (0/1)</label><input type="number" formControlName="Diagnosis" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-4 border-t border-gray-100">
+        <button
+          type="submit"
+          [disabled]="loading"
+          class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-lg shadow hover:shadow-lg transition disabled:opacity-50"
+        >
+          <span *ngIf="loading" class="mr-2 animate-spin">⏳</span>
+          {{ loading ? 'Analyse en cours...' : '🔮 Lancer les prédictions' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Résultats -->
+  <div *ngIf="eventRisk || cognitiveDecline || fallRisk || cluster" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <!-- Event Risk -->
+    <div class="bg-white rounded-xl shadow-md p-6 border-l-4" [class.border-l-red-500]="eventRisk?.riskLabel === 'Élevé'" [class.border-l-yellow-400]="eventRisk?.riskLabel === 'Moyen'" [class.border-l-green-500]="eventRisk?.riskLabel === 'Faible'">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase">Risque d'Événement</h4>
+      <div class="mt-2">
+        <span class="text-3xl font-bold" [class.text-red-600]="eventRisk?.riskLabel === 'Élevé'" [class.text-yellow-600]="eventRisk?.riskLabel === 'Moyen'" [class.text-green-600]="eventRisk?.riskLabel === 'Faible'">
+          {{ eventRisk?.riskLabel }}
+        </span>
+        <p class="text-xs text-gray-400 mt-1">Modèle : {{ eventRisk?.model }}</p>
+      </div>
+      <div class="mt-3 space-y-1">
+        <div class="flex justify-between text-xs"><span class="text-gray-500">Faible</span><span class="font-medium">{{ (eventRisk?.probabilities?.[0] || 0) | percent:'1.0-1' }}</span></div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-green-500 h-1.5 rounded-full" [style.width.%]="(eventRisk?.probabilities?.[0] || 0) * 100"></div></div>
+        <div class="flex justify-between text-xs"><span class="text-gray-500">Moyen</span><span class="font-medium">{{ (eventRisk?.probabilities?.[1] || 0) | percent:'1.0-1' }}</span></div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-yellow-400 h-1.5 rounded-full" [style.width.%]="(eventRisk?.probabilities?.[1] || 0) * 100"></div></div>
+        <div class="flex justify-between text-xs"><span class="text-gray-500">Élevé</span><span class="font-medium">{{ (eventRisk?.probabilities?.[2] || 0) | percent:'1.0-1' }}</span></div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-red-500 h-1.5 rounded-full" [style.width.%]="(eventRisk?.probabilities?.[2] || 0) * 100"></div></div>
+      </div>
+    </div>
+
+    <!-- Cognitive Decline -->
+    <div class="bg-white rounded-xl shadow-md p-6 border-l-4" [class.border-l-red-500]="cognitiveDecline?.decline === 3" [class.border-l-yellow-400]="cognitiveDecline?.decline === 2" [class.border-l-blue-400]="cognitiveDecline?.decline === 1" [class.border-l-green-500]="cognitiveDecline?.decline === 0">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase">Déclin Cognitif</h4>
+      <div class="mt-2">
+        <span class="text-3xl font-bold" [class.text-red-600]="cognitiveDecline?.decline === 3" [class.text-yellow-600]="cognitiveDecline?.decline === 2" [class.text-blue-600]="cognitiveDecline?.decline === 1" [class.text-green-600]="cognitiveDecline?.decline === 0">
+          {{ cognitiveDecline?.label }}
+        </span>
+        <p class="text-xs text-gray-400 mt-1">MMSE : {{ cognitiveDecline?.mmse }}</p>
+      </div>
+      <div class="mt-3 text-xs text-gray-500 space-y-1">
+        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-green-500"></div><span>Normal ≥ 24</span></div>
+        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-400"></div><span>Léger 18-23</span></div>
+        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-yellow-400"></div><span>Modéré 10-17</span></div>
+        <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500"></div><span>Sévère < 10</span></div>
+      </div>
+    </div>
+
+    <!-- Fall Risk -->
+    <div class="bg-white rounded-xl shadow-md p-6 border-l-4" [class.border-l-red-500]="fallRisk?.level === 'Élevé'" [class.border-l-yellow-400]="fallRisk?.level === 'Moyen'" [class.border-l-green-500]="fallRisk?.level === 'Faible'">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase">Risque de Chute</h4>
+      <div class="mt-2">
+        <span class="text-3xl font-bold" [class.text-red-600]="fallRisk?.level === 'Élevé'" [class.text-yellow-600]="fallRisk?.level === 'Moyen'" [class.text-green-600]="fallRisk?.level === 'Faible'">
+          {{ fallRisk?.level }}
+        </span>
+        <p class="text-xs text-gray-400 mt-1">Score : {{ fallRisk?.score }} / 10</p>
+      </div>
+      <div class="mt-3">
+        <p class="text-xs font-medium text-gray-500 mb-1">Facteurs identifiés :</p>
+        <div class="flex flex-wrap gap-1">
+          <span *ngFor="let f of fallRisk?.factors" class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ f }}</span>
+          <span *ngIf="!fallRisk?.factors?.length" class="text-xs text-gray-400">Aucun facteur majeur</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cluster -->
+    <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-l-primary-500">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase">Clustering (GMM)</h4>
+      <div class="mt-2">
+        <span class="text-3xl font-bold text-primary-600">{{ cluster?.clusterName }}</span>
+        <p class="text-xs text-gray-400 mt-1">Probabilité : {{ cluster?.probability | percent:'1.0-1' }}</p>
+      </div>
+      <div class="mt-3 text-xs text-gray-500">
+        <p>L'algorithme GMM assigne chaque patient au cluster le plus probable avec un score de confiance.</p>
+      </div>
+    </div>
+  </div>
+</div>

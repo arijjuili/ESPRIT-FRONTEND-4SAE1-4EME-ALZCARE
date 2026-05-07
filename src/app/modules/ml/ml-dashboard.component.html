@@ -1,0 +1,40 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">🤖 Intelligence Artificielle</h1>
+        <p class="text-sm text-gray-500 mt-1">Tableau de bord analytique — Prédictions de risque, clustering et performance des modèles ML</p>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm text-xs text-gray-500">
+        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        Mode démonstration actif
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow-sm p-1.5 flex gap-1 overflow-x-auto">
+      <button
+        *ngFor="let tab of tabs"
+        (click)="setTab(tab.key)"
+        [class.bg-primary-50]="activeTab === tab.key"
+        [class.text-primary-700]="activeTab === tab.key"
+        [class.border-primary-200]="activeTab === tab.key"
+        [class.border-transparent]="activeTab !== tab.key"
+        [class.text-gray-600]="activeTab !== tab.key"
+        class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border transition whitespace-nowrap hover:bg-gray-50"
+      >
+        <span>{{ tab.icon }}</span>
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="transition-opacity duration-300">
+      <app-risk-prediction-panel *ngIf="activeTab === 'prediction'"></app-risk-prediction-panel>
+      <app-clustering-panel *ngIf="activeTab === 'clustering'"></app-clustering-panel>
+      <app-model-comparison-panel *ngIf="activeTab === 'comparison'"></app-model-comparison-panel>
+      <app-feature-importance-panel *ngIf="activeTab === 'features'"></app-feature-importance-panel>
+    </div>
+  </div>
+</div>
