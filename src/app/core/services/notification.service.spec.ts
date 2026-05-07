@@ -299,4 +299,65 @@ describe('NotificationService', () => {
       req.error(new ErrorEvent('Network error'));
     });
   });
+
+  describe('delete notification', () => {
+    it('should delete a notification with optimistic update', () => {
+      const notifications = [
+        { id: 'n1', userId: 'user-1', title: 'Test 1', read: false, createdAt: '2024-01-01' },
+        { id: 'n2', userId: 'user-1', title: 'Test 2', read: true, createdAt: '2024-01-02' }
+      ];
+      (service as any).notificationsSubject.next(notifications);
+
+      service.deleteNotification('n1').subscribe();
+
+      const req = httpMock.expectOne('/api/v1/notifications/n1');
+      expect(req.request.method).toBe('DELETE');
+      req.flush(null);
+
+      expect((service as any).notificationsSubject.value.length).toBe(1);
+      expect((service as any).notificationsSubject.value[0].id).toBe('n2');
+    });
+
+    it('should prevent duplicate delete requests', () => {
+      const notifications = [
+        { id: 'n1', userId: 'user-1', title: 'Test 1', read: false, createdAt: '2024-01-01' }
+      ];
+      (service as any).notificationsSubject.next(notifications);
+      (service as any).deleting.add('n1');
+
+      service.deleteNotification('n1').subscribe(result => {
+        expect(result).toBeUndefined();
+      });
+
+      httpMock.expectNone('/api/v1/notifications/n1');
+    });
+
+    it('should rollback on delete error', () => {
+      const notifications = [
+        { id: 'n1', userId: 'user-1', title: 'Test 1', read: false, createdAt: '2024-01-01' }
+      ];
+      (service as any).notificationsSubject.next(notifications);
+
+      service.deleteNotification('n1').subscribe({
+        error: () => {
+          expect((service as any).notificationsSubject.value.length).toBe(1);
+          expect((service as any).deleting.has('n1')).toBeFalse();
+        }
+      });
+
+      const req = httpMock.expectOne('/api/v1/notifications/n1');
+      req.error(new ErrorEvent('Network error'));
+    });
+
+    it('should get notification by id', () => {
+      const notification = { id: 'n1', userId: 'user-1', title: 'Test', read: false, createdAt: '2024-01-01' };
+      service.getNotificationById('n1').subscribe(result => {
+        expect(result.id).toBe('n1');
+      });
+
+      const req = httpMock.expectOne('/api/v1/notifications/n1');
+      expect(req.request.method).toBe('GET');
+      req.flush(notification);
+    });
+  });
 });

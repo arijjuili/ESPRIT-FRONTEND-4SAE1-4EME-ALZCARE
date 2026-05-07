@@ -160,4 +160,11 @@ describe('AlertPollingService', () => {
 
     expect(toastService.show).not.toHaveBeenCalled();
   });
+
+  it('should be usable after construction', () => {
+    service.refresh();
+    const req = httpMock.expectOne('/api/alerts/active');
+    req.flush([]);
+    expect(req.request.method).toBe('GET');
+  });
 });

@@ -179,4 +179,122 @@ describe('DoctorPrescriptionsComponent', () => {
     expect(component.patientSearchQuery).toBe('');
     expect(component.filteredPatients).toEqual([mockPatient]);
   });
+
+  describe('prescription loading', () => {
+    it('should load and filter recent prescriptions', fakeAsync(() => {
+      const mockPlan: MedicationPlan = {
+        id: 1,
+        patientId: 'patient-1',
+        title: 'Plan A',
+        status: 'ACTIVE' as PlanStatus,
+        createdAt: '2024-06-01T00:00:00Z',
+        updatedAt: '2024-06-10T00:00:00Z',
+        items: [],
+        doctorId: 'd1',
+        startDate: '2024-06-01',
+        autonomyLevel: MedicationAutonomyLevel.INDEPENDENT,
+        version: 1
+      };
+      const otherPlan: MedicationPlan = {
+        id: 2,
+        patientId: 'other-patient',
+        title: 'Plan B',
+        status: 'ACTIVE' as PlanStatus,
+        createdAt: '2024-06-05T00:00:00Z',
+        updatedAt: '2024-06-08T00:00:00Z',
+        items: [],
+        doctorId: 'd1',
+        startDate: '2024-06-01',
+        autonomyLevel: MedicationAutonomyLevel.INDEPENDENT,
+        version: 1
+      };
+      medicalServiceSpy.getAllMedicationPlans.and.returnValue(of([mockPlan, otherPlan]));
+      component.assignedPatients = [mockPatient];
+
+      component.loadRecentPrescriptions();
+      tick();
+
+      expect(component.allPrescriptions.length).toBe(1);
+      expect(component.allPrescriptions[0].patientId).toBe('patient-1');
+      expect(component.filteredPrescriptions.length).toBe(1);
+    }));
+
+    it('should handle error loading prescriptions', fakeAsync(() => {
+      medicalServiceSpy.getAllMedicationPlans.and.returnValue(throwError(() => new Error('fail')));
+      component.assignedPatients = [mockPatient];
+
+      component.loadRecentPrescriptions();
+      tick();
+
+      expect(component.allPrescriptions).toEqual([]);
+      expect(component.filteredPrescriptions).toEqual([]);
+      expect(component.loading).toBeFalse();
+    }));
+
+    it('should update displayed prescriptions for recent view', () => {
+      const plans: MedicationPlan[] = [
+        { id: 1, patientId: 'p1', title: 'P1', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-01T00:00:00Z', updatedAt: '2024-06-01T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 2, patientId: 'p2', title: 'P2', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-02T00:00:00Z', updatedAt: '2024-06-02T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 3, patientId: 'p3', title: 'P3', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-03T00:00:00Z', updatedAt: '2024-06-03T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 4, patientId: 'p4', title: 'P4', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-04T00:00:00Z', updatedAt: '2024-06-04T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 5, patientId: 'p5', title: 'P5', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-05T00:00:00Z', updatedAt: '2024-06-05T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 6, patientId: 'p6', title: 'P6', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-06T00:00:00Z', updatedAt: '2024-06-06T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 7, patientId: 'p7', title: 'P7', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-07T00:00:00Z', updatedAt: '2024-06-07T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 8, patientId: 'p8', title: 'P8', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-08T00:00:00Z', updatedAt: '2024-06-08T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 }
+      ];
+      component.allPrescriptions = plans;
+      component.viewMode = 'recent';
+      (component as any).RECENT_LIMIT = 7;
+      component.updateDisplayedPrescriptions();
+      expect(component.filteredPrescriptions.length).toBe(7);
+    });
+
+    it('should update displayed prescriptions for all view', () => {
+      component.allPrescriptions = [
+        { id: 1, patientId: 'p1', title: 'P1', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-01T00:00:00Z', updatedAt: '2024-06-01T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 }
+      ];
+      component.viewMode = 'all';
+      component.updateDisplayedPrescriptions();
+      expect(component.filteredPrescriptions.length).toBe(1);
+    });
+
+    it('should sort prescriptions by updatedAt descending', () => {
+      const plans: MedicationPlan[] = [
+        { id: 1, patientId: 'p1', title: 'Old', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-01T00:00:00Z', updatedAt: '2024-06-01T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 2, patientId: 'p2', title: 'New', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-01T00:00:00Z', updatedAt: '2024-06-10T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 }
+      ];
+      const sorted = component.sortByLastUpdated(plans);
+      expect(sorted[0].id).toBe(2);
+    });
+
+    it('should sort prescriptions by createdAt when updatedAt is missing', () => {
+      const plans: MedicationPlan[] = [
+        { id: 1, patientId: 'p1', title: 'Old', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-01T00:00:00Z', updatedAt: '2024-06-01T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 },
+        { id: 2, patientId: 'p2', title: 'New', status: 'ACTIVE' as PlanStatus, createdAt: '2024-06-10T00:00:00Z', updatedAt: '2024-06-10T00:00:00Z', items: [], doctorId: 'd1', startDate: '2024-06-01', autonomyLevel: MedicationAutonomyLevel.INDEPENDENT, version: 1 }
+      ];
+      const sorted = component.sortByLastUpdated(plans);
+      expect(sorted[0].id).toBe(2);
+    });
+
+    it('should toggle view mode', () => {
+      component.viewMode = 'recent';
+      component.allPrescriptions = [];
+      component.toggleViewMode();
+      expect(component.viewMode).toBe('all');
+    });
+
+    it('should set view mode explicitly', () => {
+      component.allPrescriptions = [];
+      component.setViewMode('all');
+      expect(component.viewMode).toBe('all');
+    });
+
+    it('should refresh prescriptions when patients already loaded', fakeAsync(() => {
+      component.assignedPatients = [mockPatient];
+      spyOn(component, 'loadRecentPrescriptions');
+      component.refreshPrescriptions();
+      tick();
+      expect(component.loadRecentPrescriptions).toHaveBeenCalled();
+    }));
+  });
 });

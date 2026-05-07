@@ -309,4 +309,28 @@ describe('PatientMedicationsComponent', () => {
     const todayIntake = { id: 1, itemId: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.PENDING } as MedicationIntake;
     expect(component.getConfirmButtonTitle(todayIntake)).toBe('Confirmation requires INDEPENDENT autonomy level');
   });
+
+  it('should not confirm when intake id is missing', () => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientMedicationPlans.and.returnValue(of([mockPlan]));
+    medicalServiceSpy.getMedicationIntakesByDateRange.and.returnValue(of([]));
+    fixture.detectChanges();
+
+    component.selectedDayKey = component['toDateKey'](new Date());
+    const intakeWithoutId = { itemId: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.PENDING } as MedicationIntake;
+    component.confirmIntake(intakeWithoutId);
+    expect(toastServiceSpy.show).toHaveBeenCalledWith('Unable to confirm: intake id is missing.', 'error');
+    expect(medicalServiceSpy.confirmMedicationIntake).not.toHaveBeenCalled();
+  });
+
+  it('should not confirm when item id cannot be resolved', () => {
+    authServiceSpy.getCurrentUser.and.returnValue({ id: 'patient-1', name: 'John', email: 'john@example.com', role: 'patient', token: 'token' });
+    medicalServiceSpy.getPatientMedicationPlans.and.returnValue(of([mockPlan]));
+    medicalServiceSpy.getMedicationIntakesByDateRange.and.returnValue(of([]));
+    fixture.detectChanges();
+
+    component.selectedDayKey = component['toDateKey'](new Date());
+    const intake = { id: 1, scheduledAt: new Date().toISOString(), status: IntakeStatus.PENDING } as MedicationIntake;
+    expect(component.canConfirmIntake(intake)).toBeFalse();
+  });
 });

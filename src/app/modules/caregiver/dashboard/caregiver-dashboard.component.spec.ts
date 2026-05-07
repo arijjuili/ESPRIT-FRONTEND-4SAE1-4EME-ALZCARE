@@ -334,4 +334,30 @@ describe('CaregiverDashboardComponent', () => {
         .toBe('bg-gray-100 text-gray-700 border-gray-200');
     });
   });
+
+  describe('missed check-in calendar', () => {
+    beforeEach(() => {
+      component.missedCalendarViewDate = new Date(2024, 5, 1);
+    });
+
+    it('should return month label', () => {
+      expect(component.getMissedCalendarMonthLabel()).toContain('June');
+      expect(component.getMissedCalendarMonthLabel()).toContain('2024');
+    });
+
+    it('should go to previous month', () => {
+      component.goToPreviousMissedCalendarMonth();
+      expect(component.missedCalendarViewDate.getMonth()).toBe(4);
+    });
+
+    it('should go to next month', () => {
+      component.goToNextMissedCalendarMonth();
+      expect(component.missedCalendarViewDate.getMonth()).toBe(6);
+    });
+
+    it('should get selected missed dates with no patient', () => {
+      component.selectedMissedCalendarPatientId = '';
+      expect(component.getSelectedMissedDates()).toEqual([]);
+    });
+  });
 });

@@ -115,4 +115,10 @@ describe('PdfExportService', () => {
 
     document.body.removeChild(mockElement);
   });
+
+  it('should return early when element is not found', () => {
+    spyOn(window, 'open');
+    service.exportElementAsPdf('non-existent-element', 'Test');
+    expect(window.open).not.toHaveBeenCalled();
+  });
 });

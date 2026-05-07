@@ -348,4 +348,106 @@ describe('DoctorAppointmentsComponent', () => {
       expect(component.getPatientDisplayName(null as any)).toBe('Unknown');
     });
   });
+
+  describe('form helpers', () => {
+    it('should calculate end date from start date and duration', () => {
+      component.appointmentDuration = 30;
+      component.newAppointment.startAt = '2024-06-15T10:00';
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      schedulingServiceSpy.normalizeLocalDateTime.and.returnValue('2024-06-15T10:00:00');
+
+      component.calculateEndDate();
+
+      expect(component.newAppointment.endAt).toContain('2024-06-15T10:30');
+    });
+
+    it('should reset end date when start date is invalid', () => {
+      component.newAppointment.startAt = '';
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(null);
+
+      component.calculateEndDate();
+
+      expect(component.newAppointment.endAt).toBe('');
+    });
+
+    it('should call calculateEndDate on duration change', () => {
+      spyOn(component, 'calculateEndDate');
+      component.onDurationChange();
+      expect(component.calculateEndDate).toHaveBeenCalled();
+    });
+
+    it('should update mode constraints when mode changes to ONLINE', () => {
+      component.newAppointment.mode = AppointmentMode.ONLINE;
+      component.transportDependency = true;
+      component.caregiverMustBeAvailable = true;
+      component.onModeChange();
+      expect(component.transportDependency).toBeFalse();
+      expect(component.caregiverMustBeAvailable).toBeFalse();
+    });
+
+    it('should keep caregiver required when mode changes to ONSITE', () => {
+      component.newAppointment.mode = AppointmentMode.ONSITE;
+      component.transportDependency = false;
+      component.caregiverMustBeAvailable = false;
+      component.onModeChange();
+      expect(component.caregiverMustBeAvailable).toBeTrue();
+    });
+
+    it('should reset availability on constraints change', () => {
+      component.availabilityChecked = true;
+      component.onConstraintsChange();
+      expect(component.availabilityChecked).toBeFalse();
+    });
+
+    it('should clear patient selection', () => {
+      component.selectedPatient = mockPatient;
+      component.patientSearchQuery = 'John';
+      component.newAppointment.patientId = 'patient-1';
+      component.linkedCaregiverName = 'Jane';
+      component.assignedPatients = [mockPatient];
+      component.filteredPatients = [mockPatient];
+
+      component.clearPatientSelection();
+
+      expect(component.selectedPatient).toBeNull();
+      expect(component.patientSearchQuery).toBe('');
+      expect(component.newAppointment.patientId).toBe('');
+      expect(component.linkedCaregiverName).toBeNull();
+      expect(component.filteredPatients).toEqual([mockPatient]);
+    });
+  });
+
+  describe('appointment getters', () => {
+    it('should filter appointments by status', () => {
+      component.appointments = [
+        { ...mockAppointment, status: AppointmentStatus.CONFIRMED },
+        { ...mockAppointment, id: 2, status: AppointmentStatus.CANCELLED }
+      ];
+      component.filterStatus = AppointmentStatus.CONFIRMED;
+      expect(component.filteredAppointments.length).toBe(1);
+      expect(component.filteredAppointments[0].status).toBe(AppointmentStatus.CONFIRMED);
+    });
+
+    it('should hide closed appointments when hideClosed is true', () => {
+      component.appointments = [
+        { ...mockAppointment, status: AppointmentStatus.CONFIRMED },
+        { ...mockAppointment, id: 2, status: AppointmentStatus.CANCELLED },
+        { ...mockAppointment, id: 3, status: AppointmentStatus.COMPLETED }
+      ];
+      component.filterStatus = 'ALL';
+      component.hideClosed = true;
+      expect(component.filteredAppointments.length).toBe(1);
+    });
+
+    it('should count appointments by status', () => {
+      component.appointments = [
+        { ...mockAppointment, status: AppointmentStatus.CONFIRMED },
+        { ...mockAppointment, id: 2, status: AppointmentStatus.COMPLETED },
+        { ...mockAppointment, id: 3, status: AppointmentStatus.CANCELLED }
+      ];
+      expect(component.confirmedCount).toBe(1);
+      expect(component.completedCount).toBe(1);
+      expect(component.cancelledCount).toBe(1);
+    });
+  });
 });
