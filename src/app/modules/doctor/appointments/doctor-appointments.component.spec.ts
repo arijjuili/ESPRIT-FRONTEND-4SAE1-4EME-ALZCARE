@@ -19,7 +19,8 @@ import {
   AppointmentPriority,
   AppointmentMode,
   AttendanceStatus,
-  PresenceConfirmationStatus
+  PresenceConfirmationStatus,
+  OutcomeType
 } from '../../../core/models/medical-followup.model';
 import { CaregiverAssignment, AssignmentStatus, CaregiverRole } from '../../../core/models/care-team.model';
 
@@ -88,7 +89,11 @@ describe('DoctorAppointmentsComponent', () => {
       'updateAppointment',
       'changeAppointmentStatus',
       'getPatientAppointments',
-      'listAppointments'
+      'listAppointments',
+      'regenerateTeleconsultationLink',
+      'getAppointment',
+      'markAppointmentAttended',
+      'markAppointmentNoShow'
     ]);
 
     doctorPatientContextSpy = jasmine.createSpyObj('DoctorPatientContextService', ['getAssignedPatients']);
@@ -102,7 +107,8 @@ describe('DoctorAppointmentsComponent', () => {
       'isUrgentAppointment',
       'getPriorityRank',
       'analyzeConflicts',
-      'toLocalDateTimeString'
+      'toLocalDateTimeString',
+      'suggestSlots'
     ]);
 
     cdrSpy = jasmine.createSpyObj('ChangeDetectorRef', ['detectChanges']);
@@ -170,6 +176,11 @@ describe('DoctorAppointmentsComponent', () => {
     }));
     medicalServiceSpy.getPatientAppointments.and.returnValue(of([]));
     medicalServiceSpy.listAppointments.and.returnValue(of([]));
+    medicalServiceSpy.regenerateTeleconsultationLink.and.returnValue(of({ meetingUrl: 'https://meet.test/123' }));
+    medicalServiceSpy.getAppointment.and.returnValue(of(mockAppointment));
+    medicalServiceSpy.markAppointmentAttended.and.returnValue(of(mockAppointment));
+    medicalServiceSpy.markAppointmentNoShow.and.returnValue(of(mockAppointment));
+    schedulingServiceSpy.suggestSlots.and.returnValue([]);
   }
 
   it('should create', () => {
@@ -448,6 +459,558 @@ describe('DoctorAppointmentsComponent', () => {
       expect(component.confirmedCount).toBe(1);
       expect(component.completedCount).toBe(1);
       expect(component.cancelledCount).toBe(1);
+    });
+  });
+
+  describe('day filter', () => {
+    it('should apply day filter and load appointments', () => {
+      setupDefaultSpies();
+      component.applyDayFilter('2024-06-15');
+      expect(component.filterDay).toBe('2024-06-15');
+      expect(medicalServiceSpy.getDoctorAppointments).toHaveBeenCalled();
+    });
+
+    it('should return early for invalid day format', () => {
+      component.applyDayFilter('invalid');
+      expect(component.filterDay).toBe('');
+    });
+
+    it('should clear day filter and reload', () => {
+      setupDefaultSpies();
+      component.filterDay = '2024-06-15';
+      component.clearDayFilter();
+      expect(component.filterDay).toBe('');
+      expect(medicalServiceSpy.getDoctorAppointments).toHaveBeenCalled();
+    });
+  });
+
+  describe('patient search and selection', () => {
+    it('should not search when patient is locked', () => {
+      component.patientLocked = true;
+      const event = { target: { value: 'John' } } as any;
+      component.onPatientSearch(event);
+      expect(component.patientSearchQuery).toBe('');
+    });
+
+    it('should filter patients by query', () => {
+      component.assignedPatients = [mockPatient];
+      component.patientLocked = false;
+      const event = { target: { value: 'John' } } as any;
+      component.onPatientSearch(event);
+      expect(component.filteredPatients.length).toBe(1);
+      expect(component.showPatientDropdown).toBeTrue();
+    });
+
+    it('should reset to all patients when query is empty', () => {
+      component.assignedPatients = [mockPatient];
+      component.patientLocked = false;
+      const event = { target: { value: '' } } as any;
+      component.onPatientSearch(event);
+      expect(component.filteredPatients).toEqual([mockPatient]);
+    });
+
+    it('should select patient and load caregiver', fakeAsync(() => {
+      setupDefaultSpies();
+      component.assignedPatients = [mockPatient];
+      component.selectPatient(mockPatient);
+      tick();
+      expect(component.selectedPatient).toEqual(mockPatient);
+      expect(component.newAppointment.patientId).toBe('user-patient-1');
+    }));
+  });
+
+  describe('modal and form', () => {
+    it('should open and close modal', () => {
+      component.openModal();
+      expect(component.showModal).toBeTrue();
+      component.closeModal();
+      expect(component.showModal).toBeFalse();
+      expect(component.patientLocked).toBeFalse();
+    });
+
+    it('should return correct modal title for reschedule', () => {
+      component.modalMode = 'reschedule';
+      expect(component.modalTitle).toBe('Reschedule Appointment');
+    });
+
+    it('should return correct modal title for followup', () => {
+      component.modalMode = 'create';
+      component.modalIntent = 'followup';
+      expect(component.modalTitle).toBe('Suggested Follow-up');
+    });
+
+    it('should return submit label when loading', () => {
+      component.loading = true;
+      component.modalMode = 'create';
+      expect(component.modalSubmitLabel).toBe('Creating...');
+    });
+
+    it('should return submit label for reschedule', () => {
+      component.loading = false;
+      component.availabilityLoading = false;
+      component.modalMode = 'reschedule';
+      expect(component.modalSubmitLabel).toBe('Save Reschedule');
+    });
+  });
+
+  describe('appointment status actions', () => {
+    it('should accept appointment', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [{ ...mockAppointment, status: AppointmentStatus.REQUESTED }];
+      medicalServiceSpy.changeAppointmentStatus.and.returnValue(of({ ...mockAppointment, status: AppointmentStatus.ACCEPTED }));
+      component.acceptAppointment(1);
+      tick();
+      expect(component.appointments[0].status).toBe(AppointmentStatus.ACCEPTED);
+    }));
+
+    it('should confirm appointment', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      medicalServiceSpy.changeAppointmentStatus.and.returnValue(of({ ...mockAppointment, status: AppointmentStatus.CONFIRMED }));
+      component.confirmAppointment(1);
+      tick();
+      expect(component.appointments[0].status).toBe(AppointmentStatus.CONFIRMED);
+    }));
+
+    it('should cancel appointment', fakeAsync(() => {
+      setupDefaultSpies();
+      spyOn(window, 'confirm').and.returnValue(true);
+      component.appointments = [mockAppointment];
+      medicalServiceSpy.changeAppointmentStatus.and.returnValue(of({ ...mockAppointment, status: AppointmentStatus.CANCELLED }));
+      component.cancelAppointment(1);
+      tick();
+      expect(component.appointments[0].status).toBe(AppointmentStatus.CANCELLED);
+    }));
+
+    it('should complete appointment and open outcome modal', () => {
+      component.appointments = [mockAppointment];
+      component.completeAppointment(1);
+      expect(component.showOutcomeModal).toBeTrue();
+      expect(component.outcomeModalAppointment).not.toBeNull();
+    });
+  });
+
+  describe('outcome modal', () => {
+    it('should open and close outcome modal', () => {
+      component.openOutcomeModal(mockAppointment);
+      expect(component.showOutcomeModal).toBeTrue();
+      component.closeOutcomeModal();
+      expect(component.showOutcomeModal).toBeFalse();
+    });
+
+    it('should save outcome without completing', fakeAsync(() => {
+      setupDefaultSpies();
+      component.outcomeModalAppointment = mockAppointment;
+      component.completeAfterOutcomeSave = false;
+      component.outcomeAttendance = AttendanceStatus.CONFIRMED;
+      component.outcomeType = OutcomeType.STABLE;
+      medicalServiceSpy.updateAppointment.and.returnValue(of({ ...mockAppointment, outcomeType: OutcomeType.STABLE }));
+      component.saveOutcomeAndMaybeComplete();
+      tick();
+      expect(component.showOutcomeModal).toBeFalse();
+    }));
+
+    it('should save outcome then complete', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      component.outcomeModalAppointment = mockAppointment;
+      component.completeAfterOutcomeSave = true;
+      component.outcomeAttendance = AttendanceStatus.CONFIRMED;
+      component.outcomeType = OutcomeType.STABLE;
+      medicalServiceSpy.updateAppointment.and.returnValue(of({ ...mockAppointment, outcomeType: OutcomeType.STABLE }));
+      medicalServiceSpy.changeAppointmentStatus.and.returnValue(of({ ...mockAppointment, status: AppointmentStatus.COMPLETED }));
+      component.saveOutcomeAndMaybeComplete();
+      tick();
+      expect(component.showOutcomeModal).toBeFalse();
+    }));
+
+    it('should handle save outcome error with backend message', fakeAsync(() => {
+      setupDefaultSpies();
+      component.outcomeModalAppointment = mockAppointment;
+      component.outcomeSaving = true;
+      medicalServiceSpy.updateAppointment.and.returnValue(throwError(() => ({ error: { message: 'Server error' } })));
+      component.saveOutcomeAndMaybeComplete();
+      tick();
+      expect(component.error).toContain('Server error');
+      expect(component.outcomeSaving).toBeFalse();
+    }));
+
+    it('should handle save outcome error with string body', fakeAsync(() => {
+      setupDefaultSpies();
+      component.outcomeModalAppointment = mockAppointment;
+      component.outcomeSaving = true;
+      medicalServiceSpy.updateAppointment.and.returnValue(throwError(() => ({ error: 'String error' })));
+      component.saveOutcomeAndMaybeComplete();
+      tick();
+      expect(component.error).toContain('String error');
+    }));
+
+    it('should return null for follow-up preview when no appointment', () => {
+      component.outcomeModalAppointment = null;
+      expect(component.getOutcomeModalFollowUpPreviewStartAt()).toBeNull();
+    });
+
+    it('should return preview start at when appointment exists', () => {
+      const appt = { ...mockAppointment, outcomeType: OutcomeType.FOLLOW_UP_NEEDED };
+      component.outcomeModalAppointment = appt;
+      component.outcomeType = OutcomeType.FOLLOW_UP_NEEDED;
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      const result = component.getOutcomeModalFollowUpPreviewStartAt();
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe('availability check', () => {
+    it('should show error when caregiver required but not linked for ONSITE', fakeAsync(() => {
+      setupDefaultSpies();
+      component.newAppointment = {
+        patientId: 'patient-1',
+        doctorId: 'doc-1',
+        type: AppointmentType.ROUTINE,
+        priority: AppointmentPriority.NORMAL,
+        mode: AppointmentMode.ONSITE,
+        startAt: '2024-06-15T10:00',
+        endAt: '2024-06-15T10:30'
+      };
+      component.caregiverMustBeAvailable = true;
+      component.linkedCaregiverId = null;
+      component.appointmentDuration = 30;
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      (component as any).runAvailabilityCheck();
+      tick();
+      expect(component.availabilityChecked).toBeTrue();
+      expect(component.availabilityConflicts.length).toBeGreaterThan(0);
+    }));
+
+    it('should show invalid start date error', () => {
+      component.newAppointment = { startAt: 'invalid', endAt: '' } as any;
+      schedulingServiceSpy.normalizeLocalDateTime.and.returnValue('invalid');
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(null);
+      (component as any).runAvailabilityCheck();
+      expect(component.availabilityError).toBe('Invalid start date/time.');
+    });
+
+    it('should call onAvailable when can proceed', fakeAsync(() => {
+      setupDefaultSpies();
+      component.newAppointment = {
+        patientId: 'patient-1',
+        doctorId: 'doc-1',
+        type: AppointmentType.ROUTINE,
+        priority: AppointmentPriority.NORMAL,
+        mode: AppointmentMode.ONSITE,
+        startAt: '2024-06-15T10:00',
+        endAt: '2024-06-15T10:30'
+      };
+      component.caregiverMustBeAvailable = false;
+      component.appointmentDuration = 30;
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      const onAvailable = jasmine.createSpy('onAvailable');
+      (component as any).runAvailabilityCheck(onAvailable);
+      tick();
+      expect(onAvailable).toHaveBeenCalled();
+    }));
+
+    it('should handle availability check error', fakeAsync(() => {
+      setupDefaultSpies();
+      component.newAppointment = {
+        patientId: 'patient-1',
+        doctorId: 'doc-1',
+        type: AppointmentType.ROUTINE,
+        priority: AppointmentPriority.NORMAL,
+        mode: AppointmentMode.ONSITE,
+        startAt: '2024-06-15T10:00',
+        endAt: '2024-06-15T10:30'
+      };
+      component.caregiverMustBeAvailable = false;
+      component.appointmentDuration = 30;
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      medicalServiceSpy.getDoctorAppointments.and.returnValue(throwError(() => new Error('fail')));
+      (component as any).runAvailabilityCheck();
+      tick();
+      expect(component.availabilityChecked).toBeTrue();
+    }));
+  });
+
+  describe('create and reschedule', () => {
+    it('should validate appointment with missing patient', () => {
+      component.newAppointment.patientId = '';
+      expect(component.validateAppointment()).toBeFalse();
+      expect(component.error).toContain('select a patient');
+    });
+
+    it('should validate appointment with missing start', () => {
+      component.newAppointment.patientId = 'p1';
+      component.newAppointment.startAt = '';
+      expect(component.validateAppointment()).toBeFalse();
+    });
+
+    it('should validate appointment with start in the past', () => {
+      component.newAppointment.patientId = 'p1';
+      component.newAppointment.startAt = '2020-01-01T00:00';
+      component.newAppointment.endAt = '2020-01-01T01:00';
+      schedulingServiceSpy.normalizeLocalDateTime.and.callFake((v: string) => v);
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2020-01-01T00:00'));
+      expect(component.validateAppointment()).toBeFalse();
+    });
+
+    it('should validate appointment with end before start', () => {
+      const future = new Date();
+      future.setDate(future.getDate() + 1);
+      const yyyy = future.getFullYear();
+      const mm = String(future.getMonth() + 1).padStart(2, '0');
+      const dd = String(future.getDate()).padStart(2, '0');
+      component.newAppointment.patientId = 'p1';
+      component.newAppointment.startAt = `${yyyy}-${mm}-${dd}T12:00`;
+      component.newAppointment.endAt = `${yyyy}-${mm}-${dd}T10:00`;
+      schedulingServiceSpy.normalizeLocalDateTime.and.callFake((v: string) => v);
+      schedulingServiceSpy.parseLocalDateTime.and.callFake((v: string) => new Date(v));
+      expect(component.validateAppointment()).toBeFalse();
+    });
+
+    it('should create appointment', fakeAsync(() => {
+      setupDefaultSpies();
+      const future = new Date();
+      future.setDate(future.getDate() + 1);
+      const yyyy = future.getFullYear();
+      const mm = String(future.getMonth() + 1).padStart(2, '0');
+      const dd = String(future.getDate()).padStart(2, '0');
+      component.newAppointment = {
+        patientId: 'patient-1',
+        doctorId: 'doc-1',
+        type: AppointmentType.ROUTINE,
+        priority: AppointmentPriority.NORMAL,
+        mode: AppointmentMode.ONSITE,
+        startAt: `${yyyy}-${mm}-${dd}T10:00`,
+        endAt: `${yyyy}-${mm}-${dd}T10:30`
+      };
+      component.appointmentDuration = 30;
+      schedulingServiceSpy.parseLocalDateTime.and.callFake((v: string) => new Date(v));
+      schedulingServiceSpy.normalizeLocalDateTime.and.callFake((v: string) => v);
+      medicalServiceSpy.createAppointment.and.returnValue(of(mockAppointment));
+      spyOn(component as any, 'runAvailabilityCheck').and.callFake((cb?: any) => { if (cb) cb(); });
+      component.createAppointment();
+      tick();
+      expect(medicalServiceSpy.createAppointment).toHaveBeenCalled();
+    }));
+
+    it('should open reschedule modal', () => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      schedulingServiceSpy.normalizeLocalDateTime.and.returnValue('2024-06-15T10:00:00');
+      component.openRescheduleModal(mockAppointment);
+      expect(component.showModal).toBeTrue();
+      expect(component.modalMode).toBe('reschedule');
+    });
+  });
+
+  describe('appointmentsByDay getter', () => {
+    it('should group urgent appointments first when status is REQUESTED', () => {
+      schedulingServiceSpy.isUrgentAppointment.and.returnValues(true, false);
+      component.filterStatus = AppointmentStatus.REQUESTED;
+      component.appointments = [
+        { ...mockAppointment, id: 1, status: AppointmentStatus.REQUESTED, priority: AppointmentPriority.CRITICAL },
+        { ...mockAppointment, id: 2, status: AppointmentStatus.REQUESTED, priority: AppointmentPriority.NORMAL }
+      ];
+      const groups = component.appointmentsByDay;
+      expect(groups.length).toBeGreaterThan(0);
+      expect(groups[0].dayKey).toBe('URGENT');
+    });
+  });
+
+  describe('compareAppointments', () => {
+    it('should sort by priority when same time', () => {
+      schedulingServiceSpy.isUrgentAppointment.and.returnValue(false);
+      schedulingServiceSpy.getPriorityRank.and.returnValue(1);
+      const a = { ...mockAppointment, startAt: '2024-06-15T10:00', priority: AppointmentPriority.NORMAL };
+      const b = { ...mockAppointment, id: 2, startAt: '2024-06-15T10:00', priority: AppointmentPriority.CRITICAL };
+      const result = (component as any).compareAppointments(a, b);
+      expect(typeof result).toBe('number');
+    });
+  });
+
+  describe('teleconsultation', () => {
+    it('should check if teleconsultation is active', () => {
+      const appt = { ...mockAppointment, mode: AppointmentMode.ONLINE, status: AppointmentStatus.CONFIRMED, meetingUrl: 'https://meet.test' };
+      expect(component.isTeleconsultationActive(appt)).toBeTrue();
+    });
+
+    it('should check if teleconsultation is pending', () => {
+      const appt = { ...mockAppointment, mode: AppointmentMode.ONLINE, status: AppointmentStatus.REQUESTED };
+      expect(component.isTeleconsultationPending(appt)).toBeTrue();
+    });
+
+    it('should check if appointment is cancelled', () => {
+      const appt = { ...mockAppointment, status: AppointmentStatus.CANCELLED };
+      expect(component.isAppointmentCancelled(appt)).toBeTrue();
+    });
+  });
+
+  describe('meeting URL', () => {
+    it('should fetch meeting URL via regenerate', fakeAsync(() => {
+      setupDefaultSpies();
+      component.currentUser = mockDoctorUser;
+      component.appointments = [mockAppointment];
+      component.fetchMeetingUrl(1);
+      tick();
+      expect(medicalServiceSpy.regenerateTeleconsultationLink).toHaveBeenCalled();
+    }));
+
+    it('should fallback to confirm then reload when regenerate fails', fakeAsync(() => {
+      setupDefaultSpies();
+      component.currentUser = mockDoctorUser;
+      component.appointments = [mockAppointment];
+      medicalServiceSpy.regenerateTeleconsultationLink.and.returnValue(throwError(() => new Error('fail')));
+      medicalServiceSpy.changeAppointmentStatus.and.returnValue(of({ ...mockAppointment, meetingUrl: 'https://meet.test/123' }));
+      component.fetchMeetingUrl(1);
+      tick();
+      expect(medicalServiceSpy.changeAppointmentStatus).toHaveBeenCalled();
+    }));
+
+    it('should alert when no current user on fetchMeetingUrl', () => {
+      spyOn(window, 'alert');
+      component.currentUser = null;
+      component.fetchMeetingUrl(1);
+      expect(window.alert).toHaveBeenCalledWith('User not authenticated');
+    });
+
+    it('should join valid meeting URL', () => {
+      spyOn(window, 'open');
+      component.joinMeeting('https://meet.test/123');
+      expect(window.open).toHaveBeenCalled();
+    });
+
+    it('should alert for invalid meeting URL', () => {
+      spyOn(window, 'alert');
+      component.joinMeeting('javascript:alert(1)');
+      expect(window.alert).toHaveBeenCalledWith('Invalid meeting URL. Please contact support.');
+    });
+
+    it('should copy meeting URL', () => {
+      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+      spyOn(window, 'alert');
+      component.copyMeetingUrl('https://meet.test/123');
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://meet.test/123');
+    });
+
+    it('should fallback copy when clipboard fails', fakeAsync(() => {
+      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject(new Error('fail')));
+      spyOn(window, 'alert');
+      component.copyMeetingUrl('https://meet.test/123');
+      tick();
+      expect(window.alert).toHaveBeenCalled();
+    }));
+  });
+
+  describe('attendance actions', () => {
+    it('should mark attendance confirmed', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      component.markAttendanceConfirmed(1);
+      tick();
+      expect(medicalServiceSpy.markAppointmentAttended).toHaveBeenCalled();
+    }));
+
+    it('should mark no-show', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      component.markNoShow(1);
+      tick();
+      expect(medicalServiceSpy.markAppointmentNoShow).toHaveBeenCalled();
+    }));
+  });
+
+  describe('reload single appointment', () => {
+    it('should reload appointment and update list', fakeAsync(() => {
+      setupDefaultSpies();
+      component.appointments = [mockAppointment];
+      medicalServiceSpy.getAppointment.and.returnValue(of({ ...mockAppointment, meetingUrl: 'https://meet.test/updated' }));
+      component.reloadSingleAppointment(1);
+      tick();
+      expect(medicalServiceSpy.getAppointment).toHaveBeenCalledWith(1);
+    }));
+  });
+
+  describe('follow-up suggestions', () => {
+    it('should suggest follow-up for completed with FOLLOW_UP_NEEDED', () => {
+      const appt = { ...mockAppointment, status: AppointmentStatus.COMPLETED, outcomeType: OutcomeType.FOLLOW_UP_NEEDED };
+      expect(component.shouldSuggestFollowUp(appt)).toBeTrue();
+    });
+
+    it('should get follow-up label for urgent', () => {
+      const appt = { ...mockAppointment, outcomeType: OutcomeType.URGENT_FOLLOW_UP };
+      expect(component.getFollowUpSuggestionLabel(appt)).toContain('urgent');
+    });
+
+    it('should get follow-up start date', () => {
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(new Date('2024-06-15T10:00:00'));
+      const appt = { ...mockAppointment, outcomeType: OutcomeType.FOLLOW_UP_NEEDED };
+      const result = component.getSuggestedFollowUpStartAt(appt);
+      expect(result).not.toBeNull();
+    });
+
+    it('should return null for invalid base date', () => {
+      schedulingServiceSpy.parseLocalDateTime.and.returnValue(null);
+      const appt = { ...mockAppointment, outcomeType: OutcomeType.FOLLOW_UP_NEEDED };
+      expect(component.getSuggestedFollowUpStartAt(appt)).toBeNull();
+    });
+  });
+
+  describe('badge classes', () => {
+    it('should return status class for REQUESTED', () => {
+      const result = component.getStatusClass(AppointmentStatus.REQUESTED);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should return attendance status class for CONFIRMED', () => {
+      expect(component.getAttendanceStatusClass(AttendanceStatus.CONFIRMED)).toContain('emerald');
+    });
+
+    it('should return attendance status class for NO_SHOW', () => {
+      expect(component.getAttendanceStatusClass(AttendanceStatus.NO_SHOW)).toContain('rose');
+    });
+
+    it('should return presence status class for DECLINED', () => {
+      expect(component.getPresenceStatusClass(PresenceConfirmationStatus.DECLINED)).toContain('rose');
+    });
+  });
+
+  describe('utility methods', () => {
+    it('should format date display', () => {
+      const result = component.formatDateDisplay('2024-06-15T10:00:00');
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it('should get patient name by id', () => {
+      component.assignedPatients = [mockPatient];
+      expect(component.getPatientNameById('patient-1')).toContain('John');
+    });
+
+    it('should find patient by any id', () => {
+      component.assignedPatients = [mockPatient];
+      expect((component as any).findPatientByAnyId('user-patient-1')).toEqual(mockPatient);
+    });
+
+    it('should extract caregiver id from patient', () => {
+      const patientWithCg = { ...mockPatient, caregiverId: 'cg-1' } as any;
+      expect((component as any).extractCaregiverId(patientWithCg)).toBe('cg-1');
+    });
+  });
+
+  describe('preselectPatientFromRoute', () => {
+    it('should return early when no routePatientId', () => {
+      component.routePatientId = null;
+      component.preselectPatientFromRoute();
+      expect(component.selectedPatient).toBeNull();
+    });
+
+    it('should return early when no assigned patients', () => {
+      component.routePatientId = 'patient-1';
+      component.assignedPatients = [];
+      component.preselectPatientFromRoute();
+      expect(component.selectedPatient).toBeNull();
     });
   });
 });
