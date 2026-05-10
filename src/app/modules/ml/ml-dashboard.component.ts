@@ -4,8 +4,9 @@ import { RiskPredictionPanelComponent } from './risk-prediction-panel/risk-predi
 import { ClusteringPanelComponent } from './clustering-panel/clustering-panel.component';
 import { ModelComparisonPanelComponent } from './model-comparison-panel/model-comparison-panel.component';
 import { FeatureImportancePanelComponent } from './feature-importance-panel/feature-importance-panel.component';
+import { RecommendationPanelComponent } from './recommendation-panel/recommendation-panel.component';
 
-type Tab = 'prediction' | 'clustering' | 'comparison' | 'features';
+type Tab = 'prediction' | 'clustering' | 'comparison' | 'features' | 'recommendations';
 
 @Component({
   selector: 'app-ml-dashboard',
@@ -16,6 +17,7 @@ type Tab = 'prediction' | 'clustering' | 'comparison' | 'features';
     ClusteringPanelComponent,
     ModelComparisonPanelComponent,
     FeatureImportancePanelComponent,
+    RecommendationPanelComponent,
   ],
   templateUrl: './ml-dashboard.component.html',
   styleUrls: ['./ml-dashboard.component.scss'],
@@ -28,6 +30,7 @@ export class MlDashboardComponent {
     { key: 'clustering', label: 'Clustering', icon: '📊' },
     { key: 'comparison', label: 'Performance', icon: '🏆' },
     { key: 'features', label: 'Features', icon: '🔍' },
+    { key: 'recommendations', label: 'Recommandations', icon: '💡' },
   ];
 
   setTab(tab: Tab): void {

@@ -11,6 +11,7 @@ import {
   ModelMetrics,
   FeatureImportance,
   PcaVisualization,
+  RecommendationsResponse,
 } from '../models/ml.model';
 
 const USE_MOCK = true; // Passer à false quand le backend tourne
@@ -157,5 +158,135 @@ export class MlService {
       return of({ algorithm, points, clusters });
     }
     return this.http.get<PcaVisualization>(`${API_BASE}/visualization/pca?algorithm=${algorithm}`);
+  }
+
+  generateRecommendations(features: PatientMlFeatures): Observable<RecommendationsResponse> {
+    if (USE_MOCK) {
+      const rulesBased: RecommendationsResponse['rulesBased'] = [];
+      const clusterBased: RecommendationsResponse['clusterBased'] = [];
+
+      // Règles basées sur les features directes
+      if (features.MMSE < 10) {
+        rulesBased.push({
+          category: 'COGNITION',
+          title: 'Accompagnement cognitif intensif',
+          description: 'Mettre en place une routine stricte avec rappels visuels et accompagnement constant.',
+          priority: 'HAUTE',
+          icon: '🧠',
+          reason: 'MMSE très bas (< 10) indiquant un déclin sévère',
+        });
+      } else if (features.MMSE < 18) {
+        rulesBased.push({
+          category: 'COGNITION',
+          title: 'Exercices de mémoire quotidiens',
+          description: 'Jeux de mémoire, puzzles et activités de stimulation cognitive 30 min/jour.',
+          priority: 'MOYENNE',
+          icon: '🧩',
+          reason: 'MMSE modéré (10-17) suggérant un déclin cognitif avancé',
+        });
+      }
+
+      if (features.Age > 80 && features.ADL < 5) {
+        rulesBased.push({
+          category: 'SÉCURITÉ',
+          title: 'Audit domicile sécurité',
+          description: 'Installation de barres d\'appui, éclairage automatique, suppression des tapis glissants.',
+          priority: 'HAUTE',
+          icon: '🏠',
+          reason: 'Âge élevé (> 80) et faible autonomie (ADL < 5)',
+        });
+      }
+
+      if (features.Confusion || features.Disorientation) {
+        rulesBased.push({
+          category: 'SÉCURITÉ',
+          title: 'Système de localisation/GPS',
+          description: 'Bracelet connecté ou montre GPS pour localiser le patient en cas de fugue.',
+          priority: 'HAUTE',
+          icon: '📍',
+          reason: 'Présence de confusion ou désorientation',
+        });
+      }
+
+      if (features.PhysicalActivity < 2) {
+        rulesBased.push({
+          category: 'ACTIVITÉ PHYSIQUE',
+          title: 'Programme d\'activité douce',
+          description: 'Marche guidée 15 min/jour, yoga adapté, gymnastique douce en chaise.',
+          priority: 'MOYENNE',
+          icon: '🚶',
+          reason: 'Activité physique très faible (< 2)',
+        });
+      }
+
+      if (features.Depression) {
+        rulesBased.push({
+          category: 'SOCIAL',
+          title: 'Activités sociales encadrées',
+          description: 'Participation à un groupe de parole, ateliers créatifs ou visite d\'animatrice.',
+          priority: 'MOYENNE',
+          icon: '👥',
+          reason: 'Signes dépressifs détectés',
+        });
+      }
+
+      if (features.SystolicBP > 140 || features.DiastolicBP > 90) {
+        rulesBased.push({
+          category: 'MÉDICAL',
+          title: 'Surveillance tensionnelle renforcée',
+          description: 'Contrôle de la PA matin et soir, ajustement du traitement antihypertenseur.',
+          priority: 'HAUTE',
+          icon: '💊',
+          reason: 'Hypertension artérielle non contrôlée',
+        });
+      }
+
+      if (features.MemoryComplaints && features.Forgetfulness) {
+        rulesBased.push({
+          category: 'COGNITION',
+          title: 'Carnet de mémoire numérique',
+          description: 'Utilisation d\'une tablette avec rappels de médicaments, photos famille, agenda vocal.',
+          priority: 'MOYENNE',
+          icon: '📱',
+          reason: 'Plaintes mémoire et oublis fréquents',
+        });
+      }
+
+      // Règles basées sur le cluster (simulation cluster 2 = profil fragile)
+      clusterBased.push({
+        category: 'SÉCURITÉ',
+        title: 'Surveillance nocturne',
+        description: 'Capteur de mouvement dans la chambre et couloir pour détecter les errances nocturnes.',
+        priority: 'HAUTE',
+        icon: '🌙',
+        reason: 'Patients similaires (cluster) présentent des comportements nocturnes à risque',
+      });
+
+      clusterBased.push({
+        category: 'MÉDICAL',
+        title: 'Visite médecin tous les 15 jours',
+        description: 'Suivi rapproché pour ajuster les traitements et détecter précocement les complications.',
+        priority: 'HAUTE',
+        icon: '👨‍⚕️',
+        reason: 'Profil du cluster : multi-morbidités fréquentes',
+      });
+
+      clusterBased.push({
+        category: 'SOCIAL',
+        title: 'Accompagnement familial renforcé',
+        description: 'Formation des aidants à la gestion des comportements difficiles et au soutien émotionnel.',
+        priority: 'MOYENNE',
+        icon: '❤️',
+        reason: 'Cluster à risque nécessitant un environnement familial structuré',
+      });
+
+      return of({
+        rulesBased,
+        clusterBased,
+        patientProfile: `Patient âgé de ${features.Age} ans, MMSE=${features.MMSE}, ADL=${features.ADL}. Risque événement estimé selon profil physiologique et cognitif.`,
+        clusterProfile: 'Profil fragile — cluster caractérisé par une autonomie déclinante et des comorbidités cardiovasculaires.',
+      });
+    }
+    return this.http.post<RecommendationsResponse>(`${API_BASE}/recommendations`, features);
   }
 }

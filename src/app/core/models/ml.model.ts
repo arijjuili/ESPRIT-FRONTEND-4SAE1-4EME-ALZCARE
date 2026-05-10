@@ -115,3 +115,19 @@ export interface PcaVisualization {
   points: PcaPoint[];
   clusters: number[];
 }
+
+export interface Recommendation {
+  category: 'SÉCURITÉ' | 'COGNITION' | 'SOCIAL' | 'MÉDICAL' | 'ACTIVITÉ PHYSIQUE';
+  title: string;
+  description: string;
+  priority: 'HAUTE' | 'MOYENNE' | 'BASSE';
+  icon: string;
+  reason: string;
+}
+
+export interface RecommendationsResponse {
+  rulesBased: Recommendation[];
+  clusterBased: Recommendation[];
+  patientProfile: string;
+  clusterProfile: string;
+}

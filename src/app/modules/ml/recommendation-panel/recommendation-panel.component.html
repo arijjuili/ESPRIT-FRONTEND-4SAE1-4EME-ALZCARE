@@ -1,0 +1,79 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="bg-white rounded-xl shadow-md p-6">
+    <h3 class="text-lg font-bold text-gray-900 mb-1">💡 Recommandations Personnalisées</h3>
+    <p class="text-sm text-gray-500">Génération de recommandations via des règles métier et la similarité entre patients/clusters.</p>
+  </div>
+
+  <!-- Formulaire compact -->
+  <div class="bg-white rounded-xl shadow-md p-6">
+    <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-4">Profil patient</h4>
+    <form [formGroup]="form" (ngSubmit)="onGenerate()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Âge</label><input type="number" formControlName="Age" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">MMSE</label><input type="number" step="0.1" formControlName="MMSE" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">ADL</label><input type="number" step="0.1" formControlName="ADL" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Activité physique</label><input type="number" step="0.1" formControlName="PhysicalActivity" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">PAS</label><input type="number" step="0.1" formControlName="SystolicBP" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">PAD</label><input type="number" step="0.1" formControlName="DiastolicBP" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Confusion (0/1)</label><input type="number" formControlName="Confusion" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Désorientation (0/1)</label><input type="number" formControlName="Disorientation" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Dépression (0/1)</label><input type="number" formControlName="Depression" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Plaintes mémoire (0/1)</label><input type="number" formControlName="MemoryComplaints" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div><label class="block text-sm font-medium text-gray-700 mb-1">Oublis (0/1)</label><input type="number" formControlName="Forgetfulness" class="w-full rounded-lg border-gray-300 border px-3 py-2 text-sm" /></div>
+      <div class="flex items-end">
+        <button type="submit" [disabled]="loading" class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-lg shadow hover:shadow-lg transition disabled:opacity-50">
+          <span *ngIf="loading" class="mr-2 animate-spin">⏳</span>
+          {{ loading ? 'Génération...' : '💡 Générer les recommandations' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Résultats -->
+  <div *ngIf="response" class="space-y-6">
+    <!-- Profiles -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-l-primary-500">
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">Profil Patient</h4>
+        <p class="text-sm text-gray-700">{{ response.patientProfile }}</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-l-purple-500">
+        <h4 class="text-xs font-semibold uppercase text-gray-400 tracking-wider mb-2">Profil Cluster</h4>
+        <p class="text-sm text-gray-700">{{ response.clusterProfile }}</p>
+      </div>
+    </div>
+
+    <!-- Recommandations basées sur les règles -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase mb-4">📋 Recommandations basées sur les règles métier</h4>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div *ngFor="let rec of response.rulesBased" class="p-4 rounded-xl border" [class]="categoryColor(rec.category)">
+          <div class="flex items-start justify-between mb-2">
+            <span class="text-2xl">{{ rec.icon }}</span>
+            <span class="px-2 py-0.5 rounded text-xs font-bold" [class]="priorityBadge(rec.priority)">{{ rec.priority }}</span>
+          </div>
+          <h5 class="font-bold text-sm mb-1">{{ rec.title }}</h5>
+          <p class="text-xs opacity-90 mb-2">{{ rec.description }}</p>
+          <p class="text-xs italic opacity-70">💡 {{ rec.reason }}</p>
+        </div>
+      </div>
+      <div *ngIf="!response.rulesBased.length" class="text-center py-8 text-gray-400 text-sm">Aucune recommandation spécifique basée sur les règles pour ce profil.</div>
+    </div>
+
+    <!-- Recommandations basées sur le cluster -->
+    <div class="bg-white rounded-xl shadow-md p-6">
+      <h4 class="text-sm font-semibold text-gray-500 uppercase mb-4">🔗 Recommandations basées sur la similarité cluster</h4>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div *ngFor="let rec of response.clusterBased" class="p-4 rounded-xl border" [class]="categoryColor(rec.category)">
+          <div class="flex items-start justify-between mb-2">
+            <span class="text-2xl">{{ rec.icon }}</span>
+            <span class="px-2 py-0.5 rounded text-xs font-bold" [class]="priorityBadge(rec.priority)">{{ rec.priority }}</span>
+          </div>
+          <h5 class="font-bold text-sm mb-1">{{ rec.title }}</h5>
+          <p class="text-xs opacity-90 mb-2">{{ rec.description }}</p>
+          <p class="text-xs italic opacity-70">💡 {{ rec.reason }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
