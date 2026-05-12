@@ -4,7 +4,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">🤖 Intelligence Artificielle</h1>
-        <p class="text-sm text-gray-500 mt-1">Tableau de bord analytique — Prédictions de risque, clustering et performance des modèles ML</p>
+        <p class="text-sm text-gray-500 mt-1">Prédictions de risque, profils patients et recommandations personnalisées</p>
       </div>
       <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg shadow-sm text-xs text-gray-500">
         <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -32,9 +32,7 @@
     <!-- Content -->
     <div class="transition-opacity duration-300">
       <app-risk-prediction-panel *ngIf="activeTab === 'prediction'"></app-risk-prediction-panel>
-      <app-clustering-panel *ngIf="activeTab === 'clustering'"></app-clustering-panel>
-      <app-model-comparison-panel *ngIf="activeTab === 'comparison'"></app-model-comparison-panel>
-      <app-feature-importance-panel *ngIf="activeTab === 'features'"></app-feature-importance-panel>
+      <app-clustering-panel *ngIf="activeTab === 'profiles'"></app-clustering-panel>
       <app-recommendation-panel *ngIf="activeTab === 'recommendations'"></app-recommendation-panel>
     </div>
   </div>

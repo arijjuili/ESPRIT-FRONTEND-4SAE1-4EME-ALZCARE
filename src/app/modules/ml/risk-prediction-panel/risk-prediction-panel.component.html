@@ -2,7 +2,7 @@
   <!-- Formulaire -->
   <div class="bg-white rounded-xl shadow-md p-6">
     <h3 class="text-lg font-bold text-gray-900 mb-4">🧬 Prédiction des Risques Patient</h3>
-    <p class="text-sm text-gray-500 mb-6">Renseignez les features du patient pour obtenir les prédictions ML.</p>
+    <p class="text-sm text-gray-500 mb-6">Renseignez les informations du patient pour obtenir une évaluation des risques.</p>
 
     <form [formGroup]="form" (ngSubmit)="onPredict()" class="space-y-6">
       <!-- Démographie -->
@@ -99,7 +99,7 @@
   </div>
 
   <!-- Résultats -->
-  <div *ngIf="eventRisk || cognitiveDecline || fallRisk || cluster" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+  <div *ngIf="eventRisk || cognitiveDecline || fallRisk" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
     <!-- Event Risk -->
     <div class="bg-white rounded-xl shadow-md p-6 border-l-4" [class.border-l-red-500]="eventRisk?.riskLabel === 'Élevé'" [class.border-l-yellow-400]="eventRisk?.riskLabel === 'Moyen'" [class.border-l-green-500]="eventRisk?.riskLabel === 'Faible'">
       <h4 class="text-sm font-semibold text-gray-500 uppercase">Risque d'Événement</h4>
@@ -107,7 +107,6 @@
         <span class="text-3xl font-bold" [class.text-red-600]="eventRisk?.riskLabel === 'Élevé'" [class.text-yellow-600]="eventRisk?.riskLabel === 'Moyen'" [class.text-green-600]="eventRisk?.riskLabel === 'Faible'">
           {{ eventRisk?.riskLabel }}
         </span>
-        <p class="text-xs text-gray-400 mt-1">Modèle : {{ eventRisk?.model }}</p>
       </div>
       <div class="mt-3 space-y-1">
         <div class="flex justify-between text-xs"><span class="text-gray-500">Faible</span><span class="font-medium">{{ (eventRisk?.probabilities?.[0] || 0) | percent:'1.0-1' }}</span></div>
@@ -151,18 +150,6 @@
           <span *ngFor="let f of fallRisk?.factors" class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{{ f }}</span>
           <span *ngIf="!fallRisk?.factors?.length" class="text-xs text-gray-400">Aucun facteur majeur</span>
         </div>
-      </div>
-    </div>
-
-    <!-- Cluster -->
-    <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-l-primary-500">
-      <h4 class="text-sm font-semibold text-gray-500 uppercase">Clustering (GMM)</h4>
-      <div class="mt-2">
-        <span class="text-3xl font-bold text-primary-600">{{ cluster?.clusterName }}</span>
-        <p class="text-xs text-gray-400 mt-1">Probabilité : {{ cluster?.probability | percent:'1.0-1' }}</p>
-      </div>
-      <div class="mt-3 text-xs text-gray-500">
-        <p>L'algorithme GMM assigne chaque patient au cluster le plus probable avec un score de confiance.</p>
       </div>
     </div>
   </div>

@@ -6,7 +6,6 @@ import {
   EventRiskPrediction,
   CognitiveDeclinePrediction,
   FallRiskPrediction,
-  ClusterAssignment,
   PatientMlFeatures,
 } from '../../../core/models/ml.model';
 
@@ -60,7 +59,6 @@ export class RiskPredictionPanelComponent {
   eventRisk: EventRiskPrediction | null = null;
   cognitiveDecline: CognitiveDeclinePrediction | null = null;
   fallRisk: FallRiskPrediction | null = null;
-  cluster: ClusterAssignment | null = null;
   loading = false;
 
   onPredict(): void {
@@ -79,9 +77,6 @@ export class RiskPredictionPanelComponent {
     });
     this.mlService.predictFallRisk(features).subscribe((r) => {
       this.fallRisk = r;
-    });
-    this.mlService.assignCluster(features, 'gmm').subscribe((r) => {
-      this.cluster = r;
       this.loading = false;
     });
   }

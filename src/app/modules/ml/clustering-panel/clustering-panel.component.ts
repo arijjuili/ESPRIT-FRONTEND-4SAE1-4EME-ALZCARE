@@ -15,7 +15,6 @@ import { ClusterAnalysis, PcaVisualization } from '../../../core/models/ml.model
 export class ClusteringPanelComponent implements OnInit {
   private mlService = inject(MlService);
 
-  algorithm: 'kmeans' | 'gmm' = 'kmeans';
   clusterAnalysis: ClusterAnalysis | null = null;
   pcaViz: PcaVisualization | null = null;
   loading = false;
@@ -25,8 +24,8 @@ export class ClusteringPanelComponent implements OnInit {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      x: { title: { display: true, text: 'PC1' } },
-      y: { title: { display: true, text: 'PC2' } },
+      x: { title: { display: true, text: 'Facteur principal 1' } },
+      y: { title: { display: true, text: 'Facteur principal 2' } },
     },
     plugins: { legend: { display: true } },
   };
@@ -42,28 +41,34 @@ export class ClusteringPanelComponent implements OnInit {
     this.loadData();
   }
 
-  setAlgorithm(algo: 'kmeans' | 'gmm') {
-    this.algorithm = algo;
-    this.loadData();
-  }
-
   loadData(): void {
     this.loading = true;
-    this.mlService.getClusterAnalysis(this.algorithm).subscribe((ca) => {
+    this.mlService.getClusterAnalysis('gmm').subscribe((ca) => {
       this.clusterAnalysis = ca;
       this.updateDoughnut(ca);
     });
-    this.mlService.getPcaVisualization(this.algorithm).subscribe((viz) => {
+    this.mlService.getPcaVisualization('gmm').subscribe((viz) => {
       this.pcaViz = viz;
       this.updateScatter(viz);
       this.loading = false;
     });
   }
 
+  groupLabel(clusterId: number, dominantRisk?: string): string {
+    if (dominantRisk) {
+      const risk = dominantRisk.toLowerCase();
+      if (risk.includes('faible') || risk.includes('low')) return 'Profil stable';
+      if (risk.includes('moyen') || risk.includes('medium') || risk.includes('moderate')) return 'Profil à risque modéré';
+      if (risk.includes('élevé') || risk.includes('eleve') || risk.includes('high')) return 'Profil à haut risque';
+    }
+    const labels = ['Profil stable', 'Profil à risque modéré', 'Profil à haut risque', 'Profil fragile'];
+    return labels[clusterId % labels.length] || `Profil ${clusterId + 1}`;
+  }
+
   private updateScatter(viz: PcaVisualization): void {
     const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
     const datasets = viz.clusters.map((clusterId) => ({
-      label: `Cluster ${clusterId}`,
+      label: this.groupLabel(clusterId),
       data: viz.points.filter((p) => p.cluster === clusterId).map((p) => ({ x: p.x, y: p.y })),
       backgroundColor: colors[clusterId % colors.length],
       pointRadius: 4,
@@ -74,7 +79,7 @@ export class ClusteringPanelComponent implements OnInit {
 
   private updateDoughnut(ca: ClusterAnalysis): void {
     this.doughnutData = {
-      labels: ca.clusters.map((c) => `Cluster ${c.clusterId}`),
+      labels: ca.clusters.map((c) => this.groupLabel(c.clusterId, c.dominantRisk)),
       datasets: [
         {
           data: ca.clusters.map((c) => c.count),
